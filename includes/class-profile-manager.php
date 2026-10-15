@@ -123,21 +123,35 @@ final class ProfileManager {
 		return $this->markup( wp_get_current_user(), true, 'light' === $atts['theme'] );
 	}
 
-	private function markup( \WP_User $user, bool $is_owner, bool $light ): string {
+	/**
+	 * Render the manager.
+	 *
+	 * @param \WP_User            $user     Whose passkeys.
+	 * @param bool                $is_owner Whether the viewer owns them (can add/rename).
+	 * @param bool                $light    Light (admin) theme instead of dark.
+	 * @param array<string,mixed> $args     Optional: title, desc, button, setup (bool), continue_url.
+	 */
+	public function markup( \WP_User $user, bool $is_owner, bool $light, array $args = [] ): string {
 		$this->enqueue();
 
 		$credentials = array_map( [ $this->rest, 'present' ], $this->store->find_for_user( $user->ID ) );
-		$classes     = 'rtpk-manager' . ( $light ? ' is-light' : '' ) . ( $is_owner ? ' is-owner' : '' );
+		$is_setup    = ! empty( $args['setup'] );
+		$classes     = 'rtpk-manager' . ( $light ? ' is-light' : '' ) . ( $is_owner ? ' is-owner' : '' ) . ( $is_setup ? ' is-setup' : '' );
+		$title       = (string) ( $args['title'] ?? __( 'Your passkeys', 'riviantrackr-passkeys' ) );
+		$button      = (string) ( $args['button'] ?? __( 'Add a passkey', 'riviantrackr-passkeys' ) );
+		$desc        = $args['desc'] ?? null;
 
 		ob_start();
 		?>
-		<div class="<?php echo esc_attr( $classes ); ?>" data-rtpk-manager data-user-id="<?php echo (int) $user->ID; ?>" data-owner="<?php echo $is_owner ? '1' : '0'; ?>">
+		<div class="<?php echo esc_attr( $classes ); ?>" data-rtpk-manager data-user-id="<?php echo (int) $user->ID; ?>" data-owner="<?php echo $is_owner ? '1' : '0'; ?>"<?php echo $is_setup ? ' data-rtpk-setup' : ''; ?>>
 			<div class="rtpk-manager__header">
 				<div class="rtpk-manager__intro">
-					<h3 class="rtpk-manager__title"><?php esc_html_e( 'Your passkeys', 'riviantrackr-passkeys' ); ?></h3>
+					<h3 class="rtpk-manager__title"><?php echo esc_html( $title ); ?></h3>
 					<p class="rtpk-manager__desc">
 						<?php
-						if ( $is_owner ) {
+						if ( null !== $desc ) {
+							echo esc_html( (string) $desc );
+						} elseif ( $is_owner ) {
 							esc_html_e( 'Sign in with Face ID, Touch ID, Windows Hello or a security key instead of a password. Passkeys are phishing-resistant and never leave your device.', 'riviantrackr-passkeys' );
 						} else {
 							esc_html_e( 'Passkeys registered to this account. You can remove them but only the account owner can add new ones.', 'riviantrackr-passkeys' );
@@ -148,7 +162,7 @@ final class ProfileManager {
 				<?php if ( $is_owner ) : ?>
 					<button type="button" class="rtpk-btn rtpk-btn--primary" data-rtpk-add>
 						<?php echo LoginForm::icon(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static SVG. ?>
-						<span><?php esc_html_e( 'Add a passkey', 'riviantrackr-passkeys' ); ?></span>
+						<span><?php echo esc_html( $button ); ?></span>
 					</button>
 				<?php endif; ?>
 			</div>

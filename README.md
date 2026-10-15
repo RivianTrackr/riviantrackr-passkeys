@@ -11,6 +11,9 @@ key once, then sign in with a single tap. Passwords keep working alongside.
   screen or a front-end account page via `[riviantrackr_passkeys]`.
 - **Admin controls** — relying party name/ID, user-verification policy, allowed origins, timeout,
   autofill toggle, uninstall behaviour. Settings → Passkeys.
+- **Invitations** — email members who have no passkey yet with a personal one-tap setup link
+  (Users → Passkey invitations), or invite one person from the Users list. The link signs them in
+  and lands on a focused "Set up a passkey" page.
 - **Hardened by default** — single-use challenges, strict exact-origin matching, signature-counter
   clone detection, per-IP and per-user rate limits, opaque 32-byte user handles, a 10-passkey cap
   per account.
@@ -42,6 +45,35 @@ key once, then sign in with a single tap. Passwords keep working alongside.
 |---|---|
 | `[riviantrackr_passkeys]` | Passkey manager for the signed-in member. Dark "ink & brass" theme by default; `theme="light"` for light backgrounds. Shows a sign-in link when logged out. |
 | `[riviantrackr_passkey_login redirect="/my-account/" theme="dark" divider="0"]` | Stand-alone sign-in button for custom login pages. Hidden for signed-in visitors. |
+
+## Inviting members
+
+**Users → Passkey invitations** shows how many members have a passkey, lets you pick roles and
+whether to re-invite people, and sends in batches of 20 with a progress log. Only members without
+a passkey are ever emailed. The email is plain text you edit in place (placeholders `{name}`,
+`{site}`, `{link}`, `{expires}`, `{login_url}`); the plugin wraps it in a branded HTML template
+with a gold "Set up my passkey" button and sends it through `wp_mail()`, so whatever SMTP plugin
+you use applies. "Send me a test" mails the current draft to you without counting as an invite.
+
+The **Users** list gains a "Passkeys" column, a "Send passkey invite" row action, and a bulk action.
+
+Each email carries a single-use token (32 random bytes; only its SHA-256 hash is stored in user
+meta) that expires after a configurable number of days (default 7). The link opens
+`wp-login.php?action=passkey-setup`:
+
+- With **"Link signs the member in"** on (default), a valid token sets the auth cookie, fires
+  `wp_login`, retires the token and shows the setup page. This is the same trust level as a
+  password-reset email: anyone with the inbox can use it, once, until it expires.
+- With it off, or when the token is expired/used, the member sees the normal login form with a
+  hint and is redirected to the setup page after signing in.
+
+The setup page is a stripped-down `wp-login.php` screen: a short pitch, one big "Create a passkey"
+button (the same manager used on the profile page), a "Continue" button once done, and "Skip for
+now". It also works for members who already have a passkey (shows their list, "Add another device").
+
+Hooks: `riviantrackr_passkeys_invite_email` filters the `to/subject/message/headers` array before
+sending; `riviantrackr_passkeys_invite_sent` and `riviantrackr_passkeys_invite_login` actions fire
+after a send and after a magic-link sign-in.
 
 ## How it works
 
@@ -102,7 +134,7 @@ do_action( 'riviantrackr_passkeys_counter_mismatch', array $row, WP_User $user )
 
 ```bash
 composer install          # PHPUnit + the library source
-vendor/bin/phpunit        # 38 tests incl. a software P-256 authenticator driving real verification
+vendor/bin/phpunit        # PHPUnit incl. a software P-256 authenticator driving real verification
 npm install && npm test   # JS helper tests (node:test)
 npm run build             # esbuild → assets/*.min.{js,css}
 phpcs --standard=.phpcs.xml

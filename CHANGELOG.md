@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Passkey invitations.** New **Users → Passkey invitations** screen: see how many members have a passkey, filter by role and previous invitations, edit the email (plain text with `{name}`, `{site}`, `{link}`, `{expires}`, `{login_url}` placeholders, wrapped in a branded HTML template), send yourself a test, then send in batches of 20 with a live progress log. Only members without a passkey are ever emailed.
+- **Users list integration.** A "Passkeys" column (count, or "Invited N ago"), a "Send passkey invite" row action, and a "Send passkey invitation" bulk action.
+- **One-tap setup page** at `wp-login.php?action=passkey-setup`: a focused screen with the pitch, a single "Create a passkey" button, a "Continue" button on success and "Skip for now". Invitation links carry a single-use token (SHA-256 hash stored in user meta, expiry configurable, default 7 days). With "Link signs the member in" enabled (default), a valid token sets the auth cookie and opens setup directly — the same trust level as a password-reset email; otherwise, or once the token is spent, the normal login form shows a hint and redirects to setup after sign-in.
+- **Hooks:** `riviantrackr_passkeys_invite_email` filter; `riviantrackr_passkeys_invite_sent` and `riviantrackr_passkeys_invite_login` actions.
+- Settings → Passkeys links to the invitations screen.
+
+### Changed
+- `ProfileManager::markup()` is now public and accepts title/description/button/setup overrides so other screens can embed the manager.
+
 ## [1.0.1] - 2026-10-15
 
 ### Changed

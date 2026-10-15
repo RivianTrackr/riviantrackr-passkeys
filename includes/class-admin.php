@@ -218,6 +218,18 @@ final class Admin {
 				</div>
 			</form>
 
+			<div class="rtpk-section">
+				<div class="rtpk-section-header">
+					<h2><?php esc_html_e( 'Invite members', 'riviantrackr-passkeys' ); ?></h2>
+					<p><?php esc_html_e( 'Email members who have no passkey yet with a personal one-tap setup link.', 'riviantrackr-passkeys' ); ?></p>
+				</div>
+				<div class="rtpk-section-body">
+					<div class="rtpk-field-row rtpk-field-row--actions">
+						<a class="button rtpk-btn rtpk-btn--secondary" href="<?php echo esc_url( InviteAdmin::page_url() ); ?>"><?php esc_html_e( 'Open passkey invitations', 'riviantrackr-passkeys' ); ?></a>
+					</div>
+				</div>
+			</div>
+
 			<div class="rtpk-section rtpk-section--help">
 				<div class="rtpk-section-header">
 					<h2><?php esc_html_e( 'Shortcodes', 'riviantrackr-passkeys' ); ?></h2>

@@ -23,6 +23,9 @@ final class Plugin {
 	private LoginForm $login_form;
 	private ProfileManager $profile;
 	private Admin $admin;
+	private InviteService $invites;
+	private InviteAdmin $invite_admin;
+	private SetupPage $setup_page;
 
 	public static function instance(): Plugin {
 		if ( null === self::$instance ) {
@@ -32,15 +35,18 @@ final class Plugin {
 	}
 
 	private function __construct() {
-		$this->settings   = new Settings();
-		$this->store      = new CredentialStore();
-		$this->challenges = new ChallengeStore();
-		$this->limiter    = new RateLimiter();
-		$this->service    = new WebAuthnService( $this->settings, $this->store );
-		$this->rest       = new RestController( $this->settings, $this->store, $this->challenges, $this->limiter, $this->service );
-		$this->login_form = new LoginForm( $this->settings );
-		$this->profile    = new ProfileManager( $this->settings, $this->store, $this->rest );
-		$this->admin      = new Admin( $this->settings, $this->store );
+		$this->settings     = new Settings();
+		$this->store        = new CredentialStore();
+		$this->challenges   = new ChallengeStore();
+		$this->limiter      = new RateLimiter();
+		$this->service      = new WebAuthnService( $this->settings, $this->store );
+		$this->rest         = new RestController( $this->settings, $this->store, $this->challenges, $this->limiter, $this->service );
+		$this->login_form   = new LoginForm( $this->settings );
+		$this->profile      = new ProfileManager( $this->settings, $this->store, $this->rest );
+		$this->admin        = new Admin( $this->settings, $this->store );
+		$this->invites      = new InviteService( $this->settings, $this->store );
+		$this->invite_admin = new InviteAdmin( $this->invites, $this->store );
+		$this->setup_page   = new SetupPage( $this->invites, $this->profile, $this->store );
 	}
 
 	public function boot(): void {
@@ -53,9 +59,11 @@ final class Plugin {
 
 		$this->login_form->register_hooks();
 		$this->profile->register_hooks();
+		$this->setup_page->register_hooks();
 
 		if ( is_admin() ) {
 			$this->admin->register_hooks();
+			$this->invite_admin->register_hooks();
 		}
 	}
 
@@ -65,5 +73,9 @@ final class Plugin {
 
 	public function credentials(): CredentialStore {
 		return $this->store;
+	}
+
+	public function invites(): InviteService {
+		return $this->invites;
 	}
 }

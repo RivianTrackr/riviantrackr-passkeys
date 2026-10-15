@@ -18,6 +18,7 @@ Adds passkey (WebAuthn / FIDO2) sign-in to WordPress.
 * Browser autofill (conditional UI) for saved passkeys
 * Members add, rename and remove passkeys from their profile or via the [riviantrackr_passkeys] shortcode
 * Settings screen for relying party, user verification policy, allowed origins and timeout
+* Invite members without a passkey by email: personal one-tap setup link, batch sending by role, per-user and bulk actions on the Users list
 * Single-use challenges, strict origin checks, signature-counter clone detection, rate limiting
 * No external dependencies at runtime
 
@@ -39,6 +40,9 @@ The site must be served over HTTPS and the browser must support WebAuthn.
 Yes. Set the relying party ID to the parent domain and list each subdomain origin under "Additional allowed origins". Existing passkeys must be re-registered after changing the RP ID.
 
 == Changelog ==
+
+= Unreleased =
+* Passkey invitations: email members without a passkey a personal setup link (Users → Passkey invitations, plus Users-list row and bulk actions) and a focused "Set up a passkey" page at wp-login.php?action=passkey-setup.
 
 = 1.0.1 =
 * Passkey button now leads the login form, above an "or" divider, so the passwordless path is the primary action.

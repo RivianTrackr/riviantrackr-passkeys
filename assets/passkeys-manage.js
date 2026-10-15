@@ -81,6 +81,9 @@
 				list.appendChild(renderItem(result.credential, isOwner, iconTemplate));
 				updateEmpty(list, empty);
 				showMsg(msg, i18n.added, 'success');
+				if (root.hasAttribute('data-rtpk-setup')) {
+					finishSetup();
+				}
 			})
 			.catch(function (err) {
 				showMsg(msg, core.describeError(err, i18n), 'error');
@@ -229,6 +232,25 @@
 		li.appendChild(body);
 		li.appendChild(actions);
 		return li;
+	}
+
+	/**
+	 * On the "Set up a passkey" page: reveal the done panel and hide "skip".
+	 */
+	function finishSetup() {
+		var done = document.querySelector('[data-rtpk-done]');
+		var skip = document.querySelector('[data-rtpk-skip]');
+		if (done) {
+			done.hidden = false;
+			done.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+			var cta = done.querySelector('a');
+			if (cta) {
+				cta.focus({ preventScroll: true });
+			}
+		}
+		if (skip) {
+			skip.hidden = true;
+		}
 	}
 
 	/* ------------------------------------------------------------- helpers */

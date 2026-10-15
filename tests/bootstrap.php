@@ -27,6 +27,12 @@ define( 'RTPK_LOGIN_RATE_LIMIT', 10 );
 define( 'RTPK_OPTIONS_RATE_LIMIT', 30 );
 define( 'RTPK_REGISTER_RATE_LIMIT', 10 );
 define( 'RTPK_NAME_MAX_LENGTH', 60 );
+if ( ! defined( 'DAY_IN_SECONDS' ) ) {
+	define( 'DAY_IN_SECONDS', 86400 );
+}
+if ( ! defined( 'HOUR_IN_SECONDS' ) ) {
+	define( 'HOUR_IN_SECONDS', 3600 );
+}
 
 require_once dirname( __DIR__ ) . '/vendor/autoload.php';
 require_once dirname( __DIR__ ) . '/includes/class-autoloader.php';
@@ -45,6 +51,8 @@ function rtpk_test_reset(): void {
 	$GLOBALS['rtpk_test_transients'] = [];
 	$GLOBALS['rtpk_test_usermeta']   = [];
 	$GLOBALS['rtpk_test_errors']     = [];
+	$GLOBALS['rtpk_test_users']      = [];
+	$GLOBALS['rtpk_test_mail']       = [];
 }
 
 /* ---------------------------------------------------------------- options */
@@ -92,6 +100,26 @@ function update_user_meta( $user_id, $key, $value ) {
 	$GLOBALS['rtpk_test_usermeta'][ $user_id ][ $key ] = $value;
 	return true;
 }
+function delete_user_meta( $user_id, $key ) {
+	unset( $GLOBALS['rtpk_test_usermeta'][ $user_id ][ $key ] );
+	return true;
+}
+
+/* ------------------------------------------------------------------ users */
+
+$GLOBALS['rtpk_test_users'] = [];
+$GLOBALS['rtpk_test_mail']  = [];
+
+function get_user_by( $field, $value ) {
+	return $GLOBALS['rtpk_test_users'][ (int) $value ] ?? false;
+}
+function wp_mail( $to, $subject, $message, $headers = [] ) {
+	$GLOBALS['rtpk_test_mail'][] = compact( 'to', 'subject', 'message', 'headers' );
+	return true;
+}
+function is_email( $email ) {
+	return (bool) filter_var( (string) $email, FILTER_VALIDATE_EMAIL );
+}
 
 /* ------------------------------------------------------------- sanitizers */
 
@@ -115,6 +143,33 @@ function wp_parse_url( $url, $component = -1 ) {
 }
 function wp_json_encode( $data, $flags = 0 ) {
 	return json_encode( $data, $flags );
+}
+function wp_strip_all_tags( $str ) {
+	return trim( strip_tags( (string) $str ) );
+}
+function esc_url( $url ) {
+	return htmlspecialchars( (string) $url, ENT_QUOTES, 'UTF-8' );
+}
+function esc_textarea( $text ) {
+	return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' );
+}
+function add_query_arg( ...$args ) {
+	if ( is_array( $args[0] ) ) {
+		$params = $args[0];
+		$url    = $args[1];
+	} else {
+		$params = [ $args[0] => $args[1] ];
+		$url    = $args[2];
+	}
+	$sep = str_contains( $url, '?' ) ? '&' : '?';
+	return $url . $sep . http_build_query( $params );
+}
+function wp_login_url( $redirect = '' ) {
+	$url = 'https://riviantrackr.test/wp-login.php';
+	return '' !== $redirect ? $url . '?redirect_to=' . rawurlencode( $redirect ) : $url;
+}
+function _n( $single, $plural, $number, $domain = null ) {
+	return 1 === (int) $number ? $single : $plural;
 }
 
 /* ------------------------------------------------------------------ i18n */
@@ -157,12 +212,33 @@ class WP_User {
 	public int $ID;
 	public string $user_login;
 	public string $display_name;
+	public string $user_email;
 
-	public function __construct( int $id, string $login = 'jose', string $display = 'Jose' ) {
+	public function __construct( int $id, string $login = 'jose', string $display = 'Jose', string $email = 'jose@riviantrackr.test' ) {
 		$this->ID           = $id;
 		$this->user_login   = $login;
 		$this->display_name = $display;
+		$this->user_email   = $email;
 	}
+}
+
+class WP_Error {
+	private string $code;
+	private string $message;
+
+	public function __construct( string $code = '', string $message = '', $data = null ) {
+		$this->code    = $code;
+		$this->message = $message;
+	}
+	public function get_error_code(): string {
+		return $this->code;
+	}
+	public function get_error_message(): string {
+		return $this->message;
+	}
+}
+function is_wp_error( $thing ) {
+	return $thing instanceof WP_Error;
 }
 
 /**
