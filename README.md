@@ -111,6 +111,12 @@ phpcs --standard=.phpcs.xml
 The bundled library lives in `lib/lbuchs-webauthn/` (copied from `vendor/lbuchs/webauthn/src`).
 To upgrade it: `composer update lbuchs/webauthn && cp -R vendor/lbuchs/webauthn/src/. lib/lbuchs-webauthn/`.
 
+## Releasing
+
+1. Add an entry under `[Unreleased]` in `CHANGELOG.md` as you go.
+2. To release, move it under a new version heading, bump the version in `riviantrackr-passkeys.php` (header and `RTPK_VERSION`), `readme.txt` (stable tag + changelog) and `package.json`.
+3. Commit, tag `vX.Y.Z`, push with tags. CI runs on every push.
+
 ## Troubleshooting
 
 - **Button never appears** — the browser lacks WebAuthn, or the page is not HTTPS. Check the

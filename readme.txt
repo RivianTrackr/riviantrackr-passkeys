@@ -4,7 +4,7 @@ Tags: passkeys, webauthn, fido2, passwordless, login, security
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.1
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -39,6 +39,10 @@ The site must be served over HTTPS and the browser must support WebAuthn.
 Yes. Set the relying party ID to the parent domain and list each subdomain origin under "Additional allowed origins". Existing passkeys must be re-registered after changing the RP ID.
 
 == Changelog ==
+
+= 1.0.1 =
+* Passkey button now leads the login form, above an "or" divider, matching the Rivian Roamer layout.
+* Button restyled as a filled brand-gold primary on light and dark forms.
 
 = 1.0.0 =
 * Initial release.
