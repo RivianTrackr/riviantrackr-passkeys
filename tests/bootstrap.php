@@ -53,6 +53,9 @@ function rtpk_test_reset(): void {
 	$GLOBALS['rtpk_test_errors']     = [];
 	$GLOBALS['rtpk_test_users']      = [];
 	$GLOBALS['rtpk_test_mail']       = [];
+	$GLOBALS['rtpk_test_filters']     = [];
+	$GLOBALS['rtpk_test_attachments'] = [];
+	$GLOBALS['rtpk_test_theme_mods']  = [];
 }
 
 /* ---------------------------------------------------------------- options */
@@ -119,6 +122,36 @@ function wp_mail( $to, $subject, $message, $headers = [] ) {
 }
 function is_email( $email ) {
 	return (bool) filter_var( (string) $email, FILTER_VALIDATE_EMAIL );
+}
+function sanitize_email( $email ) {
+	return (string) filter_var( trim( (string) $email ), FILTER_SANITIZE_EMAIL );
+}
+function absint( $value ) {
+	return abs( (int) $value );
+}
+
+/* ------------------------------------------------------------ filters/media */
+
+$GLOBALS['rtpk_test_filters']     = [];
+$GLOBALS['rtpk_test_attachments'] = [];
+$GLOBALS['rtpk_test_theme_mods']  = [];
+
+function add_filter( $tag, $callback, $priority = 10, $args = 1 ) {
+	$GLOBALS['rtpk_test_filters'][] = [ 'add', $tag, $callback ];
+	return true;
+}
+function remove_filter( $tag, $callback, $priority = 10 ) {
+	$GLOBALS['rtpk_test_filters'][] = [ 'remove', $tag, $callback ];
+	return true;
+}
+function wp_get_attachment_image_url( $id, $size = 'thumbnail' ) {
+	return $GLOBALS['rtpk_test_attachments'][ (int) $id ] ?? false;
+}
+function get_theme_mod( $name, $default = false ) {
+	return $GLOBALS['rtpk_test_theme_mods'][ $name ] ?? $default;
+}
+function get_site_icon_url( $size = 512 ) {
+	return '';
 }
 
 /* ------------------------------------------------------------- sanitizers */

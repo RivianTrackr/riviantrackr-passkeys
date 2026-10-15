@@ -36,6 +36,7 @@ final class InviteAdmin {
 		add_action( 'wp_ajax_rtpk_invite_count', [ $this, 'ajax_count' ] );
 		add_action( 'wp_ajax_rtpk_invite_send', [ $this, 'ajax_send' ] );
 		add_action( 'wp_ajax_rtpk_invite_test', [ $this, 'ajax_test' ] );
+		add_action( 'wp_ajax_rtpk_invite_preview', [ $this, 'ajax_preview' ] );
 
 		add_filter( 'manage_users_columns', [ $this, 'users_column' ] );
 		add_filter( 'manage_users_custom_column', [ $this, 'users_column_value' ], 10, 3 );
@@ -79,8 +80,9 @@ final class InviteAdmin {
 			return;
 		}
 		$suffix = RTPK_ASSET_SUFFIX;
-		wp_enqueue_style( 'rtpk-admin', RTPK_URL . "assets/passkeys-admin{$suffix}.css", [], RTPK_VERSION );
-		wp_enqueue_script( 'rtpk-invites', RTPK_URL . "assets/passkeys-invites{$suffix}.js", [], RTPK_VERSION, true );
+		wp_enqueue_media();
+		wp_enqueue_style( 'rtpk-admin', RTPK_URL . "assets/passkeys-admin{$suffix}.css", [], Helpers::asset_version( "assets/passkeys-admin{$suffix}.css" ) );
+		wp_enqueue_script( 'rtpk-invites', RTPK_URL . "assets/passkeys-invites{$suffix}.js", [], Helpers::asset_version( "assets/passkeys-invites{$suffix}.js" ), true );
 		wp_localize_script(
 			'rtpk-invites',
 			'rtpkInvites',
@@ -101,6 +103,9 @@ final class InviteAdmin {
 					'done'         => __( 'Finished: %1$d sent, %2$d failed.', 'riviantrackr-passkeys' ),
 					'testSent'     => __( 'Test email sent to you. Check your inbox.', 'riviantrackr-passkeys' ),
 					'genericError' => __( 'Something went wrong. Please try again.', 'riviantrackr-passkeys' ),
+					'chooseLogo'   => __( 'Choose a logo', 'riviantrackr-passkeys' ),
+					'useLogo'      => __( 'Use this logo', 'riviantrackr-passkeys' ),
+					'previewing'   => __( 'Building preview…', 'riviantrackr-passkeys' ),
 				],
 			]
 		);
@@ -143,11 +148,7 @@ final class InviteAdmin {
 				<div class="rtpk-section">
 					<div class="rtpk-section-header">
 						<h2><?php esc_html_e( 'Email', 'riviantrackr-passkeys' ); ?></h2>
-						<p>
-							<?php esc_html_e( 'Placeholders:', 'riviantrackr-passkeys' ); ?>
-							<code>{name}</code> <code>{site}</code> <code>{link}</code> <code>{expires}</code> <code>{login_url}</code>
-							<?php esc_html_e( '— the setup button and link are always appended below your message.', 'riviantrackr-passkeys' ); ?>
-						</p>
+						<p><?php esc_html_e( 'Write the message in plain text; the plugin adds your logo, the setup button and the fallback link.', 'riviantrackr-passkeys' ); ?></p>
 					</div>
 					<div class="rtpk-section-body">
 						<div class="rtpk-field-row">
@@ -157,11 +158,60 @@ final class InviteAdmin {
 						<div class="rtpk-field-row">
 							<label class="rtpk-field-label" for="rtpk-invite-body"><?php esc_html_e( 'Message', 'riviantrackr-passkeys' ); ?></label>
 							<textarea id="rtpk-invite-body" class="rtpk-input rtpk-input--wide rtpk-textarea rtpk-textarea--tall" name="<?php echo esc_attr( $name ); ?>[body]" rows="9" data-rtpk-body><?php echo esc_textarea( (string) $o['body'] ); ?></textarea>
-							<p class="rtpk-field-description"><?php esc_html_e( 'Plain text. Blank lines start a new paragraph.', 'riviantrackr-passkeys' ); ?></p>
+							<p class="rtpk-field-description">
+								<?php esc_html_e( 'Blank lines start a new paragraph. Placeholders:', 'riviantrackr-passkeys' ); ?>
+								<code>{name}</code> <code>{site}</code> <code>{link}</code> <code>{expires}</code> <code>{login_url}</code>
+							</p>
 						</div>
 						<div class="rtpk-field-row">
-							<label class="rtpk-field-label" for="rtpk-invite-expiry"><?php esc_html_e( 'Link expires after (days)', 'riviantrackr-passkeys' ); ?></label>
-							<input type="number" id="rtpk-invite-expiry" class="rtpk-input rtpk-input--short" min="1" max="30" name="<?php echo esc_attr( $name ); ?>[expiry_days]" value="<?php echo (int) $o['expiry_days']; ?>">
+							<div class="rtpk-field-grid">
+								<div>
+									<label class="rtpk-field-label" for="rtpk-invite-from-name"><?php esc_html_e( 'From name', 'riviantrackr-passkeys' ); ?></label>
+									<input type="text" id="rtpk-invite-from-name" class="rtpk-input" name="<?php echo esc_attr( $name ); ?>[from_name]" value="<?php echo esc_attr( (string) $o['from_name'] ); ?>" placeholder="<?php echo esc_attr( (string) get_bloginfo( 'name' ) ); ?>">
+								</div>
+								<div>
+									<label class="rtpk-field-label" for="rtpk-invite-from-email"><?php esc_html_e( 'From email', 'riviantrackr-passkeys' ); ?></label>
+									<input type="email" id="rtpk-invite-from-email" class="rtpk-input" name="<?php echo esc_attr( $name ); ?>[from_email]" value="<?php echo esc_attr( (string) $o['from_email'] ); ?>" placeholder="<?php echo esc_attr( (string) get_option( 'admin_email' ) ); ?>">
+								</div>
+							</div>
+							<p class="rtpk-field-description"><?php esc_html_e( 'Leave blank to use the WordPress default. If your SMTP plugin is set to force a from address, its setting wins.', 'riviantrackr-passkeys' ); ?></p>
+						</div>
+						<div class="rtpk-field-row">
+							<span class="rtpk-field-label"><?php esc_html_e( 'Logo', 'riviantrackr-passkeys' ); ?></span>
+							<?php
+							$logo_id  = absint( $o['logo_id'] );
+							$logo_url = $this->invites->logo_url();
+							?>
+							<div class="rtpk-logo" data-rtpk-logo>
+								<input type="hidden" name="<?php echo esc_attr( $name ); ?>[logo_id]" value="<?php echo (int) $logo_id; ?>" data-rtpk-logo-id>
+								<div class="rtpk-logo__preview <?php echo 'light' === $o['theme'] ? 'is-light' : ''; ?>" data-rtpk-logo-preview>
+									<img src="<?php echo esc_url( $logo_url ); ?>" alt="" data-rtpk-logo-img <?php echo '' === $logo_url ? 'hidden' : ''; ?>>
+									<span class="rtpk-logo__empty" data-rtpk-logo-empty <?php echo '' !== $logo_url ? 'hidden' : ''; ?>><?php esc_html_e( 'No logo — the site name is shown instead', 'riviantrackr-passkeys' ); ?></span>
+								</div>
+								<div class="rtpk-logo__actions">
+									<button type="button" class="button rtpk-btn rtpk-btn--secondary" data-rtpk-logo-choose><?php esc_html_e( 'Choose image', 'riviantrackr-passkeys' ); ?></button>
+									<button type="button" class="button rtpk-btn rtpk-btn--ghost" data-rtpk-logo-remove <?php echo $logo_id > 0 ? '' : 'hidden'; ?>><?php esc_html_e( 'Use default', 'riviantrackr-passkeys' ); ?></button>
+								</div>
+							</div>
+							<p class="rtpk-field-description"><?php esc_html_e( 'Defaults to your theme’s custom logo, or the site icon. A wide, transparent PNG or SVG around 48px tall looks best.', 'riviantrackr-passkeys' ); ?></p>
+						</div>
+						<div class="rtpk-field-row">
+							<div class="rtpk-field-grid">
+								<div>
+									<label class="rtpk-field-label" for="rtpk-invite-theme"><?php esc_html_e( 'Colours', 'riviantrackr-passkeys' ); ?></label>
+									<select id="rtpk-invite-theme" class="rtpk-input rtpk-select" name="<?php echo esc_attr( $name ); ?>[theme]" data-rtpk-theme>
+										<option value="dark" <?php selected( $o['theme'], 'dark' ); ?>><?php esc_html_e( 'Dark — matches the site (ink & brass)', 'riviantrackr-passkeys' ); ?></option>
+										<option value="light" <?php selected( $o['theme'], 'light' ); ?>><?php esc_html_e( 'Light — white card, gold button', 'riviantrackr-passkeys' ); ?></option>
+									</select>
+								</div>
+								<div>
+									<label class="rtpk-field-label" for="rtpk-invite-expiry"><?php esc_html_e( 'Link expires after', 'riviantrackr-passkeys' ); ?></label>
+									<div class="rtpk-input-suffix">
+										<input type="number" id="rtpk-invite-expiry" class="rtpk-input rtpk-input--short" min="1" max="30" name="<?php echo esc_attr( $name ); ?>[expiry_days]" value="<?php echo (int) $o['expiry_days']; ?>">
+										<span><?php esc_html_e( 'days', 'riviantrackr-passkeys' ); ?></span>
+									</div>
+								</div>
+							</div>
 						</div>
 						<div class="rtpk-field-row rtpk-field-row--toggle">
 							<div>
@@ -176,8 +226,12 @@ final class InviteAdmin {
 						</div>
 						<div class="rtpk-field-row rtpk-field-row--actions">
 							<?php submit_button( __( 'Save email', 'riviantrackr-passkeys' ), 'rtpk-btn rtpk-btn--primary', 'submit', false ); ?>
+							<button type="button" class="button rtpk-btn rtpk-btn--secondary" data-rtpk-preview><?php esc_html_e( 'Preview', 'riviantrackr-passkeys' ); ?></button>
 							<button type="button" class="button rtpk-btn rtpk-btn--secondary" data-rtpk-test><?php esc_html_e( 'Send me a test', 'riviantrackr-passkeys' ); ?></button>
 							<span class="rtpk-inline-msg" data-rtpk-test-msg role="status" aria-live="polite"></span>
+						</div>
+						<div class="rtpk-field-row rtpk-preview" data-rtpk-preview-panel hidden>
+							<iframe class="rtpk-preview__frame" title="<?php esc_attr_e( 'Email preview', 'riviantrackr-passkeys' ); ?>" sandbox="" data-rtpk-preview-frame></iframe>
 						</div>
 					</div>
 				</div>
@@ -280,21 +334,46 @@ final class InviteAdmin {
 		);
 	}
 
-	public function ajax_test(): void {
-		$this->guard();
-		$user = wp_get_current_user();
+	/**
+	 * Unsaved draft values posted alongside test/preview requests.
+	 *
+	 * @return array<string,mixed>
+	 */
+	private function read_draft(): array {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Verified in guard().
-		$template = [
+		$draft = [
 			'subject' => sanitize_text_field( (string) wp_unslash( $_POST['subject'] ?? '' ) ),
 			'body'    => trim( wp_strip_all_tags( (string) wp_unslash( $_POST['body'] ?? '' ) ) ),
+			'theme'   => sanitize_key( (string) wp_unslash( $_POST['theme'] ?? '' ) ),
 		];
+		if ( isset( $_POST['logo_id'] ) ) {
+			$draft['logo_id'] = absint( wp_unslash( $_POST['logo_id'] ) );
+		}
 		// phpcs:enable
-		if ( '' === $template['subject'] ) {
-			unset( $template['subject'] );
+		foreach ( [ 'subject', 'body', 'theme' ] as $key ) {
+			if ( '' === $draft[ $key ] ) {
+				unset( $draft[ $key ] );
+			}
 		}
-		if ( '' === $template['body'] ) {
-			unset( $template['body'] );
-		}
+		return $draft;
+	}
+
+	public function ajax_preview(): void {
+		$this->guard();
+		$user  = wp_get_current_user();
+		$email = $this->invites->render_email( $user, $this->invites->setup_url(), $this->read_draft() );
+		wp_send_json_success(
+			[
+				'subject' => $email['subject'],
+				'html'    => $email['html'],
+			]
+		);
+	}
+
+	public function ajax_test(): void {
+		$this->guard();
+		$user     = wp_get_current_user();
+		$template = $this->read_draft();
 
 		$result = $this->invites->send( $user, $template ?: null, false );
 		if ( is_wp_error( $result ) ) {

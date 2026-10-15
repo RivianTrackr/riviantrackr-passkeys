@@ -45,6 +45,10 @@ final class InviteService {
 			),
 			'expiry_days' => 7,
 			'magic_link'  => true,
+			'from_name'   => '',
+			'from_email'  => '',
+			'logo_id'     => 0,
+			'theme'       => 'dark',
 		];
 	}
 
@@ -83,6 +87,16 @@ final class InviteService {
 		$subject = sanitize_text_field( (string) ( $input['subject'] ?? '' ) );
 		$body    = trim( wp_strip_all_tags( (string) ( $input['body'] ?? '' ) ) );
 		$days    = (int) ( $input['expiry_days'] ?? $defaults['expiry_days'] );
+		$theme   = (string) ( $input['theme'] ?? 'dark' );
+
+		$from_raw   = trim( (string) ( $input['from_email'] ?? '' ) );
+		$from_email = '' !== $from_raw ? sanitize_email( $from_raw ) : '';
+		if ( '' !== $from_raw && ! is_email( $from_email ) ) {
+			if ( function_exists( 'add_settings_error' ) ) {
+				add_settings_error( self::OPTION, 'rtpk_from_email', __( 'The “from” address is not a valid email address and was cleared.', 'riviantrackr-passkeys' ) );
+			}
+			$from_email = '';
+		}
 
 		$this->flush();
 
@@ -91,6 +105,70 @@ final class InviteService {
 			'body'        => '' !== $body ? $body : $defaults['body'],
 			'expiry_days' => max( 1, min( 30, $days ) ),
 			'magic_link'  => ! empty( $input['magic_link'] ),
+			'from_name'   => sanitize_text_field( (string) ( $input['from_name'] ?? '' ) ),
+			'from_email'  => $from_email,
+			'logo_id'     => absint( $input['logo_id'] ?? 0 ),
+			'theme'       => in_array( $theme, [ 'dark', 'light' ], true ) ? $theme : 'dark',
+		];
+	}
+
+	// ---- branding -----------------------------------------------------
+
+	/**
+	 * Logo for the email header: the chosen image, else the theme's custom
+	 * logo, else the site icon, else nothing (site name is shown instead).
+	 */
+	public function logo_url( int $override_id = -1 ): string {
+		$id = $override_id >= 0 ? $override_id : absint( $this->get( 'logo_id' ) );
+		if ( $id > 0 ) {
+			$url = wp_get_attachment_image_url( $id, 'medium' );
+			if ( is_string( $url ) && '' !== $url ) {
+				return $url;
+			}
+		}
+		$custom = absint( get_theme_mod( 'custom_logo', 0 ) );
+		if ( $custom > 0 ) {
+			$url = wp_get_attachment_image_url( $custom, 'medium' );
+			if ( is_string( $url ) && '' !== $url ) {
+				return $url;
+			}
+		}
+		$icon = (string) get_site_icon_url( 192 );
+		return $icon;
+	}
+
+	/**
+	 * Email colours. Dark is the site's "ink & brass" palette.
+	 *
+	 * @return array<string,string>
+	 */
+	public function palette( string $theme = '' ): array {
+		$theme = '' !== $theme ? $theme : (string) $this->get( 'theme' );
+		if ( 'light' === $theme ) {
+			return [
+				'bg'        => '#f5f5f7',
+				'card'      => '#ffffff',
+				'border'    => '#d2d2d7',
+				'heading'   => '#1d1d1f',
+				'text'      => '#1d1d1f',
+				'secondary' => '#6e6e73',
+				'muted'     => '#86868b',
+				'accent'    => '#fba919',
+				'on_accent' => '#15130e',
+				'link'      => '#0071e3',
+			];
+		}
+		return [
+			'bg'        => '#121418',
+			'card'      => '#16191e',
+			'border'    => '#3a3e45',
+			'heading'   => '#f6f4f0',
+			'text'      => '#ece9e4',
+			'secondary' => '#a6a39c',
+			'muted'     => '#79766f',
+			'accent'    => '#fba919',
+			'on_accent' => '#15130e',
+			'link'      => '#fba919',
 		];
 	}
 
@@ -205,42 +283,55 @@ final class InviteService {
 	 *
 	 * @param \WP_User   $user     Recipient.
 	 * @param string     $link     Personal invitation link.
-	 * @param array|null $template Optional subject/body override (e.g. an unsaved draft).
+	 * @param array|null $template Optional overrides: subject, body, logo_id, theme (e.g. an unsaved draft).
 	 * @return array{subject:string,html:string,text:string}
 	 */
 	public function render_email( \WP_User $user, string $link, ?array $template = null ): array {
 		$subject_tpl = (string) ( $template['subject'] ?? $this->get( 'subject' ) );
 		$body_tpl    = (string) ( $template['body'] ?? $this->get( 'body' ) );
+		$logo        = $this->logo_url( isset( $template['logo_id'] ) ? absint( $template['logo_id'] ) : -1 );
+		$c           = $this->palette( (string) ( $template['theme'] ?? '' ) );
 
 		$subject = $this->fill( $subject_tpl, $user, $link );
 		$body    = $this->fill( $body_tpl, $user, $link );
 		$site    = (string) get_bloginfo( 'name' );
+		$home    = home_url( '/' );
 		$days    = (int) $this->get( 'expiry_days' );
 		$button  = __( 'Set up my passkey', 'riviantrackr-passkeys' );
 		/* translators: %d: number of days */
 		$expiry = sprintf( _n( 'This link is personal to you and expires in %d day.', 'This link is personal to you and expires in %d days.', $days, 'riviantrackr-passkeys' ), $days );
 		$ignore = __( 'If you didn\'t expect this email you can safely ignore it; nothing changes on your account until you create a passkey.', 'riviantrackr-passkeys' );
+		$font   = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif";
 
 		$paragraphs = array_filter( array_map( 'trim', preg_split( '/\n{2,}/', $body ) ?: [] ) );
 		$body_html  = '';
 		foreach ( $paragraphs as $paragraph ) {
-			$body_html .= '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#1d1d1f;">' . nl2br( esc_html( $paragraph ) ) . '</p>';
+			$body_html .= '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:' . $c['text'] . ';">' . nl2br( esc_html( $paragraph ) ) . '</p>';
 		}
 
-		$html = '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>' . esc_html( $subject ) . '</title></head>'
-			. '<body style="margin:0;padding:0;background:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,\'Helvetica Neue\',sans-serif;-webkit-font-smoothing:antialiased;">'
-			. '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f7;padding:32px 16px;"><tr><td align="center">'
-			. '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #d2d2d7;border-radius:12px;">'
-			. '<tr><td style="padding:28px 32px 8px;font-size:13px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;color:#6e6e73;">' . esc_html( $site ) . '</td></tr>'
-			. '<tr><td style="padding:0 32px 8px;font-size:22px;font-weight:700;line-height:1.3;color:#1d1d1f;">' . esc_html( $subject ) . '</td></tr>'
-			. '<tr><td style="padding:8px 32px 0;">' . $body_html . '</td></tr>'
-			. '<tr><td style="padding:8px 32px 24px;">'
-			. '<a href="' . esc_url( $link ) . '" style="display:inline-block;padding:14px 24px;background:#fba919;color:#15130e;border-radius:8px;font-size:15px;font-weight:600;text-decoration:none;">' . esc_html( $button ) . '</a>'
+		$header = '' !== $logo
+			? '<img src="' . esc_url( $logo ) . '" alt="' . esc_attr( $site ) . '" height="48" style="display:block;height:48px;width:auto;max-width:220px;border:0;">'
+			: '<span style="font-size:18px;font-weight:700;letter-spacing:-0.2px;color:' . $c['heading'] . ';">' . esc_html( $site ) . '</span>';
+
+		$html = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">'
+			. '<meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark">'
+			. '<title>' . esc_html( $subject ) . '</title></head>'
+			. '<body style="margin:0;padding:0;background:' . $c['bg'] . ';font-family:' . $font . ';-webkit-font-smoothing:antialiased;">'
+			. '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:' . $c['bg'] . ';"><tr><td align="center" style="padding:32px 16px;">'
+			. '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;">'
+			. '<tr><td align="center" style="padding:0 0 20px;">' . $header . '</td></tr>'
+			. '<tr><td style="background:' . $c['card'] . ';border:1px solid ' . $c['border'] . ';border-radius:12px;padding:32px;">'
+			. '<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;line-height:1.3;letter-spacing:-0.2px;color:' . $c['heading'] . ';">' . esc_html( $subject ) . '</h1>'
+			. $body_html
+			. '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px;"><tr><td style="border-radius:8px;background:' . $c['accent'] . ';">'
+			. '<a href="' . esc_url( $link ) . '" style="display:inline-block;padding:14px 26px;font-size:15px;font-weight:600;line-height:1.2;color:' . $c['on_accent'] . ';text-decoration:none;border-radius:8px;">' . esc_html( $button ) . '</a>'
+			. '</td></tr></table>'
+			. '<p style="margin:0 0 10px;font-size:13px;line-height:1.5;color:' . $c['secondary'] . ';">' . esc_html( $expiry ) . ' ' . esc_html( $ignore ) . '</p>'
+			. '<p style="margin:0;font-size:12px;line-height:1.5;color:' . $c['muted'] . ';">' . esc_html__( 'Button not working? Copy this link into your browser:', 'riviantrackr-passkeys' ) . '<br>'
+			. '<a href="' . esc_url( $link ) . '" style="color:' . $c['link'] . ';word-break:break-all;">' . esc_html( $link ) . '</a></p>'
 			. '</td></tr>'
-			. '<tr><td style="padding:0 32px 28px;font-size:13px;line-height:1.5;color:#6e6e73;">'
-			. esc_html( $expiry ) . ' ' . esc_html( $ignore )
-			. '<br><br>' . esc_html__( 'Button not working? Copy this link into your browser:', 'riviantrackr-passkeys' ) . '<br>'
-			. '<a href="' . esc_url( $link ) . '" style="color:#0071e3;word-break:break-all;">' . esc_html( $link ) . '</a>'
+			. '<tr><td align="center" style="padding:20px 8px 0;font-size:12px;line-height:1.5;color:' . $c['muted'] . ';">'
+			. '<a href="' . esc_url( $home ) . '" style="color:' . $c['muted'] . ';text-decoration:none;">' . esc_html( $site ) . '</a>'
 			. '</td></tr>'
 			. '</table></td></tr></table></body></html>';
 
@@ -257,7 +348,7 @@ final class InviteService {
 	 * Issue a token and send the invitation.
 	 *
 	 * @param \WP_User   $user     Recipient.
-	 * @param array|null $template Optional subject/body override.
+	 * @param array|null $template Optional overrides: subject, body, logo_id, theme.
 	 * @param bool       $record   False for test sends, which must not count as an invitation.
 	 * @return true|\WP_Error
 	 */
@@ -291,7 +382,26 @@ final class InviteService {
 		 */
 		$mail = (array) apply_filters( 'riviantrackr_passkeys_invite_email', $mail, $user, $link );
 
+		$from_email = (string) $this->get( 'from_email' );
+		$from_name  = (string) $this->get( 'from_name' );
+		$from_cb    = static fn(): string => $from_email;
+		$name_cb    = static fn(): string => $from_name;
+		if ( '' !== $from_email ) {
+			add_filter( 'wp_mail_from', $from_cb, 20 );
+		}
+		if ( '' !== $from_name ) {
+			add_filter( 'wp_mail_from_name', $name_cb, 20 );
+		}
+
 		$sent = wp_mail( (string) $mail['to'], (string) $mail['subject'], (string) $mail['message'], (array) $mail['headers'] );
+
+		if ( '' !== $from_email ) {
+			remove_filter( 'wp_mail_from', $from_cb, 20 );
+		}
+		if ( '' !== $from_name ) {
+			remove_filter( 'wp_mail_from_name', $name_cb, 20 );
+		}
+
 		if ( ! $sent ) {
 			return new \WP_Error( 'rtpk_mail_failed', __( 'WordPress could not send the email. Check your mail configuration.', 'riviantrackr-passkeys' ) );
 		}

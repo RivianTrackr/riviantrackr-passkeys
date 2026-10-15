@@ -42,7 +42,7 @@ Yes. Set the relying party ID to the parent domain and list each subdomain origi
 == Changelog ==
 
 = Unreleased =
-* Passkey invitations: email members without a passkey a personal setup link (Users → Passkey invitations, plus Users-list row and bulk actions) and a focused "Set up a passkey" page at wp-login.php?action=passkey-setup.
+* Passkey invitations: email members without a passkey a personal setup link (Users → Passkey invitations, plus Users-list row and bulk actions) and a focused "Set up a passkey" page at wp-login.php?action=passkey-setup. Branded email with your logo in the site's colours, inline preview, custom from name/address.
 
 = 1.0.1 =
 * Passkey button now leads the login form, above an "or" divider, so the passwordless path is the primary action.

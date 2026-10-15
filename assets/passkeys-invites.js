@@ -25,6 +25,17 @@
 	var progressBar = root.querySelector('[data-rtpk-progress-bar]');
 	var progressText = root.querySelector('[data-rtpk-progress-text]');
 	var log = root.querySelector('[data-rtpk-log]');
+	var themeSelect = root.querySelector('[data-rtpk-theme]');
+	var logoId = root.querySelector('[data-rtpk-logo-id]');
+	var logoImg = root.querySelector('[data-rtpk-logo-img]');
+	var logoEmpty = root.querySelector('[data-rtpk-logo-empty]');
+	var logoPreview = root.querySelector('[data-rtpk-logo-preview]');
+	var logoChoose = root.querySelector('[data-rtpk-logo-choose]');
+	var logoRemove = root.querySelector('[data-rtpk-logo-remove]');
+	var previewBtn = root.querySelector('[data-rtpk-preview]');
+	var previewPanel = root.querySelector('[data-rtpk-preview-panel]');
+	var previewFrame = root.querySelector('[data-rtpk-preview-frame]');
+	var defaultLogo = logoImg ? logoImg.getAttribute('src') : '';
 
 	var countTimer = null;
 	var pendingCount = 0;
@@ -138,11 +149,86 @@
 			});
 	});
 
+	function draft() {
+		return {
+			subject: subject.value,
+			body: body.value,
+			theme: themeSelect ? themeSelect.value : '',
+			logo_id: logoId ? logoId.value : ''
+		};
+	}
+
+	function showLogo(url) {
+		if (!logoImg) {
+			return;
+		}
+		if (url) {
+			logoImg.src = url;
+			logoImg.hidden = false;
+			logoEmpty.hidden = true;
+		} else {
+			logoImg.removeAttribute('src');
+			logoImg.hidden = true;
+			logoEmpty.hidden = false;
+		}
+	}
+
+	if (logoChoose && window.wp && window.wp.media) {
+		var frame = null;
+		logoChoose.addEventListener('click', function () {
+			if (!frame) {
+				frame = window.wp.media({
+					title: i18n.chooseLogo,
+					library: { type: 'image' },
+					multiple: false,
+					button: { text: i18n.useLogo }
+				});
+				frame.on('select', function () {
+					var attachment = frame.state().get('selection').first().toJSON();
+					var url = attachment.sizes && attachment.sizes.medium ? attachment.sizes.medium.url : attachment.url;
+					logoId.value = attachment.id;
+					showLogo(url);
+					logoRemove.hidden = false;
+				});
+			}
+			frame.open();
+		});
+		logoRemove.addEventListener('click', function () {
+			logoId.value = '0';
+			showLogo(defaultLogo);
+			logoRemove.hidden = true;
+		});
+	}
+
+	if (themeSelect && logoPreview) {
+		themeSelect.addEventListener('change', function () {
+			logoPreview.classList.toggle('is-light', themeSelect.value === 'light');
+		});
+	}
+
+	previewBtn.addEventListener('click', function () {
+		previewBtn.disabled = true;
+		testMsg.textContent = i18n.previewing;
+		testMsg.className = 'rtpk-inline-msg';
+		post('rtpk_invite_preview', draft())
+			.then(function (data) {
+				previewFrame.srcdoc = data.html;
+				previewPanel.hidden = false;
+				testMsg.textContent = '';
+				previewPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+			})
+			.catch(function (err) {
+				testMsg.textContent = err.message || i18n.genericError;
+				testMsg.className = 'rtpk-inline-msg is-error';
+			})
+			.then(function () { previewBtn.disabled = false; });
+	});
+
 	testBtn.addEventListener('click', function () {
 		testBtn.disabled = true;
 		testMsg.textContent = i18n.sending;
 		testMsg.className = 'rtpk-inline-msg';
-		post('rtpk_invite_test', { subject: subject.value, body: body.value })
+		post('rtpk_invite_test', draft())
 			.then(function () {
 				testMsg.textContent = i18n.testSent;
 				testMsg.className = 'rtpk-inline-msg is-success';

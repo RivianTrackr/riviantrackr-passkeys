@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **One-tap setup page** at `wp-login.php?action=passkey-setup`: a focused screen with the pitch, a single "Create a passkey" button, a "Continue" button on success and "Skip for now". Invitation links carry a single-use token (SHA-256 hash stored in user meta, expiry configurable, default 7 days). With "Link signs the member in" enabled (default), a valid token sets the auth cookie and opens setup directly — the same trust level as a password-reset email; otherwise, or once the token is spent, the normal login form shows a hint and redirects to setup after sign-in.
 - **Hooks:** `riviantrackr_passkeys_invite_email` filter; `riviantrackr_passkeys_invite_sent` and `riviantrackr_passkeys_invite_login` actions.
 - Settings → Passkeys links to the invitations screen.
+- **Email branding.** The invitation is rendered in the site's dark "ink & brass" palette (deep `#121418` background, `#16191e` card, warm-neutral text, gold button with dark text) or a light variant, with your logo in the header (media-library picker; defaults to the theme's custom logo, then the site icon, then the site name). A **Preview** button renders the current draft inline, and **From name / From email** apply to invitation emails only (an SMTP plugin that forces a from address still wins).
+- **Asset cache-busting.** Scripts and styles are now versioned with the file's modification time, so every deploy refreshes browser caches without a version bump.
 
 ### Changed
 - `ProfileManager::markup()` is now public and accepts title/description/button/setup overrides so other screens can embed the manager.

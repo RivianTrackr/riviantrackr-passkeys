@@ -52,7 +52,7 @@ final class Admin {
 		if ( 'settings_page_' . self::PAGE_SLUG !== $hook ) {
 			return;
 		}
-		wp_enqueue_style( 'rtpk-admin', RTPK_URL . 'assets/passkeys-admin' . RTPK_ASSET_SUFFIX . '.css', [], RTPK_VERSION );
+		wp_enqueue_style( 'rtpk-admin', RTPK_URL . 'assets/passkeys-admin' . RTPK_ASSET_SUFFIX . '.css', [], Helpers::asset_version( 'assets/passkeys-admin' . RTPK_ASSET_SUFFIX . '.css' ) );
 	}
 
 	/**

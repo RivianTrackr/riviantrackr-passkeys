@@ -122,7 +122,7 @@ final class SetupPage {
 	private function render( \WP_User $user, string $continue_to ): void {
 		$count = $this->store->count_for_user( $user->ID );
 
-		wp_enqueue_style( 'rtpk-setup', RTPK_URL . 'assets/passkeys-setup' . RTPK_ASSET_SUFFIX . '.css', [], RTPK_VERSION );
+		wp_enqueue_style( 'rtpk-setup', RTPK_URL . 'assets/passkeys-setup' . RTPK_ASSET_SUFFIX . '.css', [], Helpers::asset_version( 'assets/passkeys-setup' . RTPK_ASSET_SUFFIX . '.css' ) );
 		$manager = $this->manager->markup(
 			$user,
 			true,

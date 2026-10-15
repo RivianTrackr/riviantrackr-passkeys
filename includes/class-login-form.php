@@ -36,9 +36,9 @@ final class LoginForm {
 		$this->assets_registered = true;
 		$suffix                  = RTPK_ASSET_SUFFIX;
 
-		wp_register_script( 'rtpk-core', RTPK_URL . "assets/passkeys-core{$suffix}.js", [], RTPK_VERSION, true );
-		wp_register_script( 'rtpk-login', RTPK_URL . "assets/passkeys-login{$suffix}.js", [ 'rtpk-core' ], RTPK_VERSION, true );
-		wp_register_style( 'rtpk-login', RTPK_URL . "assets/passkeys-login{$suffix}.css", [], RTPK_VERSION );
+		wp_register_script( 'rtpk-core', RTPK_URL . "assets/passkeys-core{$suffix}.js", [], Helpers::asset_version( "assets/passkeys-core{$suffix}.js" ), true );
+		wp_register_script( 'rtpk-login', RTPK_URL . "assets/passkeys-login{$suffix}.js", [ 'rtpk-core' ], Helpers::asset_version( "assets/passkeys-login{$suffix}.js" ), true );
+		wp_register_style( 'rtpk-login', RTPK_URL . "assets/passkeys-login{$suffix}.css", [], Helpers::asset_version( "assets/passkeys-login{$suffix}.css" ) );
 	}
 
 	public function enqueue( string $redirect_to = '' ): void {

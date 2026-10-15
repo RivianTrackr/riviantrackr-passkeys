@@ -51,9 +51,12 @@ key once, then sign in with a single tap. Passwords keep working alongside.
 **Users → Passkey invitations** shows how many members have a passkey, lets you pick roles and
 whether to re-invite people, and sends in batches of 20 with a progress log. Only members without
 a passkey are ever emailed. The email is plain text you edit in place (placeholders `{name}`,
-`{site}`, `{link}`, `{expires}`, `{login_url}`); the plugin wraps it in a branded HTML template
-with a gold "Set up my passkey" button and sends it through `wp_mail()`, so whatever SMTP plugin
-you use applies. "Send me a test" mails the current draft to you without counting as an invite.
+`{site}`, `{link}`, `{expires}`, `{login_url}`); the plugin wraps it in an HTML template in the
+site's dark "ink & brass" palette (or a light variant) with your logo and a gold "Set up my passkey"
+button, and sends it through `wp_mail()`, so whatever SMTP plugin you use applies. You can set the
+from name and address (applied only to these emails), pick a logo from the media library (defaults
+to the theme's custom logo or the site icon), preview the rendered email inline, and "Send me a
+test" mails the current draft to you without counting as an invite.
 
 The **Users** list gains a "Passkeys" column, a "Send passkey invite" row action, and a bulk action.
 

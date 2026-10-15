@@ -115,6 +115,18 @@ final class Helpers {
 	}
 
 	/**
+	 * Cache-busting version for a plugin asset: plugin version plus the
+	 * file's modification time, so every deploy refreshes browser caches.
+	 *
+	 * @param string $relative Path relative to the plugin root, e.g. "assets/passkeys-admin.min.css".
+	 */
+	public static function asset_version( string $relative ): string {
+		$path  = RTPK_DIR . ltrim( $relative, '/' );
+		$mtime = file_exists( $path ) ? (int) filemtime( $path ) : 0;
+		return $mtime > 0 ? RTPK_VERSION . '.' . $mtime : RTPK_VERSION;
+	}
+
+	/**
 	 * Current time in MySQL format (UTC).
 	 */
 	public static function now(): string {

@@ -84,11 +84,106 @@ final class InviteServiceTest extends TestCase {
 		$this->assertStringContainsString( 'Hi Ana Ruiz &lt;script&gt;', $email['html'] );
 		$this->assertStringNotContainsString( '<script>', $email['html'] );
 		$this->assertStringContainsString( 'expires in 7 days', $email['html'] );
-		$this->assertSame( 2, substr_count( $email['html'], '<p style=' ), 'blank line starts a new paragraph' );
+		$this->assertSame( 2, substr_count( $email['html'], 'font-size:15px;line-height:1.6' ), 'blank line starts a new paragraph' );
 		$this->assertStringContainsString( 'Set up my passkey', $email['html'] );
 		$this->assertStringContainsString( 'href="' . htmlspecialchars( $link, ENT_QUOTES ) . '"', $email['html'] );
 		$this->assertStringContainsString( '#fba919', $email['html'], 'brand gold button' );
 		$this->assertStringContainsString( $link, $email['text'] );
+	}
+
+	public function test_email_defaults_to_dark_brand_palette_and_site_name_header(): void {
+		$email = $this->invites->render_email( $this->user, 'https://riviantrackr.test/x' );
+
+		$this->assertStringContainsString( 'background:#121418', $email['html'], 'deep background' );
+		$this->assertStringContainsString( 'background:#16191e', $email['html'], 'card surface' );
+		$this->assertStringContainsString( 'color:#ece9e4', $email['html'], 'body text' );
+		$this->assertStringContainsString( 'color:#15130e', $email['html'], 'dark text on gold' );
+		$this->assertStringNotContainsString( '<img', $email['html'], 'no logo configured' );
+		$this->assertMatchesRegularExpression( '/<span[^>]*>RivianTrackr<\/span>/', $email['html'], 'site name stands in for the logo' );
+	}
+
+	public function test_email_light_theme_and_logo_overrides(): void {
+		$GLOBALS['rtpk_test_attachments'][55] = 'https://riviantrackr.test/logo.png';
+
+		$email = $this->invites->render_email(
+			$this->user,
+			'https://riviantrackr.test/x',
+			[
+				'theme'   => 'light',
+				'logo_id' => 55,
+			]
+		);
+		$this->assertStringContainsString( 'background:#ffffff', $email['html'] );
+		$this->assertStringContainsString( 'color:#1d1d1f', $email['html'] );
+		$this->assertStringNotContainsString( '#16191e', $email['html'] );
+		$this->assertStringContainsString( '<img src="https://riviantrackr.test/logo.png"', $email['html'] );
+		$this->assertStringContainsString( 'alt="RivianTrackr"', $email['html'] );
+	}
+
+	public function test_logo_falls_back_to_theme_custom_logo(): void {
+		$this->assertSame( '', $this->invites->logo_url() );
+
+		$GLOBALS['rtpk_test_theme_mods']['custom_logo'] = 9;
+		$GLOBALS['rtpk_test_attachments'][9]            = 'https://riviantrackr.test/custom.png';
+		$this->assertSame( 'https://riviantrackr.test/custom.png', $this->invites->logo_url() );
+
+		update_option( InviteService::OPTION, [ 'logo_id' => 55 ] );
+		$GLOBALS['rtpk_test_attachments'][55] = 'https://riviantrackr.test/chosen.png';
+		$this->invites->flush();
+		$this->assertSame( 'https://riviantrackr.test/chosen.png', $this->invites->logo_url(), 'explicit choice wins' );
+		$this->assertSame( 'https://riviantrackr.test/custom.png', $this->invites->logo_url( 0 ), 'override 0 means default' );
+	}
+
+	public function test_send_applies_from_name_and_address_only_during_the_send(): void {
+		update_option(
+			InviteService::OPTION,
+			[
+				'from_name'  => 'RivianTrackr Team',
+				'from_email' => 'hello@riviantrackr.test',
+			]
+		);
+		$this->invites->flush();
+
+		$this->assertTrue( $this->invites->send( $this->user ) );
+
+		$ops = array_map( fn( $f ) => $f[0] . ':' . $f[1], $GLOBALS['rtpk_test_filters'] );
+		$this->assertSame( [ 'add:wp_mail_from', 'add:wp_mail_from_name', 'remove:wp_mail_from', 'remove:wp_mail_from_name' ], $ops );
+		$this->assertSame( 'hello@riviantrackr.test', $GLOBALS['rtpk_test_filters'][0][2]() );
+		$this->assertSame( 'RivianTrackr Team', $GLOBALS['rtpk_test_filters'][1][2]() );
+	}
+
+	public function test_send_leaves_from_alone_when_not_configured(): void {
+		$this->invites->send( $this->user );
+		$this->assertSame( [], $GLOBALS['rtpk_test_filters'] );
+	}
+
+	public function test_sanitize_validates_from_email_logo_and_theme(): void {
+		$out = $this->invites->sanitize(
+			[
+				'from_name'  => ' <i>Team</i> ',
+				'from_email' => 'not-an-email',
+				'logo_id'    => '-4',
+				'theme'      => 'neon',
+			]
+		);
+		$this->assertSame( 'Team', $out['from_name'] );
+		$this->assertSame( '', $out['from_email'] );
+		$this->assertNotEmpty( $GLOBALS['rtpk_test_errors'], 'invalid from address reports a settings error' );
+		$this->assertSame( 4, $out['logo_id'] );
+		$this->assertSame( 'dark', $out['theme'] );
+
+		$GLOBALS['rtpk_test_errors'] = [];
+		$out = $this->invites->sanitize(
+			[
+				'from_email' => 'Hello@RivianTrackr.test',
+				'logo_id'    => '55',
+				'theme'      => 'light',
+			]
+		);
+		$this->assertSame( 'Hello@RivianTrackr.test', $out['from_email'] );
+		$this->assertEmpty( $GLOBALS['rtpk_test_errors'] );
+		$this->assertSame( 55, $out['logo_id'] );
+		$this->assertSame( 'light', $out['theme'] );
 	}
 
 	public function test_send_issues_token_mails_html_and_records_invitation(): void {
