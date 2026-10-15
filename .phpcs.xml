@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<ruleset name="RivianTrackr Passkeys">
+    <description>WordPress Coding Standards for the RivianTrackr Passkeys plugin.</description>
+
+    <file>riviantrackr-passkeys.php</file>
+    <file>uninstall.php</file>
+    <file>includes/</file>
+
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/lib/*</exclude-pattern>
+    <exclude-pattern>*/tests/*</exclude-pattern>
+
+    <rule ref="WordPress">
+        <exclude name="Generic.Arrays.DisallowShortArraySyntax"/>
+        <exclude name="Universal.Arrays.DisallowShortArraySyntax"/>
+        <exclude name="Squiz.Commenting.FileComment.Missing"/>
+        <exclude name="Squiz.Commenting.ClassComment.Missing"/>
+        <exclude name="Squiz.Commenting.FunctionComment.Missing"/>
+        <exclude name="Squiz.Commenting.FunctionComment.MissingParamTag"/>
+        <exclude name="Squiz.Commenting.VariableComment.Missing"/>
+        <exclude name="Generic.Commenting.DocComment.MissingShort"/>
+        <exclude name="WordPress.DB.DirectDatabaseQuery.DirectQuery"/>
+        <exclude name="WordPress.DB.DirectDatabaseQuery.NoCaching"/>
+        <exclude name="WordPress.Files.FileName.InvalidClassFileName"/>
+        <exclude name="Universal.Operators.DisallowShortTernary"/>
+        <!-- lbuchs\WebAuthn returns stdClass objects with camelCase properties. -->
+        <exclude name="WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase"/>
+    </rule>
+
+    <rule ref="WordPress.WP.I18n">
+        <properties>
+            <property name="text_domain" type="array">
+                <element value="riviantrackr-passkeys"/>
+            </property>
+        </properties>
+    </rule>
+
+    <rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+        <properties>
+            <property name="prefixes" type="array">
+                <element value="rtpk"/>
+                <element value="riviantrackr_passkeys"/>
+                <element value="RivianTrackr\Passkeys"/>
+            </property>
+        </properties>
+    </rule>
+
+    <config name="minimum_supported_wp_version" value="6.4"/>
+    <config name="testVersion" value="8.1-"/>
+
+    <arg value="ps"/>
+    <arg name="colors"/>
+    <arg name="extensions" value="php"/>
+</ruleset>

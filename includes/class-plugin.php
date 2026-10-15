@@ -1,0 +1,69 @@
+<?php
+declare(strict_types=1);
+
+namespace RivianTrackr\Passkeys;
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * Composition root: wires the components together.
+ */
+final class Plugin {
+
+	private static ?Plugin $instance = null;
+
+	private Settings $settings;
+	private CredentialStore $store;
+	private ChallengeStore $challenges;
+	private RateLimiter $limiter;
+	private WebAuthnService $service;
+	private RestController $rest;
+	private LoginForm $login_form;
+	private ProfileManager $profile;
+	private Admin $admin;
+
+	public static function instance(): Plugin {
+		if ( null === self::$instance ) {
+			self::$instance = new self();
+		}
+		return self::$instance;
+	}
+
+	private function __construct() {
+		$this->settings   = new Settings();
+		$this->store      = new CredentialStore();
+		$this->challenges = new ChallengeStore();
+		$this->limiter    = new RateLimiter();
+		$this->service    = new WebAuthnService( $this->settings, $this->store );
+		$this->rest       = new RestController( $this->settings, $this->store, $this->challenges, $this->limiter, $this->service );
+		$this->login_form = new LoginForm( $this->settings );
+		$this->profile    = new ProfileManager( $this->settings, $this->store, $this->rest );
+		$this->admin      = new Admin( $this->settings, $this->store );
+	}
+
+	public function boot(): void {
+		load_plugin_textdomain( 'riviantrackr-passkeys', false, dirname( plugin_basename( RTPK_FILE ) ) . '/languages' );
+
+		add_action( 'admin_init', [ Installer::class, 'maybe_upgrade' ] );
+		add_action( 'rest_api_init', [ $this->rest, 'register_routes' ] );
+		add_action( 'deleted_user', [ $this->store, 'delete_for_user' ] );
+		add_action( 'update_option_' . Settings::OPTION, [ $this->settings, 'flush' ] );
+
+		$this->login_form->register_hooks();
+		$this->profile->register_hooks();
+
+		if ( is_admin() ) {
+			$this->admin->register_hooks();
+		}
+	}
+
+	public function settings(): Settings {
+		return $this->settings;
+	}
+
+	public function credentials(): CredentialStore {
+		return $this->store;
+	}
+}
