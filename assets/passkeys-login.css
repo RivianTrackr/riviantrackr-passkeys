@@ -1,57 +1,31 @@
 /* ── RivianTrackr Passkeys — login button ──
-   Default tokens blend with wp-login.php; `.is-dark` switches to the
-   consumer "ink & brass" theme for front-end forms. */
+   Sits at the top of the login form as the primary, passwordless path.
+   Brand gold with dark text on both wp-login.php and dark front-end forms;
+   `.is-dark` only adjusts the divider and status text. */
 .rtpk-login {
 	--rtpk-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
-	--rtpk-text: #2c3338;
+	--rtpk-accent: #fba919;
+	--rtpk-accent-hover: #ffbe4a;
+	--rtpk-on-accent: #15130e;
 	--rtpk-muted: #646970;
-	--rtpk-border: #8c8f94;
-	--rtpk-bg: #ffffff;
-	--rtpk-bg-hover: #f6f7f7;
-	--rtpk-hover-border: #2271b1;
-	--rtpk-hover-text: #2271b1;
+	--rtpk-line: #c3c4c7;
 	--rtpk-focus: #2271b1;
 	--rtpk-error: #d63638;
 	--rtpk-success: #00a32a;
 	--rtpk-radius: 8px;
-	margin: 16px 0 0;
+	clear: both;
+	margin: 0 0 18px;
 	font-family: var(--rtpk-font);
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 }
 
 .rtpk-login.is-dark {
-	--rtpk-text: #15130e;
 	--rtpk-muted: #a6a39c;
-	--rtpk-border: #fba919;
-	--rtpk-bg: #fba919;
-	--rtpk-bg-hover: #ffbe4a;
-	--rtpk-hover-border: #ffbe4a;
-	--rtpk-hover-text: #15130e;
+	--rtpk-line: #3a3e45;
 	--rtpk-focus: #fba919;
 	--rtpk-error: #ef4444;
 	--rtpk-success: #4ade80;
-}
-
-.rtpk-divider {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	margin: 0 0 14px;
-	color: var(--rtpk-muted);
-	font-size: 11px;
-	font-weight: 600;
-	letter-spacing: 0.5px;
-	text-transform: uppercase;
-}
-
-.rtpk-divider::before,
-.rtpk-divider::after {
-	content: "";
-	flex: 1;
-	height: 1px;
-	background: var(--rtpk-border);
-	opacity: 0.5;
 }
 
 .rtpk-login-btn {
@@ -61,23 +35,23 @@
 	align-items: center;
 	justify-content: center;
 	gap: 8px;
-	padding: 8px 16px;
-	border: 1px solid var(--rtpk-border);
+	padding: 10px 18px;
+	border: 1px solid var(--rtpk-accent);
 	border-radius: var(--rtpk-radius);
-	background: var(--rtpk-bg);
-	color: var(--rtpk-text);
+	background: var(--rtpk-accent);
+	color: var(--rtpk-on-accent);
 	font: inherit;
-	font-size: 14px;
+	font-size: 15px;
 	font-weight: 600;
 	line-height: 1.2;
 	cursor: pointer;
-	transition: border-color 0.15s ease, color 0.15s ease, background 0.2s ease, transform 0.1s ease;
+	transition: background 0.2s ease, border-color 0.15s ease, transform 0.1s ease;
 }
 
 .rtpk-login-btn:hover {
-	border-color: var(--rtpk-hover-border);
-	color: var(--rtpk-hover-text);
-	background: var(--rtpk-bg-hover);
+	border-color: var(--rtpk-accent-hover);
+	background: var(--rtpk-accent-hover);
+	color: var(--rtpk-on-accent);
 }
 
 .rtpk-login-btn:focus-visible {
@@ -116,6 +90,26 @@
 
 .rtpk-login-msg.is-success {
 	color: var(--rtpk-success);
+}
+
+.rtpk-divider {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin: 18px 0 0;
+	color: var(--rtpk-muted);
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.5px;
+	text-transform: uppercase;
+}
+
+.rtpk-divider::before,
+.rtpk-divider::after {
+	content: "";
+	flex: 1;
+	height: 1px;
+	background: var(--rtpk-line);
 }
 
 @keyframes rtpk-pulse {

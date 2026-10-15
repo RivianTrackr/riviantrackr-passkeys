@@ -52,16 +52,14 @@
 	}
 
 	/**
-	 * Move the button below the submit row so it reads as an alternative.
+	 * Move the passkey block to the top of the form so the passwordless path
+	 * comes first and the password fields sit below the "or" divider.
 	 */
 	function relocate(root, form) {
-		if (!form) {
+		if (!form || form.firstElementChild === root) {
 			return;
 		}
-		var submit = form.querySelector('p.submit, p.login-submit, .login-submit');
-		if (submit && submit.parentNode === form && submit.nextSibling !== root) {
-			submit.insertAdjacentElement('afterend', root);
-		}
+		form.insertAdjacentElement('afterbegin', root);
 	}
 
 	function startConditional(root, btn, msg, form) {

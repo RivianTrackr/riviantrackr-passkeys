@@ -78,20 +78,21 @@ final class LoginForm {
 	}
 
 	/**
-	 * Button markup. Hidden until JS confirms WebAuthn support.
+	 * Button markup: passkey button first, then an "or" divider leading into
+	 * the password fields below. Hidden until JS confirms WebAuthn support.
 	 */
 	public function button_markup( string $redirect_to = '', bool $dark = false, bool $divider = true ): string {
 		$classes = 'rtpk-login' . ( $dark ? ' is-dark' : '' );
 
-		$html = '<div class="' . esc_attr( $classes ) . '" data-rtpk-login data-redirect="' . esc_attr( $redirect_to ) . '" hidden>';
-		if ( $divider ) {
-			$html .= '<div class="rtpk-divider" aria-hidden="true"><span>' . esc_html__( 'or', 'riviantrackr-passkeys' ) . '</span></div>';
-		}
+		$html  = '<div class="' . esc_attr( $classes ) . '" data-rtpk-login data-redirect="' . esc_attr( $redirect_to ) . '" hidden>';
 		$html .= '<button type="button" class="rtpk-login-btn" data-rtpk-login-btn>';
 		$html .= self::icon();
 		$html .= '<span class="rtpk-login-btn__label">' . esc_html__( 'Sign in with a passkey', 'riviantrackr-passkeys' ) . '</span>';
 		$html .= '</button>';
 		$html .= '<p class="rtpk-login-msg" data-rtpk-login-msg role="status" aria-live="polite" hidden></p>';
+		if ( $divider ) {
+			$html .= '<div class="rtpk-divider" aria-hidden="true"><span>' . esc_html__( 'or', 'riviantrackr-passkeys' ) . '</span></div>';
+		}
 		$html .= '</div>';
 
 		return $html;
