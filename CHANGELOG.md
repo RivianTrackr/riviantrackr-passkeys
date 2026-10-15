@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.1] - 2026-10-15
 
 ### Changed
-- **Passkey button now leads the login form.** On `wp-login.php` and forms built with `wp_login_form()`, the "Sign in with a passkey" block is inserted at the top of the form with an "or" divider beneath it, and the username/password fields follow — the same layout Rivian Roamer uses. Previously the block was appended after the floated Log In row, which left the divider sitting beside the submit button.
+- **Passkey button now leads the login form.** On `wp-login.php` and forms built with `wp_login_form()`, the "Sign in with a passkey" block is inserted at the top of the form with an "or" divider beneath it, and the username/password fields follow, so the passwordless path is the primary action. Previously the block was appended after the floated Log In row, which left the divider sitting beside the submit button.
 - **Button restyled as a filled brand-gold primary** (`#fba919` with dark text) on both the light `wp-login.php` page and dark front-end forms; `.is-dark` now only adjusts the divider and status-message colours. The shortcode `[riviantrackr_passkey_login]` renders the same button.
 
 ### Fixed

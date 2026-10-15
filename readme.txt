@@ -41,7 +41,7 @@ Yes. Set the relying party ID to the parent domain and list each subdomain origi
 == Changelog ==
 
 = 1.0.1 =
-* Passkey button now leads the login form, above an "or" divider, matching the Rivian Roamer layout.
+* Passkey button now leads the login form, above an "or" divider, so the passwordless path is the primary action.
 * Button restyled as a filled brand-gold primary on light and dark forms.
 
 = 1.0.0 =
