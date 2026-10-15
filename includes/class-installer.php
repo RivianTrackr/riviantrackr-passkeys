@@ -8,7 +8,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Creates and upgrades the credentials table.
+ * Creates and upgrades the credentials and pending-signups tables.
  */
 final class Installer {
 
@@ -17,6 +17,11 @@ final class Installer {
 	public static function table_name(): string {
 		global $wpdb;
 		return $wpdb->prefix . 'riviantrackr_passkeys';
+	}
+
+	public static function pending_signups_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'riviantrackr_pending_signups';
 	}
 
 	public static function activate(): void {
@@ -57,6 +62,23 @@ final class Installer {
 			PRIMARY KEY  (id),
 			UNIQUE KEY credential_hash (credential_hash),
 			KEY user_id (user_id)
+		) {$charset_collate};";
+
+		dbDelta( $sql );
+
+		$pending = self::pending_signups_table();
+		$sql     = "CREATE TABLE {$pending} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			token_hash char(64) NOT NULL,
+			email varchar(191) NOT NULL,
+			display_name varchar(100) NOT NULL DEFAULT '',
+			ip_hash char(64) NOT NULL DEFAULT '',
+			created_at datetime NOT NULL,
+			expires_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY token_hash (token_hash),
+			KEY email (email),
+			KEY expires_at (expires_at)
 		) {$charset_collate};";
 
 		dbDelta( $sql );

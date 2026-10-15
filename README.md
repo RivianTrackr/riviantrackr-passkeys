@@ -14,6 +14,10 @@ key once, then sign in with a single tap. Passwords keep working alongside.
 - **Invitations** — email members who have no passkey yet with a personal one-tap setup link
   (Users → Passkey invitations), or invite one person from the Users list. The link signs them in
   and lands on a focused "Set up a passkey" page.
+- **Open signup without the spam** — `[riviantrackr_signup]` lets visitors create an account while
+  "Anyone can register" stays off. No user exists until they click the emailed link; honeypot,
+  timing check, rate limits, a disposable-domain blocklist and optional Cloudflare Turnstile keep
+  bots out. New members land straight on passkey setup.
 - **Hardened by default** — single-use challenges, strict exact-origin matching, signature-counter
   clone detection, per-IP and per-user rate limits, opaque 32-byte user handles, a 10-passkey cap
   per account.
@@ -33,7 +37,8 @@ key once, then sign in with a single tap. Passwords keep working alongside.
 
 1. Copy `riviantrackr-passkeys/` to `wp-content/plugins/` (or zip the folder and upload it).
    `vendor/` and `node_modules/` are not required at runtime — only `lib/`, `includes/` and `assets/`.
-2. Activate **RivianTrackr Passkeys**. The `wp_riviantrackr_passkeys` table is created on activation.
+2. Activate **RivianTrackr Passkeys**. The `wp_riviantrackr_passkeys` and
+   `wp_riviantrackr_pending_signups` tables are created on activation.
 3. Visit **Settings → Passkeys**. The defaults (RP ID = site host, user verification *preferred*,
    login button + autofill on) are right for most sites.
 4. Go to **Users → Profile → Passkeys → Add a passkey** and register your first one.
@@ -45,6 +50,7 @@ key once, then sign in with a single tap. Passwords keep working alongside.
 |---|---|
 | `[riviantrackr_passkeys]` | Passkey manager for the signed-in member. Dark "ink & brass" theme by default; `theme="light"` for light backgrounds. Shows a sign-in link when logged out. |
 | `[riviantrackr_passkey_login redirect="/my-account/" theme="dark" divider="0"]` | Stand-alone sign-in button for custom login pages. Hidden for signed-in visitors. |
+| `[riviantrackr_signup theme="dark" redirect=""]` | Verify-first signup form (email + optional name). Dark by default, `theme="light"` available. Requires **Allow signups** under Settings → Passkeys. Signed-in visitors see a "Continue" note instead. |
 
 ## Inviting members
 
@@ -77,6 +83,52 @@ now". It also works for members who already have a passkey (shows their list, "A
 Hooks: `riviantrackr_passkeys_invite_email` filters the `to/subject/message/headers` array before
 sending; `riviantrackr_passkeys_invite_sent` and `riviantrackr_passkeys_invite_login` actions fire
 after a send and after a magic-link sign-in.
+
+## Open signup (verify-first)
+
+Turn it on under **Settings → Passkeys → Open signup** and put `[riviantrackr_signup]` on a page.
+WordPress's own "Anyone can register" option can stay off.
+
+```
+Visitor                                  Plugin
+───────                                  ──────
+submits email (+ name)        ──►  POST signup/request
+                                   ├ honeypot filled?            → fake success, nothing stored
+                                   ├ form token < 3 s old / forged → error
+                                   ├ Turnstile (if keys set)     → siteverify
+                                   ├ disposable / blocked domain → error
+                                   ├ riviantrackr_passkeys_signup_allowed filter
+                                   ├ address already registered  → "you already have an account" email
+                                   └ otherwise: pending row (SHA-256 of a 32-byte token) + branded email
+clicks "Confirm and set up      ──►  wp-login.php?action=passkey-signup&token=…
+my passkey"                        ├ token unknown / expired / used → friendly page with "send me a new link"
+                                   └ create user (role from settings, random password, username from
+                                     the email's local part, de-duplicated), fire user_register,
+                                     delete the row, sign in, redirect to passkey setup → continue URL
+```
+
+- **Nothing is created until the click.** Unverified requests live only in
+  `wp_riviantrackr_pending_signups` (email, display name, hashed token, hashed IP, expiry) and are
+  purged as they expire. Pending count is shown on the settings screen.
+- **No account enumeration.** The form always answers "check your inbox". If the address already
+  has an account, the inbox owner gets a sign-in reminder instead of a signup link.
+- **Rate limits:** 5 requests per hour per IP (HTTP 429), 3 per hour per address (silently dropped).
+  `RTPK_SIGNUP_IP_RATE_LIMIT`, `RTPK_SIGNUP_EMAIL_RATE_LIMIT` and `RTPK_SIGNUP_MIN_SECONDS` can be
+  defined in `wp-config.php` before the plugin loads to change them.
+- **Blocked domains:** ~170 well-known throwaway providers are built in (subdomains included); add
+  your own one per line, or use the `riviantrackr_passkeys_blocked_domains` filter.
+- **Turnstile:** paste the site key and secret key from the Cloudflare dashboard. Leave both blank
+  to run without it; the other defences still apply.
+- **Email:** subject and message are editable (same placeholders and bullet rules as the invitation
+  email); the logo, colours and from name/address come from Users → Passkey invitations.
+- **Settings:** allow signups, role (never Administrator), link expiry in hours (default 24),
+  continue URL after setup (must be on this site), Turnstile keys, extra blocked domains, admin
+  notification toggle.
+
+Hooks: `riviantrackr_passkeys_signup_allowed` filter (`$allowed, $email, $input`; return `false`
+or a `WP_Error` to deny), `riviantrackr_passkeys_signup_email` filter, `riviantrackr_passkeys_blocked_domains`
+filter; `riviantrackr_passkeys_signup_requested`, `_signup_verified( $user, $row )` and
+`_signup_login( $user )` actions.
 
 ## How it works
 
@@ -111,6 +163,7 @@ Namespace `riviantrackr-passkeys/v1`. Logged-in routes require the standard REST
 | POST | `/register/verify` | user | `challengeId`, `credential`, optional `name` |
 | POST | `/login/options` | public | 30/min per IP |
 | POST | `/login/verify` | public | 10/min per IP; `challengeId`, `credential`, `redirectTo`, `remember` |
+| POST | `/signup/request` | public | 5/hour per IP; `email`, `name`, `website` (honeypot), `ts`, `sig`, `turnstile` |
 | GET | `/credentials` | user | own list, or `?user_id=` with `edit_user` capability |
 | POST | `/credentials/{id}` | user | rename (own only) |
 | DELETE | `/credentials/{id}` | user | own, or `edit_user` capability |
@@ -124,6 +177,9 @@ add_filter( 'riviantrackr_passkeys_pre_login', fn( $allowed, WP_User $user, arra
 // Accept additional origins (normalised "scheme://host[:port]").
 add_filter( 'riviantrackr_passkeys_allowed_origins', fn( array $origins ) => $origins );
 
+// Deny a signup request (return false or WP_Error). Runs before anything is stored or sent.
+add_filter( 'riviantrackr_passkeys_signup_allowed', fn( $allowed, string $email, array $input ) => $allowed, 10, 3 );
+
 // Behind a trusted proxy, supply the real client IP for rate limiting.
 add_filter( 'riviantrackr_passkeys_client_ip', fn( string $ip ) => $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $ip );
 
@@ -131,6 +187,9 @@ do_action( 'riviantrackr_passkeys_registered', array $row, WP_User $user );
 do_action( 'riviantrackr_passkeys_login', WP_User $user, array $row );
 do_action( 'riviantrackr_passkeys_deleted', array $row );
 do_action( 'riviantrackr_passkeys_counter_mismatch', array $row, WP_User $user ); // possible cloned authenticator
+do_action( 'riviantrackr_passkeys_signup_requested', string $email );
+do_action( 'riviantrackr_passkeys_signup_verified', WP_User $user, array $pending_row );
+do_action( 'riviantrackr_passkeys_signup_login', WP_User $user );
 ```
 
 ## Development

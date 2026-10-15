@@ -26,6 +26,9 @@ final class Plugin {
 	private InviteService $invites;
 	private InviteAdmin $invite_admin;
 	private SetupPage $setup_page;
+	private PendingSignupStore $pending;
+	private SignupService $signup;
+	private SignupPage $signup_page;
 
 	public static function instance(): Plugin {
 		if ( null === self::$instance ) {
@@ -43,10 +46,13 @@ final class Plugin {
 		$this->rest         = new RestController( $this->settings, $this->store, $this->challenges, $this->limiter, $this->service );
 		$this->login_form   = new LoginForm( $this->settings );
 		$this->profile      = new ProfileManager( $this->settings, $this->store, $this->rest );
-		$this->admin        = new Admin( $this->settings, $this->store );
 		$this->invites      = new InviteService( $this->settings, $this->store );
 		$this->invite_admin = new InviteAdmin( $this->invites, $this->store );
 		$this->setup_page   = new SetupPage( $this->invites, $this->profile, $this->store );
+		$this->pending      = new PendingSignupStore();
+		$this->signup       = new SignupService( $this->settings, $this->invites, $this->pending, $this->limiter );
+		$this->signup_page  = new SignupPage( $this->signup, $this->invites );
+		$this->admin        = new Admin( $this->settings, $this->store, $this->signup );
 	}
 
 	public function boot(): void {
@@ -54,12 +60,15 @@ final class Plugin {
 
 		add_action( 'admin_init', [ Installer::class, 'maybe_upgrade' ] );
 		add_action( 'rest_api_init', [ $this->rest, 'register_routes' ] );
+		add_action( 'rest_api_init', [ $this->signup_page, 'register_routes' ] );
 		add_action( 'deleted_user', [ $this->store, 'delete_for_user' ] );
 		add_action( 'update_option_' . Settings::OPTION, [ $this->settings, 'flush' ] );
+		add_action( 'update_option_' . SignupService::OPTION, [ $this->signup, 'flush' ] );
 
 		$this->login_form->register_hooks();
 		$this->profile->register_hooks();
 		$this->setup_page->register_hooks();
+		$this->signup_page->register_hooks();
 
 		if ( is_admin() ) {
 			$this->admin->register_hooks();
@@ -77,5 +86,9 @@ final class Plugin {
 
 	public function invites(): InviteService {
 		return $this->invites;
+	}
+
+	public function signup(): SignupService {
+		return $this->signup;
 	}
 }

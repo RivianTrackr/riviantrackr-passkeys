@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Open signup without "Anyone can register".** New `[riviantrackr_signup]` shortcode (dark "ink & brass" by default, `theme="light"`) with email and optional name. Requests go to `POST riviantrackr-passkeys/v1/signup/request`; **no WordPress user is created** until the visitor clicks the emailed link. Pending requests live in a new `wp_riviantrackr_pending_signups` table (SHA-256 of a 32-byte single-use token, hashed IP, configurable expiry, default 24 hours) and are purged as they expire.
+- **Spam defences on signup:** hidden honeypot field, signed minimum-time check (3 s), 5 requests/hour per IP and 3/hour per address, a built-in list of ~170 disposable-email domains (subdomains included) plus an admin-editable list, and optional Cloudflare Turnstile (site/secret keys; verified server-side via `siteverify`, skipped when the keys are blank). The response is always "check your inbox"; an address that already has an account gets a sign-in reminder instead of a signup link, so nothing reveals who is registered.
+- **Verification landing page** at `wp-login.php?action=passkey-signup&token=…`: creates the user (role from settings, never Administrator; random password; username derived from the email's local part and de-duplicated), fires `user_register`, signs the member in and redirects to the existing passkey setup page with the configured continue URL. Expired or used tokens show a friendly page with a "send me a new link" form.
+- **Settings → Passkeys → Open signup:** allow toggle with pending-link count, role, link expiry, continue URL, Turnstile keys, extra blocked domains, verification email subject/message, admin notification toggle.
+- **Hooks:** `riviantrackr_passkeys_signup_allowed` filter (`$allowed, $email, $input`), `riviantrackr_passkeys_signup_email` and `riviantrackr_passkeys_blocked_domains` filters; `riviantrackr_passkeys_signup_requested`, `_signup_verified` and `_signup_login` actions. Constants `RTPK_SIGNUP_IP_RATE_LIMIT`, `RTPK_SIGNUP_EMAIL_RATE_LIMIT`, `RTPK_SIGNUP_MIN_SECONDS`.
 - **Passkey invitations.** New **Users → Passkey invitations** screen: see how many members have a passkey, filter by role and previous invitations, edit the email (plain text with `{name}`, `{site}`, `{link}`, `{expires}`, `{login_url}` placeholders, wrapped in a branded HTML template), send yourself a test, then send in batches of 20 with a live progress log. Only members without a passkey are ever emailed.
 - **Users list integration.** A "Passkeys" column (count, or "Invited N ago"), a "Send passkey invite" row action, and a "Send passkey invitation" bulk action.
 - **One-tap setup page** at `wp-login.php?action=passkey-setup`: a focused screen with the pitch, a single "Create a passkey" button, a "Continue" button on success and "Skip for now". Invitation links carry a single-use token (SHA-256 hash stored in user meta, expiry configurable, default 7 days). With "Link signs the member in" enabled (default), a valid token sets the auth cookie and opens setup directly — the same trust level as a password-reset email; otherwise, or once the token is spent, the normal login form shows a hint and redirects to setup after sign-in.
@@ -19,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - `ProfileManager::markup()` is now public and accepts title/description/button/setup overrides so other screens can embed the manager.
+- `InviteService::render_branded()` and `InviteService::deliver()` expose the branded email template and from-address handling so other emails (signup verification) share them. Database schema version is now 2.
+- Uninstall also removes the pending-signups table and the invitation/signup option rows (unless "Keep passkeys when the plugin is deleted" is on).
 
 ## [1.0.1] - 2026-10-15
 

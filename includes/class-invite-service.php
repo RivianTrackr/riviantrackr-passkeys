@@ -320,7 +320,7 @@ final class InviteService {
 	}
 
 	/**
-	 * Build the email.
+	 * Build the invitation email.
 	 *
 	 * @param \WP_User   $user     Recipient.
 	 * @param string     $link     Personal invitation link.
@@ -330,25 +330,65 @@ final class InviteService {
 	public function render_email( \WP_User $user, string $link, ?array $template = null ): array {
 		$subject_tpl = (string) ( $template['subject'] ?? $this->get( 'subject' ) );
 		$body_tpl    = (string) ( $template['body'] ?? $this->get( 'body' ) );
-		$logo        = $this->logo_url( isset( $template['logo_id'] ) ? absint( $template['logo_id'] ) : -1 );
-		$c           = $this->palette( (string) ( $template['theme'] ?? '' ) );
+		$days        = (int) $this->get( 'expiry_days' );
 
-		$subject = $this->fill( $subject_tpl, $user, $link );
-		$body    = $this->fill( $body_tpl, $user, $link );
-		$site    = (string) get_bloginfo( 'name' );
-		$home    = home_url( '/' );
-		$days    = (int) $this->get( 'expiry_days' );
-		$button  = __( 'Set up my passkey', 'riviantrackr-passkeys' );
-		/* translators: %d: number of days */
-		$expiry = sprintf( _n( 'This link is personal to you and expires in %d day.', 'This link is personal to you and expires in %d days.', $days, 'riviantrackr-passkeys' ), $days );
-		$ignore = __( 'If you didn\'t expect this email you can safely ignore it; nothing changes on your account until you create a passkey.', 'riviantrackr-passkeys' );
-		$font   = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif";
+		return $this->render_branded(
+			[
+				'subject'  => $this->fill( $subject_tpl, $user, $link ),
+				'body'     => $this->fill( $body_tpl, $user, $link ),
+				'link'     => $link,
+				'button'   => __( 'Set up my passkey', 'riviantrackr-passkeys' ),
+				/* translators: %d: number of days */
+				'footnote' => sprintf( _n( 'This link is personal to you and expires in %d day.', 'This link is personal to you and expires in %d days.', $days, 'riviantrackr-passkeys' ), $days )
+					. ' ' . __( 'If you didn\'t expect this email you can safely ignore it; nothing changes on your account until you create a passkey.', 'riviantrackr-passkeys' ),
+			],
+			$template
+		);
+	}
+
+	/**
+	 * Render any message in the branded HTML template (logo, palette, gold
+	 * button, fallback link). Shared by invitations and signup verification.
+	 *
+	 * @param array<string,string> $args     subject, body (plain text), link, button, footnote.
+	 * @param array|null           $template Optional overrides: logo_id, theme.
+	 * @return array{subject:string,html:string,text:string}
+	 */
+	public function render_branded( array $args, ?array $template = null ): array {
+		$logo = $this->logo_url( isset( $template['logo_id'] ) ? absint( $template['logo_id'] ) : -1 );
+		$c    = $this->palette( (string) ( $template['theme'] ?? '' ) );
+
+		$subject  = (string) ( $args['subject'] ?? '' );
+		$body     = (string) ( $args['body'] ?? '' );
+		$link     = (string) ( $args['link'] ?? '' );
+		$button   = (string) ( $args['button'] ?? '' );
+		$footnote = (string) ( $args['footnote'] ?? '' );
+		$site     = (string) get_bloginfo( 'name' );
+		$home     = home_url( '/' );
+		$font     = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif";
 
 		$body_html = $this->body_to_html( $body, $c );
 
 		$header = '' !== $logo
 			? '<img src="' . esc_url( $logo ) . '" alt="' . esc_attr( $site ) . '" height="48" style="display:block;height:48px;width:auto;max-width:220px;border:0;">'
 			: '<span style="font-size:18px;font-weight:700;letter-spacing:-0.2px;color:' . $c['heading'] . ';">' . esc_html( $site ) . '</span>';
+
+		$button_html = '';
+		if ( '' !== $link && '' !== $button ) {
+			$button_html = '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px;"><tr><td style="border-radius:8px;background:' . $c['accent'] . ';">'
+				. '<a href="' . esc_url( $link ) . '" style="display:inline-block;padding:14px 26px;font-size:15px;font-weight:600;line-height:1.2;color:' . $c['on_accent'] . ';text-decoration:none;border-radius:8px;">' . esc_html( $button ) . '</a>'
+				. '</td></tr></table>';
+		}
+
+		$fallback_html = '';
+		if ( '' !== $link ) {
+			$fallback_html = '<p style="margin:0;font-size:12px;line-height:1.5;color:' . $c['muted'] . ';">' . esc_html__( 'Button not working? Copy this link into your browser:', 'riviantrackr-passkeys' ) . '<br>'
+				. '<a href="' . esc_url( $link ) . '" style="color:' . $c['link'] . ';word-break:break-all;">' . esc_html( $link ) . '</a></p>';
+		}
+
+		$footnote_html = '' !== $footnote
+			? '<p style="margin:0 0 10px;font-size:13px;line-height:1.5;color:' . $c['secondary'] . ';">' . esc_html( $footnote ) . '</p>'
+			: '';
 
 		$html = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">'
 			. '<meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark">'
@@ -360,25 +400,61 @@ final class InviteService {
 			. '<tr><td style="background:' . $c['card'] . ';border:1px solid ' . $c['border'] . ';border-radius:12px;padding:32px;">'
 			. '<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;line-height:1.3;letter-spacing:-0.2px;color:' . $c['heading'] . ';">' . esc_html( $subject ) . '</h1>'
 			. $body_html
-			. '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px;"><tr><td style="border-radius:8px;background:' . $c['accent'] . ';">'
-			. '<a href="' . esc_url( $link ) . '" style="display:inline-block;padding:14px 26px;font-size:15px;font-weight:600;line-height:1.2;color:' . $c['on_accent'] . ';text-decoration:none;border-radius:8px;">' . esc_html( $button ) . '</a>'
-			. '</td></tr></table>'
-			. '<p style="margin:0 0 10px;font-size:13px;line-height:1.5;color:' . $c['secondary'] . ';">' . esc_html( $expiry ) . ' ' . esc_html( $ignore ) . '</p>'
-			. '<p style="margin:0;font-size:12px;line-height:1.5;color:' . $c['muted'] . ';">' . esc_html__( 'Button not working? Copy this link into your browser:', 'riviantrackr-passkeys' ) . '<br>'
-			. '<a href="' . esc_url( $link ) . '" style="color:' . $c['link'] . ';word-break:break-all;">' . esc_html( $link ) . '</a></p>'
+			. $button_html
+			. $footnote_html
+			. $fallback_html
 			. '</td></tr>'
 			. '<tr><td align="center" style="padding:20px 8px 0;font-size:12px;line-height:1.5;color:' . $c['muted'] . ';">'
 			. '<a href="' . esc_url( $home ) . '" style="color:' . $c['muted'] . ';text-decoration:none;">' . esc_html( $site ) . '</a>'
 			. '</td></tr>'
 			. '</table></td></tr></table></body></html>';
 
-		$text = $body . "\n\n" . $button . ': ' . $link . "\n\n" . $expiry . ' ' . $ignore . "\n";
+		$text = $body;
+		if ( '' !== $link ) {
+			$text .= "\n\n" . ( '' !== $button ? $button . ': ' : '' ) . $link;
+		}
+		if ( '' !== $footnote ) {
+			$text .= "\n\n" . $footnote;
+		}
+		$text .= "\n";
 
 		return [
 			'subject' => $subject,
 			'html'    => $html,
 			'text'    => $text,
 		];
+	}
+
+	/**
+	 * Send an HTML email through wp_mail() with the configured from name and
+	 * address applied for the duration of the call only.
+	 *
+	 * @param array<string,mixed> $mail to, subject, message (HTML), headers.
+	 */
+	public function deliver( array $mail ): bool {
+		$headers = (array) ( $mail['headers'] ?? [ 'Content-Type: text/html; charset=UTF-8' ] );
+
+		$from_email = (string) $this->get( 'from_email' );
+		$from_name  = (string) $this->get( 'from_name' );
+		$from_cb    = static fn(): string => $from_email;
+		$name_cb    = static fn(): string => $from_name;
+		if ( '' !== $from_email ) {
+			add_filter( 'wp_mail_from', $from_cb, 20 );
+		}
+		if ( '' !== $from_name ) {
+			add_filter( 'wp_mail_from_name', $name_cb, 20 );
+		}
+
+		$sent = wp_mail( (string) ( $mail['to'] ?? '' ), (string) ( $mail['subject'] ?? '' ), (string) ( $mail['message'] ?? '' ), $headers );
+
+		if ( '' !== $from_email ) {
+			remove_filter( 'wp_mail_from', $from_cb, 20 );
+		}
+		if ( '' !== $from_name ) {
+			remove_filter( 'wp_mail_from_name', $name_cb, 20 );
+		}
+
+		return (bool) $sent;
 	}
 
 	/**
@@ -419,25 +495,7 @@ final class InviteService {
 		 */
 		$mail = (array) apply_filters( 'riviantrackr_passkeys_invite_email', $mail, $user, $link );
 
-		$from_email = (string) $this->get( 'from_email' );
-		$from_name  = (string) $this->get( 'from_name' );
-		$from_cb    = static fn(): string => $from_email;
-		$name_cb    = static fn(): string => $from_name;
-		if ( '' !== $from_email ) {
-			add_filter( 'wp_mail_from', $from_cb, 20 );
-		}
-		if ( '' !== $from_name ) {
-			add_filter( 'wp_mail_from_name', $name_cb, 20 );
-		}
-
-		$sent = wp_mail( (string) $mail['to'], (string) $mail['subject'], (string) $mail['message'], (array) $mail['headers'] );
-
-		if ( '' !== $from_email ) {
-			remove_filter( 'wp_mail_from', $from_cb, 20 );
-		}
-		if ( '' !== $from_name ) {
-			remove_filter( 'wp_mail_from_name', $name_cb, 20 );
-		}
+		$sent = $this->deliver( $mail );
 
 		if ( ! $sent ) {
 			return new \WP_Error( 'rtpk_mail_failed', __( 'WordPress could not send the email. Check your mail configuration.', 'riviantrackr-passkeys' ) );

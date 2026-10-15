@@ -16,7 +16,8 @@ final class Admin {
 
 	public function __construct(
 		private Settings $settings,
-		private CredentialStore $store
+		private CredentialStore $store,
+		private SignupService $signup
 	) {}
 
 	public function register_hooks(): void {
@@ -33,6 +34,15 @@ final class Admin {
 			[
 				'type'              => 'array',
 				'sanitize_callback' => [ $this->settings, 'sanitize' ],
+				'default'           => [],
+			]
+		);
+		register_setting(
+			'riviantrackr_passkeys',
+			SignupService::OPTION,
+			[
+				'type'              => 'array',
+				'sanitize_callback' => [ $this->signup, 'sanitize' ],
 				'default'           => [],
 			]
 		);
@@ -70,8 +80,16 @@ final class Admin {
 			return;
 		}
 
+		if ( ! function_exists( 'get_editable_roles' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/user.php';
+		}
+
 		$o        = $this->settings->all();
 		$totals   = $this->store->totals();
+		$s        = $this->signup->options();
+		$s_name   = SignupService::OPTION;
+		$pending  = $this->signup->pending_count();
+		$roles    = get_editable_roles();
 		$is_https = str_starts_with( home_url( '/' ), 'https://' ) || 'localhost' === Helpers::default_rp_id();
 		$rp_id    = $this->settings->rp_id();
 		$origins  = $this->settings->allowed_origins();
@@ -84,6 +102,7 @@ final class Admin {
 			</div>
 
 			<?php settings_errors( Settings::OPTION ); ?>
+			<?php settings_errors( SignupService::OPTION ); ?>
 
 			<div class="rtpk-status-card <?php echo $is_https ? 'is-active' : 'is-warning'; ?>">
 				<div class="rtpk-status-icon" aria-hidden="true"><?php echo $is_https ? '&#10003;' : '&#9888;'; ?></div>
@@ -194,6 +213,118 @@ final class Admin {
 					</div>
 				</div>
 
+				<div class="rtpk-section" id="rtpk-signup-settings">
+					<div class="rtpk-section-header">
+						<h2><?php esc_html_e( 'Open signup', 'riviantrackr-passkeys' ); ?></h2>
+						<p><?php esc_html_e( 'Let visitors create an account without turning on “Anyone can register”. They enter an email, click the link we send, and only then is the user created, signed in and taken to passkey setup.', 'riviantrackr-passkeys' ); ?></p>
+					</div>
+					<div class="rtpk-section-body">
+						<div class="rtpk-field-row rtpk-field-row--toggle">
+							<div>
+								<span class="rtpk-field-label"><?php esc_html_e( 'Allow signups', 'riviantrackr-passkeys' ); ?></span>
+								<p class="rtpk-field-description">
+									<?php
+									printf(
+										/* translators: 1: shortcode, 2: number of pending signups */
+										esc_html__( 'Shows the %1$s form and accepts requests. %2$s', 'riviantrackr-passkeys' ),
+										'<code>[riviantrackr_signup]</code>',
+										'<strong>' . esc_html( sprintf( /* translators: %d: number of pending signups */ _n( '%d link is waiting to be clicked.', '%d links are waiting to be clicked.', $pending, 'riviantrackr-passkeys' ), $pending ) ) . '</strong>'
+									);
+									?>
+								</p>
+							</div>
+							<label class="rtpk-toggle">
+								<input type="checkbox" name="<?php echo esc_attr( $s_name ); ?>[enabled]" value="1" <?php checked( ! empty( $s['enabled'] ) ); ?>>
+								<span class="rtpk-toggle__track"><span class="rtpk-toggle__thumb"></span></span>
+								<span class="screen-reader-text"><?php esc_html_e( 'Allow signups', 'riviantrackr-passkeys' ); ?></span>
+							</label>
+						</div>
+						<div class="rtpk-field-row">
+							<div class="rtpk-field-grid">
+								<div>
+									<label class="rtpk-field-label" for="rtpk-signup-role"><?php esc_html_e( 'Role for new members', 'riviantrackr-passkeys' ); ?></label>
+									<select id="rtpk-signup-role" class="rtpk-input rtpk-select" name="<?php echo esc_attr( $s_name ); ?>[role]">
+										<?php foreach ( $roles as $slug => $role ) : ?>
+											<?php if ( 'administrator' !== $slug ) : ?>
+												<option value="<?php echo esc_attr( (string) $slug ); ?>" <?php selected( $s['role'], $slug ); ?>><?php echo esc_html( translate_user_role( (string) $role['name'] ) ); ?></option>
+											<?php endif; ?>
+										<?php endforeach; ?>
+									</select>
+								</div>
+								<div>
+									<label class="rtpk-field-label" for="rtpk-signup-expiry"><?php esc_html_e( 'Link expires after', 'riviantrackr-passkeys' ); ?></label>
+									<div class="rtpk-input-suffix">
+										<input type="number" id="rtpk-signup-expiry" class="rtpk-input rtpk-input--short" min="1" max="168" name="<?php echo esc_attr( $s_name ); ?>[expiry_hours]" value="<?php echo (int) $s['expiry_hours']; ?>">
+										<span><?php esc_html_e( 'hours', 'riviantrackr-passkeys' ); ?></span>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="rtpk-field-row">
+							<label class="rtpk-field-label" for="rtpk-signup-continue"><?php esc_html_e( 'After passkey setup, send new members to', 'riviantrackr-passkeys' ); ?></label>
+							<input type="url" id="rtpk-signup-continue" class="rtpk-input rtpk-input--wide" name="<?php echo esc_attr( $s_name ); ?>[continue_url]" value="<?php echo esc_attr( (string) $s['continue_url'] ); ?>" placeholder="<?php echo esc_attr( home_url( '/' ) ); ?>">
+							<p class="rtpk-field-description"><?php esc_html_e( 'Must be a page on this site. Leave blank for the home page.', 'riviantrackr-passkeys' ); ?></p>
+						</div>
+						<div class="rtpk-field-row">
+							<div class="rtpk-field-grid">
+								<div>
+									<label class="rtpk-field-label" for="rtpk-turnstile-site"><?php esc_html_e( 'Cloudflare Turnstile site key', 'riviantrackr-passkeys' ); ?></label>
+									<input type="text" id="rtpk-turnstile-site" class="rtpk-input" name="<?php echo esc_attr( $s_name ); ?>[turnstile_site_key]" value="<?php echo esc_attr( (string) $s['turnstile_site_key'] ); ?>" autocomplete="off" spellcheck="false">
+								</div>
+								<div>
+									<label class="rtpk-field-label" for="rtpk-turnstile-secret"><?php esc_html_e( 'Turnstile secret key', 'riviantrackr-passkeys' ); ?></label>
+									<input type="password" id="rtpk-turnstile-secret" class="rtpk-input" name="<?php echo esc_attr( $s_name ); ?>[turnstile_secret_key]" value="<?php echo esc_attr( (string) $s['turnstile_secret_key'] ); ?>" autocomplete="new-password" spellcheck="false">
+								</div>
+							</div>
+							<p class="rtpk-field-description">
+								<?php
+								printf(
+									/* translators: %s: link to the Cloudflare dashboard */
+									esc_html__( 'Optional but recommended. Create a free widget at %s for this domain and paste both keys. Leave both blank to skip the check; the hidden field, timing check, rate limits and blocked domains still apply.', 'riviantrackr-passkeys' ),
+									'<a href="https://dash.cloudflare.com/?to=/:account/turnstile" target="_blank" rel="noopener noreferrer">dash.cloudflare.com → Turnstile</a>'
+								);
+								?>
+							</p>
+						</div>
+						<div class="rtpk-field-row">
+							<label class="rtpk-field-label" for="rtpk-signup-domains"><?php esc_html_e( 'Also block these email domains', 'riviantrackr-passkeys' ); ?></label>
+							<textarea id="rtpk-signup-domains" class="rtpk-input rtpk-textarea" rows="3" name="<?php echo esc_attr( $s_name ); ?>[blocked_domains]" placeholder="example.com"><?php echo esc_textarea( (string) $s['blocked_domains'] ); ?></textarea>
+							<p class="rtpk-field-description">
+								<?php
+								printf(
+									/* translators: %d: number of built-in blocked domains */
+									esc_html__( 'One per line. Subdomains are blocked too. %d well-known throwaway providers are already refused.', 'riviantrackr-passkeys' ),
+									(int) DisposableDomains::built_in_count()
+								);
+								?>
+							</p>
+						</div>
+						<div class="rtpk-field-row">
+							<label class="rtpk-field-label" for="rtpk-signup-subject"><?php esc_html_e( 'Verification email subject', 'riviantrackr-passkeys' ); ?></label>
+							<input type="text" id="rtpk-signup-subject" class="rtpk-input rtpk-input--wide" name="<?php echo esc_attr( $s_name ); ?>[subject]" value="<?php echo esc_attr( (string) $s['subject'] ); ?>">
+						</div>
+						<div class="rtpk-field-row">
+							<label class="rtpk-field-label" for="rtpk-signup-body"><?php esc_html_e( 'Verification email message', 'riviantrackr-passkeys' ); ?></label>
+							<textarea id="rtpk-signup-body" class="rtpk-input rtpk-input--wide rtpk-textarea rtpk-textarea--tall" rows="7" name="<?php echo esc_attr( $s_name ); ?>[body]"><?php echo esc_textarea( (string) $s['body'] ); ?></textarea>
+							<p class="rtpk-field-description">
+								<?php esc_html_e( 'Plain text, same formatting rules as the invitation email. Uses the logo, colours and from address set under Users → Passkey invitations. Placeholders:', 'riviantrackr-passkeys' ); ?>
+								<code>{name}</code> <code>{site}</code> <code>{link}</code> <code>{expires}</code> <code>{login_url}</code>
+							</p>
+						</div>
+						<div class="rtpk-field-row rtpk-field-row--toggle">
+							<div>
+								<span class="rtpk-field-label"><?php esc_html_e( 'Email the site admin about each new member', 'riviantrackr-passkeys' ); ?></span>
+								<p class="rtpk-field-description"><?php esc_html_e( 'The standard WordPress “New User Registration” notice, sent once the link is clicked.', 'riviantrackr-passkeys' ); ?></p>
+							</div>
+							<label class="rtpk-toggle">
+								<input type="checkbox" name="<?php echo esc_attr( $s_name ); ?>[notify_admin]" value="1" <?php checked( ! empty( $s['notify_admin'] ) ); ?>>
+								<span class="rtpk-toggle__track"><span class="rtpk-toggle__thumb"></span></span>
+								<span class="screen-reader-text"><?php esc_html_e( 'Notify admin', 'riviantrackr-passkeys' ); ?></span>
+							</label>
+						</div>
+					</div>
+				</div>
+
 				<div class="rtpk-section">
 					<div class="rtpk-section-header">
 						<h2><?php esc_html_e( 'Data', 'riviantrackr-passkeys' ); ?></h2>
@@ -242,6 +373,10 @@ final class Admin {
 					<div class="rtpk-field-row">
 						<code>[riviantrackr_passkey_login redirect="/my-account/"]</code>
 						<p class="rtpk-field-description"><?php esc_html_e( 'Stand-alone “Sign in with a passkey” button for custom login pages. Hidden for signed-in visitors.', 'riviantrackr-passkeys' ); ?></p>
+					</div>
+					<div class="rtpk-field-row">
+						<code>[riviantrackr_signup]</code>
+						<p class="rtpk-field-description"><?php esc_html_e( 'Verify-first signup form (email + name). Dark theme by default; add theme="light" for light backgrounds. Requires “Allow signups” above.', 'riviantrackr-passkeys' ); ?></p>
 					</div>
 				</div>
 			</div>

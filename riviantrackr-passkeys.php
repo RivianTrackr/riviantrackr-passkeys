@@ -27,7 +27,7 @@ define( 'RTPK_FILE', __FILE__ );
 define( 'RTPK_DIR', plugin_dir_path( __FILE__ ) );
 define( 'RTPK_URL', plugin_dir_url( __FILE__ ) );
 define( 'RTPK_ASSET_SUFFIX', defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min' );
-define( 'RTPK_DB_VERSION', '1' );
+define( 'RTPK_DB_VERSION', '2' );
 define( 'RTPK_OPTION_NAME', 'riviantrackr_passkeys_options' );
 define( 'RTPK_REST_NAMESPACE', 'riviantrackr-passkeys/v1' );
 
@@ -38,6 +38,9 @@ define( 'RTPK_LOGIN_RATE_LIMIT', 10 );        // Login verifications per minute 
 define( 'RTPK_OPTIONS_RATE_LIMIT', 30 );      // Challenge requests per minute per IP.
 define( 'RTPK_REGISTER_RATE_LIMIT', 10 );     // Registrations per minute per user.
 define( 'RTPK_NAME_MAX_LENGTH', 60 );
+define( 'RTPK_SIGNUP_IP_RATE_LIMIT', 5 );    // Signup requests per hour per IP.
+define( 'RTPK_SIGNUP_EMAIL_RATE_LIMIT', 3 ); // Signup requests per hour per email address.
+define( 'RTPK_SIGNUP_MIN_SECONDS', 3 );      // Minimum time between form render and submit.
 
 require_once RTPK_DIR . 'includes/class-autoloader.php';
 RivianTrackr\Passkeys\Autoloader::register( RTPK_DIR . 'includes', RTPK_DIR . 'lib/lbuchs-webauthn' );

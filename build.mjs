@@ -1,8 +1,8 @@
 // Minifies assets/*.js and assets/*.css into *.min.* siblings.
 import { build } from 'esbuild';
 
-const js = ['passkeys-core', 'passkeys-login', 'passkeys-manage', 'passkeys-invites'];
-const css = ['passkeys-login', 'passkeys-manage', 'passkeys-admin', 'passkeys-setup'];
+const js = ['passkeys-core', 'passkeys-login', 'passkeys-manage', 'passkeys-invites', 'passkeys-signup'];
+const css = ['passkeys-login', 'passkeys-manage', 'passkeys-admin', 'passkeys-setup', 'passkeys-signup'];
 
 await Promise.all([
 	...js.map((name) =>

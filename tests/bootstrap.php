@@ -27,6 +27,9 @@ define( 'RTPK_LOGIN_RATE_LIMIT', 10 );
 define( 'RTPK_OPTIONS_RATE_LIMIT', 30 );
 define( 'RTPK_REGISTER_RATE_LIMIT', 10 );
 define( 'RTPK_NAME_MAX_LENGTH', 60 );
+define( 'RTPK_SIGNUP_IP_RATE_LIMIT', 5 );
+define( 'RTPK_SIGNUP_EMAIL_RATE_LIMIT', 3 );
+define( 'RTPK_SIGNUP_MIN_SECONDS', 3 );
 if ( ! defined( 'DAY_IN_SECONDS' ) ) {
 	define( 'DAY_IN_SECONDS', 86400 );
 }
@@ -56,6 +59,16 @@ function rtpk_test_reset(): void {
 	$GLOBALS['rtpk_test_filters']     = [];
 	$GLOBALS['rtpk_test_attachments'] = [];
 	$GLOBALS['rtpk_test_theme_mods']  = [];
+	$GLOBALS['rtpk_test_user_emails']   = [];
+	$GLOBALS['rtpk_test_usernames']     = [];
+	$GLOBALS['rtpk_test_inserted']      = [];
+	$GLOBALS['rtpk_test_remote']        = [];
+	$GLOBALS['rtpk_test_remote_reply']  = null;
+	$GLOBALS['rtpk_test_roles']         = [ 'subscriber', 'contributor', 'author', 'editor', 'administrator' ];
+	$GLOBALS['rtpk_test_actions']       = [];
+	$GLOBALS['rtpk_test_filter_hooks']  = [];
+	$GLOBALS['rtpk_test_notifications'] = [];
+	$GLOBALS['rtpk_test_mail_ok']       = true;
 }
 
 /* ---------------------------------------------------------------- options */
@@ -118,7 +131,7 @@ function get_user_by( $field, $value ) {
 }
 function wp_mail( $to, $subject, $message, $headers = [] ) {
 	$GLOBALS['rtpk_test_mail'][] = compact( 'to', 'subject', 'message', 'headers' );
-	return true;
+	return $GLOBALS['rtpk_test_mail_ok'] ?? true;
 }
 function is_email( $email ) {
 	return (bool) filter_var( (string) $email, FILTER_VALIDATE_EMAIL );
@@ -223,11 +236,84 @@ function esc_attr( $text ) {
 /* ------------------------------------------------------------------ hooks */
 
 function apply_filters( $tag, $value, ...$args ) {
-	return $value;
+	$hook = $GLOBALS['rtpk_test_filter_hooks'][ $tag ] ?? null;
+	return $hook ? $hook( $value, ...$args ) : $value;
 }
-function do_action( $tag, ...$args ) {}
+function do_action( $tag, ...$args ) {
+	$GLOBALS['rtpk_test_actions'][] = [ $tag, $args ];
+}
 function add_settings_error( $setting, $code, $message, $type = 'error' ) {
 	$GLOBALS['rtpk_test_errors'][] = compact( 'setting', 'code', 'message', 'type' );
+}
+
+/* ---------------------------------------------------------- users/signup */
+
+$GLOBALS['rtpk_test_user_emails']   = [];
+$GLOBALS['rtpk_test_usernames']     = [];
+$GLOBALS['rtpk_test_inserted']      = [];
+$GLOBALS['rtpk_test_remote']        = [];
+$GLOBALS['rtpk_test_remote_reply']  = null;
+$GLOBALS['rtpk_test_roles']         = [ 'subscriber', 'contributor', 'author', 'editor', 'administrator' ];
+$GLOBALS['rtpk_test_actions']       = [];
+$GLOBALS['rtpk_test_filter_hooks']  = [];
+$GLOBALS['rtpk_test_notifications'] = [];
+$GLOBALS['rtpk_test_mail_ok']       = true;
+
+function wp_salt( $scheme = 'auth' ) {
+	return 'test-salt-' . $scheme;
+}
+function wp_hash( $data, $scheme = 'auth' ) {
+	return hash_hmac( 'md5', (string) $data, wp_salt( $scheme ) );
+}
+function email_exists( $email ) {
+	return $GLOBALS['rtpk_test_user_emails'][ strtolower( (string) $email ) ] ?? false;
+}
+function username_exists( $login ) {
+	return $GLOBALS['rtpk_test_usernames'][ strtolower( (string) $login ) ] ?? false;
+}
+function sanitize_user( $username, $strict = false ) {
+	$username = strip_tags( (string) $username );
+	$username = preg_replace( '/[\x00-\x1f\x7f]+|%[a-f0-9]{2}/i', '', $username );
+	if ( $strict ) {
+		$username = preg_replace( '|[^a-z0-9 _.\-@]|i', '', $username );
+	}
+	return trim( preg_replace( '|\s+|', ' ', $username ) );
+}
+function wp_generate_password( $length = 12, $special = true, $extra = false ) {
+	return bin2hex( random_bytes( (int) ceil( $length / 2 ) ) );
+}
+function get_role( $role ) {
+	return in_array( $role, $GLOBALS['rtpk_test_roles'], true ) ? (object) [ 'name' => $role ] : null;
+}
+function wp_insert_user( $userdata ) {
+	if ( username_exists( $userdata['user_login'] ) ) {
+		return new WP_Error( 'existing_user_login', 'Sorry, that username already exists!' );
+	}
+	if ( email_exists( $userdata['user_email'] ) ) {
+		return new WP_Error( 'existing_user_email', 'Sorry, that email address is already used!' );
+	}
+	$id   = 100 + count( $GLOBALS['rtpk_test_inserted'] );
+	$user = new WP_User( $id, $userdata['user_login'], $userdata['display_name'] ?? '', $userdata['user_email'] );
+
+	$GLOBALS['rtpk_test_inserted'][ $id ]                                       = $userdata;
+	$GLOBALS['rtpk_test_users'][ $id ]                                          = $user;
+	$GLOBALS['rtpk_test_user_emails'][ strtolower( $userdata['user_email'] ) ] = $id;
+	$GLOBALS['rtpk_test_usernames'][ strtolower( $userdata['user_login'] ) ]   = $id;
+	do_action( 'user_register', $id, $userdata );
+	return $id;
+}
+function wp_new_user_notification( $user_id, $deprecated = null, $notify = '' ) {
+	$GLOBALS['rtpk_test_notifications'][] = [ $user_id, $notify ];
+}
+function wp_remote_post( $url, $args = [] ) {
+	$GLOBALS['rtpk_test_remote'][] = [ $url, $args ];
+	return $GLOBALS['rtpk_test_remote_reply'] ?? [ 'code' => 200, 'body' => '{"success":true}' ];
+}
+function wp_remote_retrieve_response_code( $response ) {
+	return is_array( $response ) ? (int) ( $response['code'] ?? 0 ) : 0;
+}
+function wp_remote_retrieve_body( $response ) {
+	return is_array( $response ) ? (string) ( $response['body'] ?? '' ) : '';
 }
 
 /* -------------------------------------------------------------- site info */
@@ -309,3 +395,4 @@ class RTPK_Fake_Wpdb {
 $GLOBALS['wpdb'] = new RTPK_Fake_Wpdb();
 
 require_once __DIR__ . '/FakeAuthenticator.php';
+require_once __DIR__ . '/FakePendingSignupStore.php';
