@@ -334,7 +334,7 @@ final class SignupService {
 				'action' => self::ACTION,
 				'token'  => $token,
 			],
-			wp_login_url()
+			site_url( 'wp-login.php', 'login' )
 		);
 	}
 

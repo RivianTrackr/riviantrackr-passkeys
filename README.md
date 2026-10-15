@@ -18,6 +18,9 @@ key once, then sign in with a single tap. Passwords keep working alongside.
   "Anyone can register" stays off. No user exists until they click the emailed link; honeypot,
   timing check, rate limits, a disposable-domain blocklist and optional Cloudflare Turnstile keep
   bots out. New members land straight on passkey setup.
+- **Your own login pages** — `[riviantrackr_login]` on a page of your choosing, with wp-login.php's
+  login/register screens redirected there and the remaining wp-login.php screens (password reset,
+  logout, passkey setup) reskinned in the site's colours with your logo.
 - **Hardened by default** — single-use challenges, strict exact-origin matching, signature-counter
   clone detection, per-IP and per-user rate limits, opaque 32-byte user handles, a 10-passkey cap
   per account.
@@ -50,7 +53,47 @@ key once, then sign in with a single tap. Passwords keep working alongside.
 |---|---|
 | `[riviantrackr_passkeys]` | Passkey manager for the signed-in member. Dark "ink & brass" theme by default; `theme="light"` for light backgrounds. Shows a sign-in link when logged out. |
 | `[riviantrackr_passkey_login redirect="/my-account/" theme="dark" divider="0"]` | Stand-alone sign-in button for custom login pages. Hidden for signed-in visitors. |
+| `[riviantrackr_login theme="dark" redirect=""]` | Full sign-in form for your own login page: passkey button, username/password, "Lost your password?", "Create an account", failure and logout messages. See [Custom login pages](#custom-login-pages). |
 | `[riviantrackr_signup theme="dark" redirect=""]` | Verify-first signup form (email + optional name). Dark by default, `theme="light"` available. Requires **Allow signups** under Settings → Passkeys. Signed-in visitors see a "Continue" note instead. |
+
+## Custom login pages
+
+Replace the stock `wp-login.php` login and registration screens with pages of your own while
+password reset, logout, post passwords and the passkey landing pages keep working on `wp-login.php`.
+
+1. Create a page (for example `/sign-in/`) containing `[riviantrackr_login]` and, if you use open
+   signup, a page (for example `/join/`) containing `[riviantrackr_signup]`. Publish both.
+2. Under **Settings → Passkeys → Pages** pick them as **Sign-in page** and **Join page**.
+3. Turn on **Send wp-login.php visitors to these pages**. From now on:
+   - `wp_login_url()` (and so `auth_redirect()`, "Log in" links, the logout confirmation) points at
+     the sign-in page, keeping `redirect_to`; `wp_registration_url()` points at the join page.
+   - A GET request for `wp-login.php` with no action, `action=login` or `action=register` is
+     redirected to the matching page. `redirect_to`, `login`, `loggedout`, `checkemail`,
+     `rtpk_invite` and `rtpk_signup` are carried over so the page can show the right message.
+   - A wrong password or an empty username/password sends the visitor back to the sign-in page with
+     `?login=failed` or `?login=empty` instead of rendering `wp-login.php`.
+   - Never redirected: POST requests, `interim-login`, `reauth=1`, signed-in visitors (wp-login.php
+     already forwards them), and `postpass`, `logout`, `lostpassword`, `retrievepassword`,
+     `resetpass`, `rp`, `confirmaction`, `passkey-setup`, `passkey-signup`.
+   - If the chosen page is unpublished or deleted the redirect switches itself off. The stock form
+     is always reachable at `wp-login.php?reauth=1`.
+4. Optionally turn on **Brand the remaining wp-login.php screens** to restyle password reset, logout
+   and the passkey setup/signup pages in the dark "ink & brass" palette with a gold button and your
+   logo (the invitations logo, else the theme's custom logo, else the site icon, else the site name).
+
+`[riviantrackr_login theme="dark|light" redirect=""]` renders `wp_login_form()` in the plugin's card:
+passkey button on top, "or", username, password, "Keep me signed in", "Sign in", then "Lost your
+password?" and (while signups are allowed and a join page is set) "Create an account". It shows a
+message for `?login=failed`, `?login=empty`, `?loggedout=true`, `?checkemail=confirm`,
+`?rtpk_invite=expired` and `?rtpk_signup=exists`, and the "sign in once with your password" hint when
+`redirect_to` leads to passkey setup. After signing in the member goes to `redirect_to` if present,
+else the `redirect` attribute, else the home page. Signed-in visitors see "You're signed in as …"
+with a Continue link.
+
+**Caching caveat:** the sign-in and join pages must not be served from a full-page cache. The form
+carries the current `redirect_to`, the messages depend on the query string, and the signed-in state
+depends on the visitor. Exclude both URLs in your cache plugin or CDN (most ignore requests with
+query strings, but the bare page must be excluded too), or the cached copy will show the wrong state.
 
 ## Inviting members
 

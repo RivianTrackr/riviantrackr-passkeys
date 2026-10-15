@@ -69,6 +69,7 @@ function rtpk_test_reset(): void {
 	$GLOBALS['rtpk_test_filter_hooks']  = [];
 	$GLOBALS['rtpk_test_notifications'] = [];
 	$GLOBALS['rtpk_test_mail_ok']       = true;
+	$GLOBALS['rtpk_test_posts']         = [];
 }
 
 /* ---------------------------------------------------------------- options */
@@ -207,8 +208,16 @@ function add_query_arg( ...$args ) {
 		$params = [ $args[0] => $args[1] ];
 		$url    = $args[2];
 	}
+	// Like WordPress, values are appended as given (callers encode them).
+	$pairs = [];
+	foreach ( $params as $key => $value ) {
+		$pairs[] = $key . '=' . $value;
+	}
 	$sep = str_contains( $url, '?' ) ? '&' : '?';
-	return $url . $sep . http_build_query( $params );
+	return $url . $sep . implode( '&', $pairs );
+}
+function site_url( $path = '', $scheme = null ) {
+	return 'https://riviantrackr.test/' . ltrim( (string) $path, '/' );
 }
 function wp_login_url( $redirect = '' ) {
 	$url = 'https://riviantrackr.test/wp-login.php';
@@ -314,6 +323,18 @@ function wp_remote_retrieve_response_code( $response ) {
 }
 function wp_remote_retrieve_body( $response ) {
 	return is_array( $response ) ? (string) ( $response['body'] ?? '' ) : '';
+}
+
+/* ------------------------------------------------------------------ posts */
+
+$GLOBALS['rtpk_test_posts'] = [];
+$GLOBALS['wp_rewrite']      = new stdClass(); // get_permalink() guard in Settings::page_url().
+
+function get_post_status( $post = null ) {
+	return $GLOBALS['rtpk_test_posts'][ (int) $post ]['status'] ?? false;
+}
+function get_permalink( $post = 0 ) {
+	return $GLOBALS['rtpk_test_posts'][ (int) $post ]['url'] ?? false;
 }
 
 /* -------------------------------------------------------------- site info */

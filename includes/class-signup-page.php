@@ -337,9 +337,14 @@ final class SignupPage {
 	 */
 	public function login_message( $message ): string {
 		if ( isset( $_GET['rtpk_signup'] ) && 'exists' === $_GET['rtpk_signup'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			return (string) $message . '<p class="message">' . esc_html__( 'You already have an account with that email address. Sign in to continue, or use “Lost your password?” if you need to reset it.', 'riviantrackr-passkeys' ) . '</p>';
+			return (string) $message . '<p class="message">' . esc_html( self::exists_hint() ) . '</p>';
 		}
 		return (string) $message;
+	}
+
+	/** Shown when a verified signup address already had an account. */
+	public static function exists_hint(): string {
+		return __( 'You already have an account with that email address. Sign in to continue, or use “Lost your password?” if you need to reset it.', 'riviantrackr-passkeys' );
 	}
 
 	/**

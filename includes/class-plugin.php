@@ -29,6 +29,9 @@ final class Plugin {
 	private PendingSignupStore $pending;
 	private SignupService $signup;
 	private SignupPage $signup_page;
+	private LoginPage $login_page;
+	private LoginRouter $router;
+	private LoginBranding $branding;
 
 	public static function instance(): Plugin {
 		if ( null === self::$instance ) {
@@ -52,6 +55,9 @@ final class Plugin {
 		$this->pending      = new PendingSignupStore();
 		$this->signup       = new SignupService( $this->settings, $this->invites, $this->pending, $this->limiter );
 		$this->signup_page  = new SignupPage( $this->signup, $this->invites );
+		$this->login_page   = new LoginPage( $this->settings, $this->signup );
+		$this->router       = new LoginRouter( $this->settings );
+		$this->branding     = new LoginBranding( $this->settings, $this->invites );
 		$this->admin        = new Admin( $this->settings, $this->store, $this->signup );
 	}
 
@@ -69,6 +75,9 @@ final class Plugin {
 		$this->profile->register_hooks();
 		$this->setup_page->register_hooks();
 		$this->signup_page->register_hooks();
+		$this->login_page->register_hooks();
+		$this->router->register_hooks();
+		$this->branding->register_hooks();
 
 		if ( is_admin() ) {
 			$this->admin->register_hooks();

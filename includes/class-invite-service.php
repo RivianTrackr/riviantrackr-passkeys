@@ -182,7 +182,7 @@ final class InviteService {
 		if ( '' !== $continue_to ) {
 			$args['redirect_to'] = $continue_to;
 		}
-		return add_query_arg( $args, wp_login_url() );
+		return add_query_arg( $args, site_url( 'wp-login.php', 'login' ) );
 	}
 
 	/**
@@ -195,7 +195,7 @@ final class InviteService {
 				'uid'         => $user->ID,
 				'rtpk_invite' => $token,
 			],
-			wp_login_url()
+			site_url( 'wp-login.php', 'login' )
 		);
 	}
 

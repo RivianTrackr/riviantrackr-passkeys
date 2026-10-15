@@ -92,12 +92,27 @@ final class SetupPage {
 		// phpcs:enable
 
 		if ( $expired ) {
-			return (string) $message . '<p class="message">' . esc_html__( 'That invitation link has expired or was already used. Sign in and we will take you straight to passkey setup.', 'riviantrackr-passkeys' ) . '</p>';
+			return (string) $message . '<p class="message">' . esc_html( self::expired_hint() ) . '</p>';
 		}
-		if ( '' !== $redirect_to && str_contains( $redirect_to, 'action=' . InviteService::SETUP_ACTION ) ) {
-			return (string) $message . '<p class="message">' . esc_html__( 'Sign in once with your password to set up your passkey.', 'riviantrackr-passkeys' ) . '</p>';
+		if ( self::leads_to_setup( $redirect_to ) ) {
+			return (string) $message . '<p class="message">' . esc_html( self::setup_hint() ) . '</p>';
 		}
 		return (string) $message;
+	}
+
+	/** Shown when an invitation link was expired or already used. */
+	public static function expired_hint(): string {
+		return __( 'That invitation link has expired or was already used. Sign in and we will take you straight to passkey setup.', 'riviantrackr-passkeys' );
+	}
+
+	/** Shown when the visitor will land on passkey setup after signing in. */
+	public static function setup_hint(): string {
+		return __( 'Sign in once with your password to set up your passkey.', 'riviantrackr-passkeys' );
+	}
+
+	/** Whether a redirect_to value points at the passkey setup page. */
+	public static function leads_to_setup( string $redirect_to ): bool {
+		return '' !== $redirect_to && str_contains( $redirect_to, 'action=' . InviteService::SETUP_ACTION );
 	}
 
 	/**

@@ -146,3 +146,73 @@ body.rtpk-setup-page #login {
 		padding: 20px 16px;
 	}
 }
+
+/* ── Branded wp-login.php (body.rtpk-branded, passkeys-wp-login.css) ──
+   The setup/signup landing pages assume the stock white card; swap the
+   card, embedded manager and embedded signup form to ink & brass. */
+body.rtpk-branded .rtpk-setup {
+	background: #16191e;
+	border-color: #3a3e45;
+	box-shadow: none;
+}
+
+body.rtpk-branded .rtpk-setup__title {
+	color: #f6f4f0;
+}
+
+body.rtpk-branded .rtpk-setup__lede,
+body.rtpk-branded .rtpk-setup__benefits li {
+	color: #ece9e4;
+}
+
+body.rtpk-branded .rtpk-setup .rtpk-manager.is-light,
+body.rtpk-branded .rtpk-setup .rtpk-signup.is-light {
+	--rtpk-bg: #16191e;
+	--rtpk-bg-deep: #121418;
+	--rtpk-bg-hover: #1f2228;
+	--rtpk-bg-input: #3a3e45;
+	--rtpk-text: #ece9e4;
+	--rtpk-text-secondary: #a6a39c;
+	--rtpk-text-muted: #79766f;
+	--rtpk-heading: #f6f4f0;
+	--rtpk-border: #3a3e45;
+	--rtpk-border-hover: #4e525a;
+	--rtpk-accent: #fba919;
+	--rtpk-accent-hover: #ffbe4a;
+	--rtpk-on-accent: #15130e;
+	--rtpk-error: #ef4444;
+	--rtpk-success: #4ade80;
+	--rtpk-placeholder: #a6a39c;
+}
+
+body.rtpk-branded .rtpk-setup .rtpk-manager {
+	border-top-color: #3a3e45;
+}
+
+body.rtpk-branded .rtpk-setup__done {
+	background: color-mix(in srgb, #4ade80 12%, #16191e);
+	border: 1px solid color-mix(in srgb, #4ade80 30%, #3a3e45);
+}
+
+body.rtpk-branded .rtpk-setup__done-text {
+	color: #ece9e4;
+}
+
+body.rtpk-branded .rtpk-setup__continue {
+	background: #fba919;
+	color: #15130e;
+}
+
+body.rtpk-branded .rtpk-setup__continue:hover,
+body.rtpk-branded .rtpk-setup__continue:focus {
+	background: #ffbe4a;
+	color: #15130e;
+}
+
+body.rtpk-branded .rtpk-setup__skip a {
+	color: #a6a39c;
+}
+
+body.rtpk-branded .rtpk-setup__skip a:hover {
+	color: #fba919;
+}

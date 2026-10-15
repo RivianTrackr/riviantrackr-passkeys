@@ -30,6 +30,10 @@ final class Settings {
 			'timeout'           => 60,
 			'allowed_origins'   => '',
 			'preserve_data'     => false,
+			'login_page_id'     => 0,
+			'register_page_id'  => 0,
+			'redirect_wp_login' => false,
+			'brand_wp_login'    => false,
 		];
 	}
 
@@ -103,6 +107,73 @@ final class Settings {
 		return array_values( array_unique( array_filter( array_map( 'strval', $origins ) ) ) );
 	}
 
+	// ---- custom login pages ---------------------------------------------
+
+	/**
+	 * Permalink of the owner's sign-in page, or '' when none is chosen or
+	 * the page is no longer published.
+	 */
+	public function login_page_url(): string {
+		return $this->page_url( (int) $this->get( 'login_page_id' ) );
+	}
+
+	/**
+	 * Permalink of the owner's join (signup) page, or ''.
+	 */
+	public function register_page_url(): string {
+		return $this->page_url( (int) $this->get( 'register_page_id' ) );
+	}
+
+	/**
+	 * Whether wp-login.php's login/register screens should be sent to the
+	 * custom pages. Cheap enough to call at plugins_loaded: no permalink
+	 * lookup, just the stored toggle and page ID.
+	 */
+	public function wants_wp_login_redirect(): bool {
+		return ! empty( $this->get( 'redirect_wp_login' ) ) && (int) $this->get( 'login_page_id' ) > 0;
+	}
+
+	/**
+	 * Whether the remaining wp-login.php screens get the ink & brass skin.
+	 */
+	public function brands_wp_login(): bool {
+		return ! empty( $this->get( 'brand_wp_login' ) );
+	}
+
+	private function page_url( int $page_id ): string {
+		// get_permalink() needs $wp_rewrite, which does not exist yet at plugins_loaded.
+		if ( $page_id <= 0 || empty( $GLOBALS['wp_rewrite'] ) || 'publish' !== get_post_status( $page_id ) ) {
+			return '';
+		}
+		$url = get_permalink( $page_id );
+		return is_string( $url ) ? $url : '';
+	}
+
+	/**
+	 * A submitted page ID is kept only if it points at a published page.
+	 */
+	private function published_page_id( $raw, string $code, string $label ): int {
+		$id = absint( $raw );
+		if ( 0 === $id ) {
+			return 0;
+		}
+		if ( 'publish' !== get_post_status( $id ) ) {
+			if ( function_exists( 'add_settings_error' ) ) {
+				add_settings_error(
+					self::OPTION,
+					$code,
+					sprintf(
+						/* translators: %s: setting label */
+						__( 'The %s must be a published page. The selection was cleared.', 'riviantrackr-passkeys' ),
+						$label
+					)
+				);
+			}
+			return 0;
+		}
+		return $id;
+	}
+
 	/**
 	 * Settings API sanitizer.
 	 *
@@ -150,6 +221,20 @@ final class Settings {
 			}
 		}
 		$out['allowed_origins'] = implode( "\n", array_unique( $origins ) );
+
+		$out['login_page_id']     = $this->published_page_id( $input['login_page_id'] ?? 0, 'rtpk_login_page', __( 'sign-in page', 'riviantrackr-passkeys' ) );
+		$out['register_page_id']  = $this->published_page_id( $input['register_page_id'] ?? 0, 'rtpk_register_page', __( 'join page', 'riviantrackr-passkeys' ) );
+		$out['redirect_wp_login'] = ! empty( $input['redirect_wp_login'] );
+		$out['brand_wp_login']    = ! empty( $input['brand_wp_login'] );
+
+		if ( $out['redirect_wp_login'] && 0 === $out['login_page_id'] && function_exists( 'add_settings_error' ) ) {
+			add_settings_error(
+				self::OPTION,
+				'rtpk_redirect_needs_page',
+				__( 'Choose a published sign-in page for “Send wp-login.php visitors to these pages” to take effect. Until then wp-login.php keeps showing the standard form.', 'riviantrackr-passkeys' ),
+				'warning'
+			);
+		}
 
 		$this->flush();
 		return $out;

@@ -75,6 +75,25 @@ final class Admin {
 		return $links;
 	}
 
+	/**
+	 * Published-pages <select> for the Pages section.
+	 */
+	private function pages_dropdown( string $field_name, string $id, int $selected ): string {
+		// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- Returned with echo => 0; wp_dropdown_pages() escapes its own output.
+		return (string) wp_dropdown_pages(
+			[
+				'name'              => $field_name,
+				'id'                => $id,
+				'class'             => 'rtpk-input rtpk-select',
+				'selected'          => $selected,
+				'show_option_none'  => __( '— Not set —', 'riviantrackr-passkeys' ),
+				'option_none_value' => '0',
+				'echo'              => 0,
+			]
+		);
+		// phpcs:enable
+	}
+
 	public function render(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
@@ -209,6 +228,60 @@ final class Admin {
 							<label class="rtpk-field-label" for="rtpk-timeout"><?php esc_html_e( 'Prompt timeout (seconds)', 'riviantrackr-passkeys' ); ?></label>
 							<input type="number" id="rtpk-timeout" class="rtpk-input rtpk-input--short" min="30" max="300" step="5" name="<?php echo esc_attr( $name ); ?>[timeout]" value="<?php echo (int) $o['timeout']; ?>">
 							<p class="rtpk-field-description"><?php esc_html_e( 'How long the browser waits for the user to complete the prompt. 30–300.', 'riviantrackr-passkeys' ); ?></p>
+						</div>
+					</div>
+				</div>
+
+				<div class="rtpk-section" id="rtpk-pages-settings">
+					<div class="rtpk-section-header">
+						<h2><?php esc_html_e( 'Pages', 'riviantrackr-passkeys' ); ?></h2>
+						<p>
+							<?php
+							printf(
+								/* translators: 1: login shortcode, 2: signup shortcode */
+								esc_html__( 'Replace the standard wp-login.php screens with pages of your own. Create a page containing %1$s and one containing %2$s, pick them below, then turn on the redirect.', 'riviantrackr-passkeys' ),
+								'<code>[riviantrackr_login]</code>',
+								'<code>[riviantrackr_signup]</code>'
+							);
+							?>
+						</p>
+					</div>
+					<div class="rtpk-section-body">
+						<div class="rtpk-field-row">
+							<div class="rtpk-field-grid">
+								<div>
+									<label class="rtpk-field-label" for="rtpk-login-page"><?php esc_html_e( 'Sign-in page', 'riviantrackr-passkeys' ); ?></label>
+									<?php echo $this->pages_dropdown( $name . '[login_page_id]', 'rtpk-login-page', (int) $o['login_page_id'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_dropdown_pages() escapes its output. ?>
+									<p class="rtpk-field-description"><?php esc_html_e( 'The page holding [riviantrackr_login]. wp_login_url() and “Sign in” links point here.', 'riviantrackr-passkeys' ); ?></p>
+								</div>
+								<div>
+									<label class="rtpk-field-label" for="rtpk-register-page"><?php esc_html_e( 'Join page', 'riviantrackr-passkeys' ); ?></label>
+									<?php echo $this->pages_dropdown( $name . '[register_page_id]', 'rtpk-register-page', (int) $o['register_page_id'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_dropdown_pages() escapes its output. ?>
+									<p class="rtpk-field-description"><?php esc_html_e( 'The page holding [riviantrackr_signup]. Linked as “Create an account” on the sign-in page while signups are allowed.', 'riviantrackr-passkeys' ); ?></p>
+								</div>
+							</div>
+						</div>
+						<div class="rtpk-field-row rtpk-field-row--toggle">
+							<div>
+								<span class="rtpk-field-label"><?php esc_html_e( 'Send wp-login.php visitors to these pages', 'riviantrackr-passkeys' ); ?></span>
+								<p class="rtpk-field-description"><?php esc_html_e( 'Anyone opening the standard login or registration screen lands on the pages above, and a wrong password returns them there with a message. Password reset, logout, post passwords and the passkey landing pages stay on wp-login.php. The standard form is always reachable at wp-login.php?reauth=1.', 'riviantrackr-passkeys' ); ?></p>
+							</div>
+							<label class="rtpk-toggle">
+								<input type="checkbox" name="<?php echo esc_attr( $name ); ?>[redirect_wp_login]" value="1" <?php checked( ! empty( $o['redirect_wp_login'] ) ); ?>>
+								<span class="rtpk-toggle__track"><span class="rtpk-toggle__thumb"></span></span>
+								<span class="screen-reader-text"><?php esc_html_e( 'Redirect wp-login.php to the custom pages', 'riviantrackr-passkeys' ); ?></span>
+							</label>
+						</div>
+						<div class="rtpk-field-row rtpk-field-row--toggle">
+							<div>
+								<span class="rtpk-field-label"><?php esc_html_e( 'Brand the remaining wp-login.php screens', 'riviantrackr-passkeys' ); ?></span>
+								<p class="rtpk-field-description"><?php esc_html_e( 'Restyles whatever still shows on wp-login.php (password reset, logout, passkey setup and signup pages) in the site’s dark palette with a gold button, and shows your logo instead of the WordPress one. The logo comes from Users → Passkey invitations, then the theme’s custom logo, then the site icon.', 'riviantrackr-passkeys' ); ?></p>
+							</div>
+							<label class="rtpk-toggle">
+								<input type="checkbox" name="<?php echo esc_attr( $name ); ?>[brand_wp_login]" value="1" <?php checked( ! empty( $o['brand_wp_login'] ) ); ?>>
+								<span class="rtpk-toggle__track"><span class="rtpk-toggle__thumb"></span></span>
+								<span class="screen-reader-text"><?php esc_html_e( 'Brand wp-login.php', 'riviantrackr-passkeys' ); ?></span>
+							</label>
 						</div>
 					</div>
 				</div>
@@ -369,6 +442,10 @@ final class Admin {
 					<div class="rtpk-field-row">
 						<code>[riviantrackr_passkeys]</code>
 						<p class="rtpk-field-description"><?php esc_html_e( 'Passkey manager for the signed-in member on a front-end account page. Dark theme by default; add theme="light" for light backgrounds.', 'riviantrackr-passkeys' ); ?></p>
+					</div>
+					<div class="rtpk-field-row">
+						<code>[riviantrackr_login redirect="/" theme="dark"]</code>
+						<p class="rtpk-field-description"><?php esc_html_e( 'Full sign-in form for your own login page: passkey button, username and password, “Lost your password?” and “Create an account”. Shows failure and logout messages. Dark theme by default; add theme="light" for light backgrounds.', 'riviantrackr-passkeys' ); ?></p>
 					</div>
 					<div class="rtpk-field-row">
 						<code>[riviantrackr_passkey_login redirect="/my-account/"]</code>

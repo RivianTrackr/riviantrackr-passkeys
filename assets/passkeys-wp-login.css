@@ -1,0 +1,429 @@
+/* ── RivianTrackr Passkeys — wp-login.php skin ──
+   Applied with body.rtpk-branded when "Brand the remaining wp-login.php
+   screens" is on. Ink & brass: deep #121418 page, #16191e card, #3a3e45
+   borders and inputs, warm-neutral text, gold primary with dark text. The
+   logo rule is added inline by LoginBranding::logo_css(). Loaded after
+   wp-admin/css/login.css. */
+body.login.rtpk-branded {
+	--rtpk-bg: #16191e;
+	--rtpk-bg-deep: #121418;
+	--rtpk-bg-hover: #1f2228;
+	--rtpk-bg-input: #3a3e45;
+	--rtpk-text: #ece9e4;
+	--rtpk-text-secondary: #a6a39c;
+	--rtpk-text-muted: #79766f;
+	--rtpk-heading: #f6f4f0;
+	--rtpk-border: #3a3e45;
+	--rtpk-border-hover: #4e525a;
+	--rtpk-accent: #fba919;
+	--rtpk-accent-hover: #ffbe4a;
+	--rtpk-on-accent: #15130e;
+	--rtpk-error: #ef4444;
+	--rtpk-success: #4ade80;
+	--rtpk-info: #60a5fa;
+	--rtpk-radius: 8px;
+	--rtpk-radius-card: 12px;
+	background: var(--rtpk-bg-deep);
+	color: var(--rtpk-text);
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+body.rtpk-branded #login {
+	padding-top: 6vh;
+}
+
+/* Logo (size/background-image set inline) */
+body.rtpk-branded #login h1 a {
+	margin: 0 auto 20px;
+	background-position: center;
+	background-repeat: no-repeat;
+	outline: none;
+	text-decoration: none;
+}
+
+body.rtpk-branded #login h1 a:focus-visible {
+	outline: 2px solid var(--rtpk-accent);
+	outline-offset: 4px;
+	border-radius: 4px;
+}
+
+/* Card */
+body.rtpk-branded #login form,
+body.rtpk-branded.login form,
+body.rtpk-branded #login .rtpk-setup {
+	margin-top: 20px;
+	padding: 26px 24px 24px;
+	border: 1px solid var(--rtpk-border);
+	border-radius: var(--rtpk-radius-card);
+	background: var(--rtpk-bg);
+	box-shadow: none;
+	color: var(--rtpk-text);
+}
+
+body.rtpk-branded.login form .indicator-hint,
+body.rtpk-branded.login form p,
+body.rtpk-branded.login form label {
+	color: var(--rtpk-text);
+}
+
+body.rtpk-branded.login label {
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.4;
+	color: var(--rtpk-text);
+}
+
+body.rtpk-branded.login form .forgetmenot label {
+	font-weight: 500;
+	color: var(--rtpk-text-secondary);
+}
+
+body.rtpk-branded.login .user-pass-wrap,
+body.rtpk-branded.login form .user-pass-wrap {
+	margin-bottom: 4px;
+}
+
+/* Inputs */
+body.rtpk-branded.login input[type="text"],
+body.rtpk-branded.login input[type="password"],
+body.rtpk-branded.login input[type="email"],
+body.rtpk-branded.login input[type="url"],
+body.rtpk-branded.login input[type="number"],
+body.rtpk-branded.login select,
+body.rtpk-branded.login textarea {
+	min-height: 44px;
+	margin: 6px 0 14px;
+	padding: 8px 14px;
+	border: 1px solid var(--rtpk-border);
+	border-radius: var(--rtpk-radius);
+	background: var(--rtpk-bg-input);
+	color: var(--rtpk-text);
+	font-size: 15px;
+	line-height: 1.4;
+	box-shadow: none;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+body.rtpk-branded.login input::placeholder {
+	color: var(--rtpk-text-secondary);
+	opacity: 1;
+}
+
+body.rtpk-branded.login input[type="text"]:hover,
+body.rtpk-branded.login input[type="password"]:hover,
+body.rtpk-branded.login input[type="email"]:hover {
+	border-color: var(--rtpk-border-hover);
+}
+
+body.rtpk-branded.login input[type="text"]:focus,
+body.rtpk-branded.login input[type="password"]:focus,
+body.rtpk-branded.login input[type="email"]:focus,
+body.rtpk-branded.login select:focus,
+body.rtpk-branded.login textarea:focus {
+	outline: none;
+	border-color: var(--rtpk-accent);
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--rtpk-accent) 25%, transparent);
+}
+
+body.rtpk-branded.login .wp-pwd {
+	position: relative;
+}
+
+body.rtpk-branded.login .wp-pwd input[type="password"],
+body.rtpk-branded.login .wp-pwd input[type="text"] {
+	padding-right: 46px;
+}
+
+body.rtpk-branded.login .button.wp-hide-pw {
+	right: 2px;
+	top: 6px;
+	height: 44px;
+	min-height: 44px;
+	color: var(--rtpk-text-secondary);
+	background: transparent;
+	border: 0;
+}
+
+body.rtpk-branded.login .button.wp-hide-pw:hover,
+body.rtpk-branded.login .button.wp-hide-pw:focus {
+	color: var(--rtpk-accent);
+	background: transparent;
+	box-shadow: none;
+}
+
+body.rtpk-branded.login .button.wp-hide-pw:focus-visible {
+	outline: 2px solid var(--rtpk-accent);
+	outline-offset: -4px;
+	border-radius: 6px;
+}
+
+/* Checkbox */
+body.rtpk-branded.login input[type="checkbox"] {
+	width: 18px;
+	height: 18px;
+	margin: 0 6px 0 0;
+	border: 1px solid var(--rtpk-border-hover);
+	border-radius: 4px;
+	background: var(--rtpk-bg-input);
+	box-shadow: none;
+	vertical-align: text-bottom;
+}
+
+body.rtpk-branded.login input[type="checkbox"]:focus {
+	border-color: var(--rtpk-accent);
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--rtpk-accent) 25%, transparent);
+}
+
+body.rtpk-branded.login input[type="checkbox"]:checked {
+	border-color: var(--rtpk-accent);
+	background: var(--rtpk-accent);
+}
+
+body.rtpk-branded.login input[type="checkbox"]:checked::before {
+	content: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M14.83 4.89l1.34.94-5.81 8.38H9.02L5.78 9.67l1.34-1.25 2.57 2.4z' fill='%2315130e'/%3E%3C/svg%3E");
+	margin: -2px 0 0 -2px;
+	width: 18px;
+	height: 18px;
+}
+
+body.rtpk-branded.login .forgetmenot {
+	margin-top: 4px;
+}
+
+/* Buttons */
+body.rtpk-branded.wp-core-ui .button-primary,
+body.rtpk-branded.wp-core-ui .button-primary:focus {
+	min-height: 46px;
+	padding: 0 18px;
+	border: 1px solid var(--rtpk-accent);
+	border-radius: var(--rtpk-radius);
+	background: var(--rtpk-accent);
+	color: var(--rtpk-on-accent);
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.2;
+	text-shadow: none;
+	box-shadow: none;
+	transition: background 0.2s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+body.rtpk-branded.wp-core-ui .button-primary:hover {
+	border-color: var(--rtpk-accent-hover);
+	background: var(--rtpk-accent-hover);
+	color: var(--rtpk-on-accent);
+}
+
+body.rtpk-branded.wp-core-ui .button-primary:focus-visible {
+	outline: 2px solid var(--rtpk-accent);
+	outline-offset: 2px;
+	box-shadow: none;
+}
+
+body.rtpk-branded.wp-core-ui .button-primary:active {
+	transform: scale(0.97);
+}
+
+body.rtpk-branded.wp-core-ui .button-primary[disabled],
+body.rtpk-branded.wp-core-ui .button-primary:disabled {
+	opacity: 0.5;
+	color: var(--rtpk-on-accent) !important;
+	background: var(--rtpk-accent) !important;
+	border-color: var(--rtpk-accent) !important;
+}
+
+body.rtpk-branded.login .submit {
+	margin-top: 8px;
+}
+
+body.rtpk-branded.login .submit .button-primary {
+	float: none;
+	width: 100%;
+}
+
+/* Secondary buttons (e.g. "Generate password" on reset) */
+body.rtpk-branded.wp-core-ui .button:not(.button-primary):not(.wp-hide-pw) {
+	min-height: 40px;
+	border: 1px solid var(--rtpk-border);
+	border-radius: var(--rtpk-radius);
+	background: var(--rtpk-bg-deep);
+	color: var(--rtpk-text);
+	box-shadow: none;
+}
+
+body.rtpk-branded.wp-core-ui .button:not(.button-primary):not(.wp-hide-pw):hover {
+	border-color: var(--rtpk-border-hover);
+	background: var(--rtpk-bg-hover);
+	color: var(--rtpk-text);
+}
+
+/* Messages */
+body.rtpk-branded.login .message,
+body.rtpk-branded.login .success,
+body.rtpk-branded.login #login_error,
+body.rtpk-branded.login .notice {
+	margin: 20px 0 0;
+	padding: 12px 14px;
+	border: 1px solid var(--rtpk-border);
+	border-left: 3px solid var(--rtpk-accent);
+	border-radius: var(--rtpk-radius);
+	background: var(--rtpk-bg);
+	color: var(--rtpk-text);
+	font-size: 14px;
+	line-height: 1.5;
+	box-shadow: none;
+}
+
+body.rtpk-branded.login #login_error,
+body.rtpk-branded.login .notice-error {
+	border-left-color: var(--rtpk-error);
+	background: color-mix(in srgb, var(--rtpk-error) 10%, var(--rtpk-bg));
+}
+
+body.rtpk-branded.login .success,
+body.rtpk-branded.login .notice-success {
+	border-left-color: var(--rtpk-success);
+	background: color-mix(in srgb, var(--rtpk-success) 10%, var(--rtpk-bg));
+}
+
+body.rtpk-branded.login .message a,
+body.rtpk-branded.login #login_error a,
+body.rtpk-branded.login .success a {
+	color: var(--rtpk-accent);
+}
+
+/* Links under the card */
+body.rtpk-branded.login #nav,
+body.rtpk-branded.login #backtoblog {
+	padding: 0 24px;
+	font-size: 13px;
+}
+
+body.rtpk-branded.login #nav {
+	margin-top: 18px;
+}
+
+body.rtpk-branded.login #backtoblog {
+	margin-top: 10px;
+}
+
+body.rtpk-branded.login #nav a,
+body.rtpk-branded.login #backtoblog a,
+body.rtpk-branded.login .privacy-policy-page-link a {
+	color: var(--rtpk-text-secondary);
+	text-decoration: none;
+	transition: color 0.15s ease;
+}
+
+body.rtpk-branded.login #nav a:hover,
+body.rtpk-branded.login #backtoblog a:hover,
+body.rtpk-branded.login .privacy-policy-page-link a:hover,
+body.rtpk-branded.login #nav a:focus,
+body.rtpk-branded.login #backtoblog a:focus {
+	color: var(--rtpk-accent);
+	box-shadow: none;
+}
+
+body.rtpk-branded.login a:focus-visible {
+	outline: 2px solid var(--rtpk-accent);
+	outline-offset: 2px;
+	border-radius: 2px;
+}
+
+body.rtpk-branded.login .privacy-policy-page-link {
+	color: var(--rtpk-text-muted);
+}
+
+body.rtpk-branded.login .privacy-policy-page-link a {
+	color: var(--rtpk-text-muted);
+}
+
+/* Password strength meter + reset-form hints */
+body.rtpk-branded.login .pw-weak,
+body.rtpk-branded.login .indicator-hint,
+body.rtpk-branded.login .description {
+	color: var(--rtpk-text-secondary);
+}
+
+body.rtpk-branded #pass-strength-result {
+	border-color: var(--rtpk-border);
+	border-radius: var(--rtpk-radius);
+	background: var(--rtpk-bg-deep);
+	color: var(--rtpk-text);
+}
+
+body.rtpk-branded #pass-strength-result.short,
+body.rtpk-branded #pass-strength-result.bad {
+	background: color-mix(in srgb, var(--rtpk-error) 18%, var(--rtpk-bg-deep));
+	border-color: color-mix(in srgb, var(--rtpk-error) 50%, var(--rtpk-border));
+}
+
+body.rtpk-branded #pass-strength-result.good {
+	background: color-mix(in srgb, var(--rtpk-accent) 18%, var(--rtpk-bg-deep));
+	border-color: color-mix(in srgb, var(--rtpk-accent) 50%, var(--rtpk-border));
+}
+
+body.rtpk-branded #pass-strength-result.strong {
+	background: color-mix(in srgb, var(--rtpk-success) 18%, var(--rtpk-bg-deep));
+	border-color: color-mix(in srgb, var(--rtpk-success) 50%, var(--rtpk-border));
+}
+
+/* Language switcher */
+body.rtpk-branded.login .language-switcher {
+	margin-top: 24px;
+}
+
+body.rtpk-branded.login .language-switcher label {
+	color: var(--rtpk-text-secondary);
+}
+
+body.rtpk-branded.login .language-switcher .dashicons {
+	color: var(--rtpk-text-secondary);
+}
+
+body.rtpk-branded.login .language-switcher select {
+	margin: 0;
+	min-height: 36px;
+	padding: 0 28px 0 10px;
+	font-size: 13px;
+	background-color: var(--rtpk-bg-input);
+	color: var(--rtpk-text);
+}
+
+body.rtpk-branded.wp-core-ui .language-switcher .button {
+	min-height: 36px;
+}
+
+/* Passkey block: dark divider and status colours (button is already gold). */
+body.rtpk-branded .rtpk-login {
+	--rtpk-muted: var(--rtpk-text-secondary);
+	--rtpk-line: var(--rtpk-border);
+	--rtpk-focus: var(--rtpk-accent);
+	--rtpk-error: #ef4444;
+	--rtpk-success: #4ade80;
+}
+
+body.rtpk-branded.login form .rtpk-login {
+	margin-bottom: 18px;
+}
+
+/* "Interim" (session expired) modal inherits the same card. */
+body.rtpk-branded.interim-login #login {
+	padding-top: 0;
+}
+
+@media (max-width: 480px) {
+	body.rtpk-branded #login form,
+	body.rtpk-branded #login .rtpk-setup {
+		padding: 20px 16px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	body.rtpk-branded.login input,
+	body.rtpk-branded.wp-core-ui .button-primary,
+	body.rtpk-branded.login a {
+		transition: none;
+	}
+}

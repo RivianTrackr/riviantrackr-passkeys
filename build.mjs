@@ -2,7 +2,7 @@
 import { build } from 'esbuild';
 
 const js = ['passkeys-core', 'passkeys-login', 'passkeys-manage', 'passkeys-invites', 'passkeys-signup'];
-const css = ['passkeys-login', 'passkeys-manage', 'passkeys-admin', 'passkeys-setup', 'passkeys-signup'];
+const css = ['passkeys-login', 'passkeys-manage', 'passkeys-admin', 'passkeys-setup', 'passkeys-signup', 'passkeys-login-page', 'passkeys-wp-login'];
 
 await Promise.all([
 	...js.map((name) =>
