@@ -4,7 +4,7 @@ Tags: passkeys, webauthn, fido2, passwordless, login, security
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.1
-Stable tag: 1.0.1
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -49,7 +49,7 @@ Yes. Set the relying party ID to the parent domain and list each subdomain origi
 
 == Changelog ==
 
-= Unreleased =
+= 1.1.0 =
 * Custom login pages: [riviantrackr_login] shortcode (dark/light), Settings → Passkeys → Pages to pick a sign-in and join page, redirect wp-login.php's login/register screens there (wp_login_url and wp_registration_url follow; failed or empty logins return with a message; reset, logout and passkey pages untouched), and an optional ink & brass skin with your logo for the remaining wp-login.php screens.
 * Open signup: [riviantrackr_signup] form that creates no account until the emailed verification link is clicked. Honeypot, minimum-time check, per-IP and per-address rate limits, built-in and custom blocked email domains, optional Cloudflare Turnstile. New members are signed in and taken straight to passkey setup. Settings → Passkeys → Open signup.
 * Passkey invitations: email members without a passkey a personal setup link (Users → Passkey invitations, plus Users-list row and bulk actions) and a focused "Set up a passkey" page at wp-login.php?action=passkey-setup. Branded email with your logo in the site's colours, inline preview, custom from name/address.
