@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Hooks:** `riviantrackr_passkeys_invite_email` filter; `riviantrackr_passkeys_invite_sent` and `riviantrackr_passkeys_invite_login` actions.
 - Settings → Passkeys links to the invitations screen.
 - **Email branding.** The invitation is rendered in the site's dark "ink & brass" palette (deep `#121418` background, `#16191e` card, warm-neutral text, gold button with dark text) or a light variant, with your logo in the header (media-library picker; defaults to the theme's custom logo, then the site icon, then the site name). A **Preview** button renders the current draft inline, and **From name / From email** apply to invitation emails only (an SMTP plugin that forces a from address still wins).
+- **Bulleted lists in the email.** Lines starting with `*` or `-` render as a gold-bulleted list; the default message now lists what signing in unlocks (commenting, tire favourites and reviews, new-article notifications).
 - **Asset cache-busting.** Scripts and styles are now versioned with the file's modification time, so every deploy refreshes browser caches without a version bump.
 
 ### Changed

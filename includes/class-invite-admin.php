@@ -159,7 +159,7 @@ final class InviteAdmin {
 							<label class="rtpk-field-label" for="rtpk-invite-body"><?php esc_html_e( 'Message', 'riviantrackr-passkeys' ); ?></label>
 							<textarea id="rtpk-invite-body" class="rtpk-input rtpk-input--wide rtpk-textarea rtpk-textarea--tall" name="<?php echo esc_attr( $name ); ?>[body]" rows="9" data-rtpk-body><?php echo esc_textarea( (string) $o['body'] ); ?></textarea>
 							<p class="rtpk-field-description">
-								<?php esc_html_e( 'Blank lines start a new paragraph. Placeholders:', 'riviantrackr-passkeys' ); ?>
+								<?php esc_html_e( 'Blank lines start a new paragraph; lines starting with * become bullets. Placeholders:', 'riviantrackr-passkeys' ); ?>
 								<code>{name}</code> <code>{site}</code> <code>{link}</code> <code>{expires}</code> <code>{login_url}</code>
 							</p>
 						</div>

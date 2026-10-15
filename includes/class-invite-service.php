@@ -40,7 +40,7 @@ final class InviteService {
 			/* translators: %s: site name */
 			'subject'     => sprintf( __( 'Sign in to %s faster with a passkey', 'riviantrackr-passkeys' ), (string) get_bloginfo( 'name' ) ),
 			'body'        => __(
-				"Hi {name},\n\n{site} now supports passkeys, so you can sign in with Face ID, Touch ID, Windows Hello or a security key instead of typing a password. Passkeys can't be phished or guessed, and there's nothing to remember.\n\nIt takes about ten seconds. Tap the button below on the device you usually use, then follow the prompt from your browser.\n\nYou can add more devices later from your profile.",
+				"Hi {name},\n\n{site} now supports passkeys, so you can sign in with Face ID, Touch ID, Windows Hello or a security key instead of typing a password. Passkeys can't be phished or guessed, and there's nothing to remember.\n\nSigning in gets you the member side of {site}:\n\n* Comment on posts without the extra steps\n* Favorite tires and leave or edit your tire reviews\n* Get notified about new articles, editorials and features\n* More coming soon\n\nIt takes about ten seconds. Tap the button below on the device you usually use, then follow the prompt from your browser.\n\nYou can add more devices later from your profile.",
 				'riviantrackr-passkeys'
 			),
 			'expiry_days' => 7,
@@ -279,6 +279,47 @@ final class InviteService {
 	}
 
 	/**
+	 * Plain text → email HTML. Blank lines separate blocks; a block whose
+	 * lines all start with "* " or "- " becomes a bulleted list.
+	 *
+	 * @param string               $body Filled-in message.
+	 * @param array<string,string> $c    Palette.
+	 */
+	public function body_to_html( string $body, array $c ): string {
+		$blocks = array_filter( array_map( 'trim', preg_split( '/\n{2,}/', str_replace( "\r\n", "\n", $body ) ) ?: [] ) );
+		$html   = '';
+
+		foreach ( $blocks as $block ) {
+			$lines = array_map( 'trim', explode( "\n", $block ) );
+			$items = [];
+			foreach ( $lines as $line ) {
+				if ( preg_match( '/^[*\-\x{2022}]\s+(.+)$/u', $line, $m ) ) {
+					$items[] = $m[1];
+				} else {
+					$items = [];
+					break;
+				}
+			}
+
+			if ( ! empty( $items ) ) {
+				$html .= '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 16px;">';
+				foreach ( $items as $item ) {
+					$html .= '<tr>'
+						. '<td valign="top" style="padding:0 10px 6px 2px;font-size:15px;line-height:1.6;color:' . $c['accent'] . ';">&#8226;</td>'
+						. '<td valign="top" style="padding:0 0 6px;font-size:15px;line-height:1.6;color:' . $c['text'] . ';">' . esc_html( $item ) . '</td>'
+						. '</tr>';
+				}
+				$html .= '</table>';
+				continue;
+			}
+
+			$html .= '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:' . $c['text'] . ';">' . nl2br( esc_html( $block ) ) . '</p>';
+		}
+
+		return $html;
+	}
+
+	/**
 	 * Build the email.
 	 *
 	 * @param \WP_User   $user     Recipient.
@@ -303,11 +344,7 @@ final class InviteService {
 		$ignore = __( 'If you didn\'t expect this email you can safely ignore it; nothing changes on your account until you create a passkey.', 'riviantrackr-passkeys' );
 		$font   = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif";
 
-		$paragraphs = array_filter( array_map( 'trim', preg_split( '/\n{2,}/', $body ) ?: [] ) );
-		$body_html  = '';
-		foreach ( $paragraphs as $paragraph ) {
-			$body_html .= '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:' . $c['text'] . ';">' . nl2br( esc_html( $paragraph ) ) . '</p>';
-		}
+		$body_html = $this->body_to_html( $body, $c );
 
 		$header = '' !== $logo
 			? '<img src="' . esc_url( $logo ) . '" alt="' . esc_attr( $site ) . '" height="48" style="display:block;height:48px;width:auto;max-width:220px;border:0;">'

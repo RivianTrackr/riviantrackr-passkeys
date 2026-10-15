@@ -91,6 +91,22 @@ final class InviteServiceTest extends TestCase {
 		$this->assertStringContainsString( $link, $email['text'] );
 	}
 
+	public function test_bullet_lines_become_a_list_and_default_message_has_benefits(): void {
+		$c    = $this->invites->palette( 'dark' );
+		$html = $this->invites->body_to_html( "Intro here.\n\n* First perk\n- Second perk\n\nNot a list\n* mixed block", $c );
+
+		$this->assertSame( 2, substr_count( $html, '&#8226;' ), 'two bullets' );
+		$this->assertStringContainsString( '>First perk</td>', $html );
+		$this->assertStringContainsString( '>Second perk</td>', $html );
+		$this->assertStringContainsString( 'color:#fba919;">&#8226;', $html, 'gold bullet' );
+		$this->assertStringContainsString( 'Not a list<br />', $html, 'mixed block stays a paragraph' );
+		$this->assertSame( 2, substr_count( $html, '<p style=' ) );
+
+		$default = $this->invites->render_email( $this->user, 'https://riviantrackr.test/x' )['html'];
+		$this->assertStringContainsString( 'Favorite tires and leave or edit your tire reviews', $default );
+		$this->assertSame( 4, substr_count( $default, '&#8226;' ), 'default message lists four benefits' );
+	}
+
 	public function test_email_defaults_to_dark_brand_palette_and_site_name_header(): void {
 		$email = $this->invites->render_email( $this->user, 'https://riviantrackr.test/x' );
 
