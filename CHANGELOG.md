@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-16
+
+### Fixed
+- **Passkey invitations never sent: "This send job has expired. Start again."** The batch job ID was generated with `wp_generate_password()` (mixed case) but every follow-up request ran it through `sanitize_key()` (lowercase), so the job transient was never found. Job IDs are now lowercase hex.
+
 ## [1.1.0] - 2026-10-15
 
 ### Added
@@ -56,7 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Bundled `lbuchs/webauthn` v2.2** (MIT) under `lib/`, autoloaded by the plugin; no Composer required on the server.
 - **Tooling:** PHPUnit suite with a software P-256 authenticator that drives real registration and assertion verification, `node:test` JS tests, PHPCS (WordPress standard), esbuild minification, and GitHub Actions CI on PHP 8.1–8.4.
 
-[Unreleased]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/RivianTrackr/riviantrackr-passkeys/releases/tag/v1.0.0

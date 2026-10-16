@@ -397,7 +397,7 @@ final class InviteAdmin {
 			if ( empty( $ids ) ) {
 				wp_send_json_error( [ 'message' => __( 'No members match these filters.', 'riviantrackr-passkeys' ) ] );
 			}
-			$job_id = wp_generate_password( 12, false );
+			$job_id = self::new_job_id();
 			$job    = [
 				'ids'    => $ids,
 				'total'  => count( $ids ),
@@ -452,6 +452,14 @@ final class InviteAdmin {
 		$payload        = $this->job_payload( $job_id, $job );
 		$payload['log'] = $log;
 		wp_send_json_success( $payload );
+	}
+
+	/**
+	 * Job identifiers round-trip through sanitize_key() on every request,
+	 * which lowercases, so they must be lowercase to begin with.
+	 */
+	public static function new_job_id(): string {
+		return bin2hex( random_bytes( 8 ) );
 	}
 
 	/**
