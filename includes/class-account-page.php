@@ -1,0 +1,702 @@
+<?php
+declare(strict_types=1);
+
+namespace RivianTrackr\Passkeys;
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * [riviantrackr_account]: a tabbed "My Account" page for members.
+ *
+ * Tabs: Overview, Profile, Security (passkeys, password, sessions),
+ * Reviews and Favorites (when the Rivian Tire Guide is active), Comments.
+ * Other plugins add or reorder tabs through the
+ * `riviantrackr_passkeys_account_tabs` filter.
+ */
+final class AccountPage {
+
+	public const SHORTCODE = 'riviantrackr_account';
+	public const FILTER    = 'riviantrackr_passkeys_account_tabs';
+
+	private bool $assets_registered = false;
+
+	public function __construct(
+		private Settings $settings,
+		private CredentialStore $store,
+		private ProfileManager $manager
+	) {}
+
+	public function register_hooks(): void {
+		add_shortcode( self::SHORTCODE, [ $this, 'shortcode' ] );
+	}
+
+	// ---- tabs ----------------------------------------------------------
+
+	/**
+	 * IDs of the built-in tabs, in order. Pure.
+	 *
+	 * @param bool $tire_guide Whether the Rivian Tire Guide is active.
+	 * @return string[]
+	 */
+	public static function default_tab_ids( bool $tire_guide ): array {
+		$ids = [ 'overview', 'profile', 'security' ];
+		if ( $tire_guide ) {
+			$ids[] = 'reviews';
+			$ids[] = 'favorites';
+		}
+		$ids[] = 'comments';
+		return $ids;
+	}
+
+	/**
+	 * Validate a tab list (ours plus whatever the filter returned): every
+	 * entry needs a slug id, a label and a callable render; ids are
+	 * de-duplicated (first wins) and icons default to a dot. Pure.
+	 *
+	 * @param mixed $tabs Filter output.
+	 * @return array<string,array{id:string,label:string,icon:string,render:callable}>
+	 */
+	public static function normalize_tabs( $tabs ): array {
+		$out = [];
+		foreach ( (array) $tabs as $tab ) {
+			if ( ! is_array( $tab ) ) {
+				continue;
+			}
+			$id = sanitize_key( (string) ( $tab['id'] ?? '' ) );
+			if ( '' === $id || isset( $out[ $id ] ) ) {
+				continue;
+			}
+			$label = trim( (string) ( $tab['label'] ?? '' ) );
+			if ( '' === $label || ! isset( $tab['render'] ) || ! is_callable( $tab['render'] ) ) {
+				continue;
+			}
+			$out[ $id ] = [
+				'id'     => $id,
+				'label'  => $label,
+				'icon'   => (string) ( $tab['icon'] ?? '' ),
+				'render' => $tab['render'],
+			];
+		}
+		return $out;
+	}
+
+	/**
+	 * The tabs to render for a member.
+	 *
+	 * @param bool|null $tire_guide Override tire-guide detection (tests).
+	 * @return array<string,array{id:string,label:string,icon:string,render:callable}>
+	 */
+	public function tabs( ?bool $tire_guide = null ): array {
+		$tire_guide = $tire_guide ?? TireGuide::is_active();
+		$labels     = [
+			'overview'  => __( 'Overview', 'riviantrackr-passkeys' ),
+			'profile'   => __( 'Profile', 'riviantrackr-passkeys' ),
+			'security'  => __( 'Security', 'riviantrackr-passkeys' ),
+			'reviews'   => __( 'Reviews', 'riviantrackr-passkeys' ),
+			'favorites' => __( 'Favorites', 'riviantrackr-passkeys' ),
+			'comments'  => __( 'Comments', 'riviantrackr-passkeys' ),
+		];
+		$icons      = [
+			'overview'  => 'home',
+			'profile'   => 'user',
+			'security'  => 'shield',
+			'reviews'   => 'star',
+			'favorites' => 'heart',
+			'comments'  => 'comment',
+		];
+
+		$tabs = [];
+		foreach ( self::default_tab_ids( $tire_guide ) as $id ) {
+			$tabs[] = [
+				'id'     => $id,
+				'label'  => $labels[ $id ],
+				'icon'   => self::icon( $icons[ $id ] ),
+				'render' => [ $this, 'render_' . $id ],
+			];
+		}
+
+		/**
+		 * Filter the account page tabs.
+		 *
+		 * Each tab is an array with `id` (slug), `label`, optional `icon`
+		 * (inline SVG markup) and `render`, a callable receiving the
+		 * WP_User and a context array (`light`, `account_url`, `tabs`)
+		 * and returning escaped HTML.
+		 *
+		 * @param array<int,array<string,mixed>> $tabs Tab definitions in display order.
+		 * @param \WP_User|null                  $user The signed-in member.
+		 */
+		$tabs = apply_filters( 'riviantrackr_passkeys_account_tabs', $tabs, is_user_logged_in() ? wp_get_current_user() : null );
+
+		return self::normalize_tabs( $tabs );
+	}
+
+	// ---- shortcode -------------------------------------------------------
+
+	/**
+	 * Register and enqueue the page's script and stylesheet once.
+	 */
+	private function enqueue( bool $light ): void {
+		if ( ! $this->assets_registered ) {
+			$this->assets_registered = true;
+			$suffix                  = RTPK_ASSET_SUFFIX;
+			wp_register_script( 'rtpk-core', RTPK_URL . "assets/passkeys-core{$suffix}.js", [], Helpers::asset_version( "assets/passkeys-core{$suffix}.js" ), true );
+			wp_register_script( 'rtpk-account', RTPK_URL . "assets/passkeys-account{$suffix}.js", [ 'rtpk-core' ], Helpers::asset_version( "assets/passkeys-account{$suffix}.js" ), true );
+			wp_register_style( 'rtpk-account', RTPK_URL . "assets/passkeys-account{$suffix}.css", [], Helpers::asset_version( "assets/passkeys-account{$suffix}.css" ) );
+		}
+		if ( ! wp_script_is( 'rtpk-account', 'enqueued' ) ) {
+			wp_localize_script(
+				'rtpk-account',
+				'rtpkAccount',
+				[
+					'restUrl' => esc_url_raw( rest_url( RTPK_REST_NAMESPACE ) ),
+					'nonce'   => wp_create_nonce( 'wp_rest' ),
+					'light'   => $light,
+					'i18n'    => [
+						'saving'               => __( 'Saving…', 'riviantrackr-passkeys' ),
+						'working'              => __( 'Working…', 'riviantrackr-passkeys' ),
+						'genericError'         => __( 'Something went wrong. Please try again.', 'riviantrackr-passkeys' ),
+						'confirmDeleteReview'  => __( 'Delete this review? This cannot be undone.', 'riviantrackr-passkeys' ),
+						'confirmRemoveFav'     => __( 'Remove this tire from your favorites?', 'riviantrackr-passkeys' ),
+						'confirmSignOutOthers' => __( 'Sign out of every other browser and device? This one stays signed in.', 'riviantrackr-passkeys' ),
+						'noReviews'            => __( 'You have not reviewed any tires yet.', 'riviantrackr-passkeys' ),
+						'noFavorites'          => __( 'No favorite tires yet.', 'riviantrackr-passkeys' ),
+						/* translators: %s: email address */
+						'pendingEmail'         => __( 'A confirmation link was sent to %s. Your email changes once you click it.', 'riviantrackr-passkeys' ),
+					],
+				]
+			);
+		}
+		wp_enqueue_style( 'rtpk-account' );
+		wp_enqueue_script( 'rtpk-account' );
+	}
+
+	/**
+	 * [riviantrackr_account theme="dark|light"]
+	 *
+	 * @param array<string,mixed>|string $atts Shortcode attributes.
+	 */
+	public function shortcode( $atts = [] ): string {
+		$atts  = shortcode_atts( [ 'theme' => 'dark' ], is_array( $atts ) ? $atts : [], self::SHORTCODE );
+		$light = 'light' === $atts['theme'];
+
+		$this->enqueue( $light );
+
+		if ( ! is_user_logged_in() ) {
+			$login = wp_login_url( get_permalink() ?: home_url( '/' ) );
+			return '<div class="rtpk-account' . ( $light ? ' is-light' : '' ) . ' is-signed-out"><div class="rtpk-account__signed-out">'
+				. self::icon( 'user' )
+				. '<p>' . esc_html__( 'Sign in to see your account.', 'riviantrackr-passkeys' ) . '</p>'
+				. '<a class="rtpk-btn rtpk-btn--primary" href="' . esc_url( $login ) . '">' . esc_html__( 'Sign in', 'riviantrackr-passkeys' ) . '</a>'
+				. '</div></div>';
+		}
+
+		return $this->render( wp_get_current_user(), $light );
+	}
+
+	/**
+	 * Render the whole account page for a member.
+	 */
+	public function render( \WP_User $user, bool $light ): string {
+		$tabs    = $this->tabs();
+		$context = [
+			'light'       => $light,
+			'account_url' => $this->account_url(),
+			'tabs'        => array_keys( $tabs ),
+		];
+		$name    = '' !== $user->display_name ? $user->display_name : $user->user_login;
+		$first   = (string) array_key_first( $tabs );
+
+		ob_start();
+		?>
+		<div class="rtpk-account<?php echo $light ? ' is-light' : ''; ?>" data-rtpk-account>
+			<header class="rtpk-account__header">
+				<div class="rtpk-account__identity">
+					<?php echo get_avatar( $user->ID, 56, '', $name, [ 'class' => 'rtpk-account__avatar' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- get_avatar() escapes. ?>
+					<div>
+						<p class="rtpk-account__eyebrow"><?php esc_html_e( 'My account', 'riviantrackr-passkeys' ); ?></p>
+						<h2 class="rtpk-account__name"><?php echo esc_html( $name ); ?></h2>
+					</div>
+				</div>
+				<a class="rtpk-btn rtpk-btn--ghost rtpk-account__signout" href="<?php echo esc_url( wp_logout_url( home_url( '/' ) ) ); ?>">
+					<?php echo self::icon( 'logout' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static SVG. ?>
+					<span><?php esc_html_e( 'Sign out', 'riviantrackr-passkeys' ); ?></span>
+				</a>
+			</header>
+
+			<div class="rtpk-account__layout">
+				<nav class="rtpk-account__tabs" role="tablist" aria-label="<?php esc_attr_e( 'Account sections', 'riviantrackr-passkeys' ); ?>">
+					<?php foreach ( $tabs as $tab ) : ?>
+						<?php $active = $tab['id'] === $first; ?>
+						<a class="rtpk-account__tab<?php echo $active ? ' is-active' : ''; ?>" role="tab" id="rtpk-tab-<?php echo esc_attr( $tab['id'] ); ?>" href="#<?php echo esc_attr( $tab['id'] ); ?>" data-rtpk-tab="<?php echo esc_attr( $tab['id'] ); ?>" aria-controls="rtpk-panel-<?php echo esc_attr( $tab['id'] ); ?>" aria-selected="<?php echo $active ? 'true' : 'false'; ?>" tabindex="<?php echo $active ? '0' : '-1'; ?>">
+							<span class="rtpk-account__tab-icon" aria-hidden="true"><?php echo '' !== $tab['icon'] ? $tab['icon'] : self::icon( 'dot' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Inline SVG supplied by the tab definition. ?></span>
+							<span><?php echo esc_html( $tab['label'] ); ?></span>
+						</a>
+					<?php endforeach; ?>
+				</nav>
+
+				<div class="rtpk-account__panels">
+					<p class="rtpk-account__msg" data-rtpk-msg role="status" aria-live="polite" hidden></p>
+					<?php foreach ( $tabs as $tab ) : ?>
+						<?php $active = $tab['id'] === $first; ?>
+						<section class="rtpk-account__panel" role="tabpanel" id="rtpk-panel-<?php echo esc_attr( $tab['id'] ); ?>" data-rtpk-panel="<?php echo esc_attr( $tab['id'] ); ?>" aria-labelledby="rtpk-tab-<?php echo esc_attr( $tab['id'] ); ?>" <?php echo $active ? '' : 'hidden'; ?>>
+							<?php echo (string) call_user_func( $tab['render'], $user, $context ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Each renderer escapes its own output. ?>
+						</section>
+					<?php endforeach; ?>
+				</div>
+			</div>
+		</div>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	private function account_url(): string {
+		$url = $this->settings->account_page_url();
+		if ( '' === $url ) {
+			$url = (string) ( get_permalink() ?: home_url( '/' ) );
+		}
+		return $url;
+	}
+
+	// ---- overview --------------------------------------------------------
+
+	/**
+	 * @param \WP_User            $user    The member.
+	 * @param array<string,mixed> $context light, account_url, tabs.
+	 */
+	public function render_overview( \WP_User $user, array $context ): string {
+		$tabs       = (array) ( $context['tabs'] ?? [] );
+		$tire_guide = in_array( 'reviews', $tabs, true );
+		$name       = '' !== $user->display_name ? $user->display_name : $user->user_login;
+		$since      = $user->user_registered ? date_i18n( (string) get_option( 'date_format' ), strtotime( (string) $user->user_registered ) ) : '';
+		$comments   = (int) get_comments(
+			[
+				'user_id' => $user->ID,
+				'status'  => 'approve',
+				'count'   => true,
+			]
+		);
+
+		$stats = [
+			[
+				'tab'   => 'security',
+				'icon'  => 'shield',
+				'value' => $this->store->count_for_user( $user->ID ),
+				'label' => __( 'Passkeys', 'riviantrackr-passkeys' ),
+			],
+		];
+		if ( $tire_guide ) {
+			$stats[] = [
+				'tab'   => 'reviews',
+				'icon'  => 'star',
+				'value' => TireGuide::review_count( $user->ID ),
+				'label' => __( 'Reviews', 'riviantrackr-passkeys' ),
+			];
+			$stats[] = [
+				'tab'   => 'favorites',
+				'icon'  => 'heart',
+				'value' => TireGuide::favorite_count( $user->ID ),
+				'label' => __( 'Favorites', 'riviantrackr-passkeys' ),
+			];
+		}
+		$stats[] = [
+			'tab'   => 'comments',
+			'icon'  => 'comment',
+			'value' => $comments,
+			'label' => __( 'Comments', 'riviantrackr-passkeys' ),
+		];
+
+		$links = [
+			'profile'  => [ __( 'Edit your profile', 'riviantrackr-passkeys' ), __( 'Name, email, website and bio.', 'riviantrackr-passkeys' ) ],
+			'security' => [ __( 'Passkeys and password', 'riviantrackr-passkeys' ), __( 'Add a passkey, change your password, sign out other devices.', 'riviantrackr-passkeys' ) ],
+		];
+		if ( $tire_guide ) {
+			$links['reviews']   = [ __( 'Your tire reviews', 'riviantrackr-passkeys' ), __( 'See, edit or delete what you have written.', 'riviantrackr-passkeys' ) ];
+			$links['favorites'] = [ __( 'Favorite tires', 'riviantrackr-passkeys' ), __( 'Tires you saved for later.', 'riviantrackr-passkeys' ) ];
+		}
+		$links['comments'] = [ __( 'Your comments', 'riviantrackr-passkeys' ), __( 'Conversations you joined.', 'riviantrackr-passkeys' ) ];
+
+		ob_start();
+		?>
+		<div class="rtpk-account__profile-card">
+			<?php echo get_avatar( $user->ID, 96, '', $name, [ 'class' => 'rtpk-account__avatar rtpk-account__avatar--lg' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- get_avatar() escapes. ?>
+			<div class="rtpk-account__profile-text">
+				<h3 class="rtpk-account__title"><?php echo esc_html( $name ); ?></h3>
+				<p class="rtpk-account__meta"><?php echo esc_html( $user->user_email ); ?></p>
+				<?php if ( '' !== $since ) : ?>
+					<p class="rtpk-account__meta">
+						<?php
+						printf(
+							/* translators: %s: date */
+							esc_html__( 'Member since %s', 'riviantrackr-passkeys' ),
+							esc_html( $since )
+						);
+						?>
+					</p>
+				<?php endif; ?>
+			</div>
+		</div>
+
+		<div class="rtpk-account__stats">
+			<?php foreach ( $stats as $stat ) : ?>
+				<a class="rtpk-account__stat" href="#<?php echo esc_attr( $stat['tab'] ); ?>" data-rtpk-goto="<?php echo esc_attr( $stat['tab'] ); ?>">
+					<span class="rtpk-account__stat-icon" aria-hidden="true"><?php echo self::icon( $stat['icon'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static SVG. ?></span>
+					<span class="rtpk-account__stat-value"><?php echo esc_html( number_format_i18n( (int) $stat['value'] ) ); ?></span>
+					<span class="rtpk-account__stat-label"><?php echo esc_html( $stat['label'] ); ?></span>
+				</a>
+			<?php endforeach; ?>
+		</div>
+
+		<ul class="rtpk-account__links">
+			<?php foreach ( $links as $id => $link ) : ?>
+				<?php
+				if ( ! in_array( $id, $tabs, true ) ) {
+					continue;
+				}
+				?>
+				<li>
+					<a class="rtpk-account__link" href="#<?php echo esc_attr( $id ); ?>" data-rtpk-goto="<?php echo esc_attr( $id ); ?>">
+						<span class="rtpk-account__link-text">
+							<strong><?php echo esc_html( $link[0] ); ?></strong>
+							<span><?php echo esc_html( $link[1] ); ?></span>
+						</span>
+						<?php echo self::icon( 'chevron' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static SVG. ?>
+					</a>
+				</li>
+			<?php endforeach; ?>
+		</ul>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	// ---- profile ---------------------------------------------------------
+
+	/**
+	 * @param \WP_User            $user    The member.
+	 * @param array<string,mixed> $context light, account_url, tabs.
+	 */
+	public function render_profile( \WP_User $user, array $context ): string { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- Tab renderer signature.
+		$pending = AccountService::pending_email( $user->ID );
+		$fields  = [
+			[ 'display_name', __( 'Display name', 'riviantrackr-passkeys' ), 'text', $user->display_name, 'nickname', __( 'Shown next to your reviews and comments.', 'riviantrackr-passkeys' ) ],
+			[ 'first_name', __( 'First name', 'riviantrackr-passkeys' ), 'text', (string) $user->first_name, 'given-name', '' ],
+			[ 'last_name', __( 'Last name', 'riviantrackr-passkeys' ), 'text', (string) $user->last_name, 'family-name', '' ],
+			[ 'email', __( 'Email', 'riviantrackr-passkeys' ), 'email', $user->user_email, 'email', __( 'Changing it sends a confirmation link to the new address.', 'riviantrackr-passkeys' ) ],
+			[ 'url', __( 'Website', 'riviantrackr-passkeys' ), 'url', (string) $user->user_url, 'url', '' ],
+		];
+
+		ob_start();
+		?>
+		<h3 class="rtpk-account__title"><?php esc_html_e( 'Profile', 'riviantrackr-passkeys' ); ?></h3>
+		<p class="rtpk-account__desc"><?php esc_html_e( 'How you appear on the site and how we reach you.', 'riviantrackr-passkeys' ); ?></p>
+
+		<div class="rtpk-account__notice is-info" data-rtpk-pending-email <?php echo '' === $pending ? 'hidden' : ''; ?>>
+			<span data-rtpk-pending-text>
+				<?php
+				if ( '' !== $pending ) {
+					printf(
+						/* translators: %s: email address */
+						esc_html__( 'A confirmation link was sent to %s. Your email changes once you click it.', 'riviantrackr-passkeys' ),
+						'<strong>' . esc_html( $pending ) . '</strong>'
+					);
+				}
+				?>
+			</span>
+			<button type="button" class="rtpk-btn rtpk-btn--ghost rtpk-btn--sm" data-rtpk-cancel-email><?php esc_html_e( 'Cancel', 'riviantrackr-passkeys' ); ?></button>
+		</div>
+
+		<form class="rtpk-account__form" data-rtpk-profile-form novalidate>
+			<div class="rtpk-account__grid">
+				<?php foreach ( $fields as [ $key, $label, $type, $value, $autocomplete, $help ] ) : ?>
+					<div class="rtpk-account__field<?php echo in_array( $key, [ 'display_name', 'email', 'url' ], true ) ? ' rtpk-account__field--wide' : ''; ?>" data-rtpk-field="<?php echo esc_attr( $key ); ?>">
+						<label class="rtpk-account__label" for="rtpk-<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $label ); ?></label>
+						<input class="rtpk-account__input" type="<?php echo esc_attr( $type ); ?>" id="rtpk-<?php echo esc_attr( $key ); ?>" name="<?php echo esc_attr( $key ); ?>" value="<?php echo esc_attr( $value ); ?>" autocomplete="<?php echo esc_attr( $autocomplete ); ?>" <?php echo 'url' === $type ? 'placeholder="https://"' : ''; ?>>
+						<?php if ( '' !== $help ) : ?>
+							<p class="rtpk-account__help"><?php echo esc_html( $help ); ?></p>
+						<?php endif; ?>
+						<p class="rtpk-account__error" data-rtpk-error hidden></p>
+					</div>
+				<?php endforeach; ?>
+				<div class="rtpk-account__field rtpk-account__field--wide" data-rtpk-field="description">
+					<label class="rtpk-account__label" for="rtpk-description"><?php esc_html_e( 'About you', 'riviantrackr-passkeys' ); ?></label>
+					<textarea class="rtpk-account__input rtpk-account__textarea" id="rtpk-description" name="description" rows="4" maxlength="<?php echo (int) AccountService::BIO_MAX; ?>"><?php echo esc_textarea( (string) $user->description ); ?></textarea>
+					<p class="rtpk-account__help"><?php esc_html_e( 'A line or two about your Rivian. Plain text only.', 'riviantrackr-passkeys' ); ?></p>
+					<p class="rtpk-account__error" data-rtpk-error hidden></p>
+				</div>
+			</div>
+			<div class="rtpk-account__actions">
+				<button type="submit" class="rtpk-btn rtpk-btn--primary"><?php esc_html_e( 'Save changes', 'riviantrackr-passkeys' ); ?></button>
+				<span class="rtpk-account__inline-msg" data-rtpk-form-msg role="status" aria-live="polite"></span>
+			</div>
+		</form>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	// ---- security --------------------------------------------------------
+
+	/**
+	 * @param \WP_User            $user    The member.
+	 * @param array<string,mixed> $context light, account_url, tabs.
+	 */
+	public function render_security( \WP_User $user, array $context ): string {
+		$light   = ! empty( $context['light'] );
+		$manager = $this->manager->markup(
+			$user,
+			true,
+			$light,
+			[
+				'title' => __( 'Passkeys', 'riviantrackr-passkeys' ),
+				'desc'  => __( 'Sign in with Face ID, Touch ID, Windows Hello or a security key instead of a password.', 'riviantrackr-passkeys' ),
+			]
+		);
+
+		ob_start();
+		?>
+		<h3 class="rtpk-account__title"><?php esc_html_e( 'Security', 'riviantrackr-passkeys' ); ?></h3>
+		<p class="rtpk-account__desc"><?php esc_html_e( 'Passkeys, your password and where you are signed in.', 'riviantrackr-passkeys' ); ?></p>
+
+		<div class="rtpk-account__block">
+			<?php echo $manager; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in ProfileManager::markup(). ?>
+		</div>
+
+		<div class="rtpk-account__block rtpk-account__card">
+			<h4 class="rtpk-account__subtitle"><?php esc_html_e( 'Change password', 'riviantrackr-passkeys' ); ?></h4>
+			<p class="rtpk-account__desc"><?php esc_html_e( 'You stay signed in here; every other device is signed out.', 'riviantrackr-passkeys' ); ?></p>
+			<form class="rtpk-account__form" data-rtpk-password-form novalidate>
+				<div class="rtpk-account__grid">
+					<div class="rtpk-account__field rtpk-account__field--wide" data-rtpk-field="current">
+						<label class="rtpk-account__label" for="rtpk-pass-current"><?php esc_html_e( 'Current password', 'riviantrackr-passkeys' ); ?></label>
+						<input class="rtpk-account__input" type="password" id="rtpk-pass-current" name="current" autocomplete="current-password" required>
+						<p class="rtpk-account__error" data-rtpk-error hidden></p>
+					</div>
+					<div class="rtpk-account__field" data-rtpk-field="new">
+						<label class="rtpk-account__label" for="rtpk-pass-new"><?php esc_html_e( 'New password', 'riviantrackr-passkeys' ); ?></label>
+						<input class="rtpk-account__input" type="password" id="rtpk-pass-new" name="new" autocomplete="new-password" minlength="<?php echo (int) AccountService::PASSWORD_MIN; ?>" required>
+						<p class="rtpk-account__help">
+							<?php
+							printf(
+								/* translators: %d: minimum length */
+								esc_html__( 'At least %d characters.', 'riviantrackr-passkeys' ),
+								(int) AccountService::PASSWORD_MIN
+							);
+							?>
+						</p>
+						<p class="rtpk-account__error" data-rtpk-error hidden></p>
+					</div>
+					<div class="rtpk-account__field" data-rtpk-field="confirm">
+						<label class="rtpk-account__label" for="rtpk-pass-confirm"><?php esc_html_e( 'Repeat new password', 'riviantrackr-passkeys' ); ?></label>
+						<input class="rtpk-account__input" type="password" id="rtpk-pass-confirm" name="confirm" autocomplete="new-password" required>
+						<p class="rtpk-account__error" data-rtpk-error hidden></p>
+					</div>
+				</div>
+				<div class="rtpk-account__actions">
+					<button type="submit" class="rtpk-btn rtpk-btn--primary"><?php esc_html_e( 'Change password', 'riviantrackr-passkeys' ); ?></button>
+					<span class="rtpk-account__inline-msg" data-rtpk-form-msg role="status" aria-live="polite"></span>
+				</div>
+			</form>
+		</div>
+
+		<div class="rtpk-account__block rtpk-account__card rtpk-account__card--row">
+			<div>
+				<h4 class="rtpk-account__subtitle"><?php esc_html_e( 'Sign out everywhere else', 'riviantrackr-passkeys' ); ?></h4>
+				<p class="rtpk-account__desc"><?php esc_html_e( 'Lost a phone or used a shared computer? End every session except this one.', 'riviantrackr-passkeys' ); ?></p>
+			</div>
+			<button type="button" class="rtpk-btn rtpk-btn--secondary" data-rtpk-signout-others><?php esc_html_e( 'Sign out other devices', 'riviantrackr-passkeys' ); ?></button>
+		</div>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	// ---- reviews ---------------------------------------------------------
+
+	/**
+	 * @param \WP_User            $user    The member.
+	 * @param array<string,mixed> $context light, account_url, tabs.
+	 */
+	public function render_reviews( \WP_User $user, array $context ): string { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- Tab renderer signature.
+		$reviews = TireGuide::reviews( $user->ID );
+		$format  = (string) get_option( 'date_format' );
+		$labels  = [
+			'approved' => __( 'Published', 'riviantrackr-passkeys' ),
+			'pending'  => __( 'Awaiting review', 'riviantrackr-passkeys' ),
+			'rejected' => __( 'Not published', 'riviantrackr-passkeys' ),
+		];
+
+		ob_start();
+		?>
+		<h3 class="rtpk-account__title"><?php esc_html_e( 'Your tire reviews', 'riviantrackr-passkeys' ); ?></h3>
+		<p class="rtpk-account__desc"><?php esc_html_e( 'To edit a review, open the tire page and update the form there.', 'riviantrackr-passkeys' ); ?></p>
+
+		<ul class="rtpk-account__list" data-rtpk-list="reviews">
+			<?php foreach ( $reviews as $review ) : ?>
+				<li class="rtpk-account__item" data-rtpk-item data-tire-id="<?php echo esc_attr( $review['tire_id'] ); ?>">
+					<?php if ( '' !== $review['image'] ) : ?>
+						<img class="rtpk-account__thumb" src="<?php echo esc_url( $review['image'] ); ?>" alt="" loading="lazy" width="56" height="56">
+					<?php else : ?>
+						<span class="rtpk-account__thumb rtpk-account__thumb--empty" aria-hidden="true"><?php echo self::icon( 'tire' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static SVG. ?></span>
+					<?php endif; ?>
+					<div class="rtpk-account__item-body">
+						<div class="rtpk-account__item-head">
+							<?php if ( '' !== $review['url'] ) : ?>
+								<a class="rtpk-account__item-name" href="<?php echo esc_url( $review['url'] ); ?>"><?php echo esc_html( $review['tire'] ); ?></a>
+							<?php else : ?>
+								<span class="rtpk-account__item-name"><?php echo esc_html( $review['tire'] ); ?></span>
+							<?php endif; ?>
+							<span class="rtpk-badge<?php echo 'approved' === $review['status'] ? ' rtpk-badge--success' : ( 'rejected' === $review['status'] ? ' rtpk-badge--muted' : '' ); ?>"><?php echo esc_html( $labels[ $review['status'] ] ?? $review['status'] ); ?></span>
+						</div>
+						<div class="rtpk-account__stars" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: rating */ __( '%s out of 5 stars', 'riviantrackr-passkeys' ), (string) $review['rating'] ) ); ?>"><?php echo self::stars( (float) $review['rating'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static SVG. ?></div>
+						<?php if ( '' !== $review['title'] ) : ?>
+							<p class="rtpk-account__item-title"><?php echo esc_html( $review['title'] ); ?></p>
+						<?php endif; ?>
+						<?php if ( '' !== $review['text'] ) : ?>
+							<p class="rtpk-account__item-excerpt"><?php echo esc_html( wp_trim_words( $review['text'], 32 ) ); ?></p>
+						<?php endif; ?>
+						<p class="rtpk-account__item-meta"><?php echo '' !== $review['date'] ? esc_html( date_i18n( $format, strtotime( $review['date'] . ' UTC' ) ) ) : ''; ?></p>
+					</div>
+					<div class="rtpk-account__item-actions">
+						<?php if ( '' !== $review['url'] ) : ?>
+							<a class="rtpk-btn rtpk-btn--ghost rtpk-btn--sm" href="<?php echo esc_url( $review['url'] ); ?>"><?php esc_html_e( 'Edit', 'riviantrackr-passkeys' ); ?></a>
+						<?php endif; ?>
+						<button type="button" class="rtpk-btn rtpk-btn--danger rtpk-btn--sm" data-rtpk-delete-review><?php esc_html_e( 'Delete', 'riviantrackr-passkeys' ); ?></button>
+					</div>
+				</li>
+			<?php endforeach; ?>
+		</ul>
+		<p class="rtpk-account__empty" data-rtpk-empty <?php echo empty( $reviews ) ? '' : 'hidden'; ?>><?php esc_html_e( 'You have not reviewed any tires yet.', 'riviantrackr-passkeys' ); ?></p>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	// ---- favorites -------------------------------------------------------
+
+	/**
+	 * @param \WP_User            $user    The member.
+	 * @param array<string,mixed> $context light, account_url, tabs.
+	 */
+	public function render_favorites( \WP_User $user, array $context ): string { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- Tab renderer signature.
+		$favorites = TireGuide::favorites( $user->ID );
+
+		ob_start();
+		?>
+		<h3 class="rtpk-account__title"><?php esc_html_e( 'Favorite tires', 'riviantrackr-passkeys' ); ?></h3>
+		<p class="rtpk-account__desc"><?php esc_html_e( 'Tires you saved while browsing the guide.', 'riviantrackr-passkeys' ); ?></p>
+
+		<ul class="rtpk-account__list" data-rtpk-list="favorites">
+			<?php foreach ( $favorites as $fav ) : ?>
+				<li class="rtpk-account__item" data-rtpk-item data-tire-id="<?php echo esc_attr( $fav['tire_id'] ); ?>">
+					<?php if ( '' !== $fav['image'] ) : ?>
+						<img class="rtpk-account__thumb" src="<?php echo esc_url( $fav['image'] ); ?>" alt="" loading="lazy" width="56" height="56">
+					<?php else : ?>
+						<span class="rtpk-account__thumb rtpk-account__thumb--empty" aria-hidden="true"><?php echo self::icon( 'tire' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static SVG. ?></span>
+					<?php endif; ?>
+					<div class="rtpk-account__item-body">
+						<?php if ( '' !== $fav['url'] ) : ?>
+							<a class="rtpk-account__item-name" href="<?php echo esc_url( $fav['url'] ); ?>"><?php echo esc_html( $fav['tire'] ); ?></a>
+						<?php else : ?>
+							<span class="rtpk-account__item-name"><?php echo esc_html( $fav['tire'] ); ?></span>
+						<?php endif; ?>
+						<?php if ( '' !== $fav['size'] ) : ?>
+							<p class="rtpk-account__item-meta"><?php echo esc_html( $fav['size'] ); ?></p>
+						<?php endif; ?>
+					</div>
+					<div class="rtpk-account__item-actions">
+						<?php if ( '' !== $fav['url'] ) : ?>
+							<a class="rtpk-btn rtpk-btn--ghost rtpk-btn--sm" href="<?php echo esc_url( $fav['url'] ); ?>"><?php esc_html_e( 'View', 'riviantrackr-passkeys' ); ?></a>
+						<?php endif; ?>
+						<button type="button" class="rtpk-btn rtpk-btn--danger rtpk-btn--sm" data-rtpk-remove-favorite><?php esc_html_e( 'Remove', 'riviantrackr-passkeys' ); ?></button>
+					</div>
+				</li>
+			<?php endforeach; ?>
+		</ul>
+		<p class="rtpk-account__empty" data-rtpk-empty <?php echo empty( $favorites ) ? '' : 'hidden'; ?>><?php esc_html_e( 'No favorite tires yet.', 'riviantrackr-passkeys' ); ?></p>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	// ---- comments --------------------------------------------------------
+
+	/**
+	 * @param \WP_User            $user    The member.
+	 * @param array<string,mixed> $context light, account_url, tabs.
+	 */
+	public function render_comments( \WP_User $user, array $context ): string { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- Tab renderer signature.
+		$comments = (array) get_comments(
+			[
+				'user_id' => $user->ID,
+				'status'  => 'approve',
+				'number'  => 20,
+				'orderby' => 'comment_date_gmt',
+				'order'   => 'DESC',
+			]
+		);
+		$format   = (string) get_option( 'date_format' );
+
+		ob_start();
+		?>
+		<h3 class="rtpk-account__title"><?php esc_html_e( 'Your comments', 'riviantrackr-passkeys' ); ?></h3>
+		<p class="rtpk-account__desc"><?php esc_html_e( 'Your most recent published comments.', 'riviantrackr-passkeys' ); ?></p>
+
+		<ul class="rtpk-account__list">
+			<?php foreach ( $comments as $comment ) : ?>
+				<?php
+				if ( ! $comment instanceof \WP_Comment ) {
+					continue;
+				}
+				$post_title = get_the_title( (int) $comment->comment_post_ID );
+				?>
+				<li class="rtpk-account__item rtpk-account__item--comment">
+					<div class="rtpk-account__item-body">
+						<a class="rtpk-account__item-name" href="<?php echo esc_url( (string) get_comment_link( $comment ) ); ?>"><?php echo esc_html( '' !== $post_title ? $post_title : __( '(no title)', 'riviantrackr-passkeys' ) ); ?></a>
+						<p class="rtpk-account__item-excerpt"><?php echo esc_html( wp_trim_words( wp_strip_all_tags( (string) $comment->comment_content ), 32 ) ); ?></p>
+						<p class="rtpk-account__item-meta"><?php echo esc_html( date_i18n( $format, strtotime( (string) $comment->comment_date ) ) ); ?></p>
+					</div>
+				</li>
+			<?php endforeach; ?>
+		</ul>
+		<?php if ( empty( $comments ) ) : ?>
+			<p class="rtpk-account__empty"><?php esc_html_e( 'You have not commented yet.', 'riviantrackr-passkeys' ); ?></p>
+		<?php endif; ?>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	// ---- helpers ---------------------------------------------------------
+
+	/**
+	 * Five-star row for a rating. Static SVG, no user input.
+	 */
+	public static function stars( float $rating ): string {
+		$html = '';
+		for ( $i = 1; $i <= 5; $i++ ) {
+			$fill  = $rating >= $i ? 'full' : ( $rating >= $i - 0.5 ? 'half' : 'empty' );
+			$html .= '<svg class="rtpk-star is-' . $fill . '" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+				. ( 'half' === $fill ? '<defs><linearGradient id="rtpk-half-' . $i . '"><stop offset="50%" stop-color="currentColor"/><stop offset="50%" stop-color="transparent"/></linearGradient></defs>' : '' )
+				. '<path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6L2.5 9.4l6.6-.8z" fill="' . ( 'full' === $fill ? 'currentColor' : ( 'half' === $fill ? 'url(#rtpk-half-' . $i . ')' : 'none' ) ) . '" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>'
+				. '</svg>';
+		}
+		return $html;
+	}
+
+	/**
+	 * Inline SVG icons (24×24, stroke = currentColor). No icon-font dependency.
+	 */
+	public static function icon( string $name ): string {
+		$paths = [
+			'home'    => '<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/><path d="M10 20v-6h4v6"/>',
+			'user'    => '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>',
+			'shield'  => '<path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.2 7.5 9.5 4.3-1.3 7.5-4.9 7.5-9.5V6z"/><path d="m9 12 2 2 4-4"/>',
+			'star'    => '<path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1.1 5.9L12 16.9l-5.3 2.8 1.1-5.9L3.5 9.7l5.9-.8z"/>',
+			'heart'   => '<path d="M12 20.5s-7.5-4.6-7.5-10A4 4 0 0 1 12 8a4 4 0 0 1 7.5 2.5c0 5.4-7.5 10-7.5 10z"/>',
+			'comment' => '<path d="M4 5.5h16v10H9l-5 4z"/>',
+			'logout'  => '<path d="M10 4H5v16h5"/><path d="M14 8l4 4-4 4"/><path d="M18 12H9"/>',
+			'chevron' => '<path d="m9 6 6 6-6 6"/>',
+			'tire'    => '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3"/><path d="M12 3.5v5M12 15.5v5M3.5 12h5M15.5 12h5"/>',
+			'dot'     => '<circle cx="12" cy="12" r="3" fill="currentColor"/>',
+		];
+		$path  = $paths[ $name ] ?? $paths['dot'];
+		return '<svg class="rtpk-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' . $path . '</svg>';
+	}
+}

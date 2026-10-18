@@ -34,6 +34,9 @@ final class Settings {
 			'register_page_id'  => 0,
 			'redirect_wp_login' => false,
 			'brand_wp_login'    => false,
+			'account_page_id'   => 0,
+			'hide_admin_bar'    => true,
+			'account_menu_item' => false,
 		];
 	}
 
@@ -122,6 +125,35 @@ final class Settings {
 	 */
 	public function register_page_url(): string {
 		return $this->page_url( (int) $this->get( 'register_page_id' ) );
+	}
+
+	/**
+	 * Permalink of the member account page, or ''.
+	 */
+	public function account_page_url(): string {
+		return $this->page_url( (int) $this->get( 'account_page_id' ) );
+	}
+
+	/**
+	 * Whether an account page is chosen (no permalink lookup, safe at plugins_loaded).
+	 */
+	public function has_account_page(): bool {
+		return (int) $this->get( 'account_page_id' ) > 0;
+	}
+
+	/**
+	 * Hide the admin bar for members without editing rights. Only meaningful
+	 * while an account page is set; the toggle itself defaults to on.
+	 */
+	public function hides_admin_bar(): bool {
+		return $this->has_account_page() && ! empty( $this->get( 'hide_admin_bar' ) );
+	}
+
+	/**
+	 * Add an "Account" item to the main navigation menu for signed-in members.
+	 */
+	public function adds_account_menu_item(): bool {
+		return $this->has_account_page() && ! empty( $this->get( 'account_menu_item' ) );
 	}
 
 	/**
@@ -226,6 +258,9 @@ final class Settings {
 		$out['register_page_id']  = $this->published_page_id( $input['register_page_id'] ?? 0, 'rtpk_register_page', __( 'join page', 'riviantrackr-passkeys' ) );
 		$out['redirect_wp_login'] = ! empty( $input['redirect_wp_login'] );
 		$out['brand_wp_login']    = ! empty( $input['brand_wp_login'] );
+		$out['account_page_id']   = $this->published_page_id( $input['account_page_id'] ?? 0, 'rtpk_account_page', __( 'account page', 'riviantrackr-passkeys' ) );
+		$out['hide_admin_bar']    = ! empty( $input['hide_admin_bar'] );
+		$out['account_menu_item'] = ! empty( $input['account_menu_item'] );
 
 		if ( $out['redirect_wp_login'] && 0 === $out['login_page_id'] && function_exists( 'add_settings_error' ) ) {
 			add_settings_error(

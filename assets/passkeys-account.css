@@ -1,0 +1,896 @@
+/* ── RivianTrackr Passkeys — [riviantrackr_account] member account page ──
+   Dark "ink & brass" by default; `.is-light` for light backgrounds.
+   Tabs sit in a left rail on desktop and become a stacked list under 600px. */
+.rtpk-account {
+	--rtpk-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+	--rtpk-bg: #16191e;
+	--rtpk-bg-deep: #121418;
+	--rtpk-bg-hover: #1f2228;
+	--rtpk-bg-input: #3a3e45;
+	--rtpk-text: #ece9e4;
+	--rtpk-text-secondary: #a6a39c;
+	--rtpk-text-muted: #79766f;
+	--rtpk-heading: #f6f4f0;
+	--rtpk-border: #3a3e45;
+	--rtpk-border-hover: #4e525a;
+	--rtpk-accent: #fba919;
+	--rtpk-accent-hover: #ffbe4a;
+	--rtpk-on-accent: #15130e;
+	--rtpk-error: #ef4444;
+	--rtpk-success: #4ade80;
+	--rtpk-info: #60a5fa;
+	--rtpk-placeholder: #a6a39c;
+	--rtpk-star-empty: #2c2f34;
+	--rtpk-radius-card: 12px;
+	--rtpk-radius: 8px;
+	--rtpk-radius-badge: 6px;
+	max-width: 1040px;
+	border: 1px solid var(--rtpk-border);
+	border-radius: var(--rtpk-radius-card);
+	background: var(--rtpk-bg);
+	color: var(--rtpk-text);
+	font-family: var(--rtpk-font);
+	font-size: 14px;
+	line-height: 1.5;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	box-sizing: border-box;
+	overflow: hidden;
+}
+
+.rtpk-account.is-light {
+	--rtpk-bg: #ffffff;
+	--rtpk-bg-deep: #f5f5f7;
+	--rtpk-bg-hover: #e8e8ed;
+	--rtpk-bg-input: #ffffff;
+	--rtpk-text: #1d1d1f;
+	--rtpk-text-secondary: #6e6e73;
+	--rtpk-text-muted: #86868b;
+	--rtpk-heading: #1d1d1f;
+	--rtpk-border: #d2d2d7;
+	--rtpk-border-hover: #b0b0b5;
+	--rtpk-accent: #0071e3;
+	--rtpk-accent-hover: #0077ed;
+	--rtpk-on-accent: #ffffff;
+	--rtpk-error: #ff3b30;
+	--rtpk-success: #34c759;
+	--rtpk-info: #0071e3;
+	--rtpk-placeholder: #86868b;
+	--rtpk-star-empty: #d2d2d7;
+}
+
+.rtpk-account *,
+.rtpk-account *::before,
+.rtpk-account *::after {
+	box-sizing: border-box;
+}
+
+.rtpk-account [hidden] {
+	display: none !important;
+}
+
+.rtpk-account a {
+	color: var(--rtpk-accent);
+	text-decoration: none;
+}
+
+.rtpk-account a:hover {
+	color: var(--rtpk-accent-hover);
+}
+
+/* Header */
+.rtpk-account__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 20px 24px;
+	border-bottom: 1px solid var(--rtpk-border);
+	background: var(--rtpk-bg-deep);
+}
+
+.rtpk-account__identity {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	min-width: 0;
+}
+
+.rtpk-account__avatar {
+	flex-shrink: 0;
+	width: 56px;
+	height: 56px;
+	border-radius: 50%;
+	border: 2px solid var(--rtpk-border);
+	background: var(--rtpk-bg-input);
+	object-fit: cover;
+}
+
+.rtpk-account__avatar--lg {
+	width: 96px;
+	height: 96px;
+	border-color: color-mix(in srgb, var(--rtpk-accent) 45%, var(--rtpk-border));
+}
+
+.rtpk-account__eyebrow {
+	margin: 0 0 2px;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.6px;
+	text-transform: uppercase;
+	color: var(--rtpk-accent);
+}
+
+.rtpk-account__name {
+	margin: 0;
+	font-size: 24px;
+	font-weight: 700;
+	line-height: 1.2;
+	letter-spacing: -0.3px;
+	color: var(--rtpk-heading);
+	overflow-wrap: anywhere;
+}
+
+.rtpk-account__signout {
+	flex-shrink: 0;
+}
+
+/* Layout: rail + panels */
+.rtpk-account__layout {
+	display: grid;
+	grid-template-columns: 220px minmax(0, 1fr);
+}
+
+.rtpk-account__tabs {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 16px 12px;
+	border-right: 1px solid var(--rtpk-border);
+	background: var(--rtpk-bg-deep);
+}
+
+.rtpk-account__tab {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 44px;
+	padding: 10px 12px;
+	border: 1px solid transparent;
+	border-radius: var(--rtpk-radius);
+	color: var(--rtpk-text-secondary);
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.2;
+	text-decoration: none;
+	transition: background 0.2s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.rtpk-account__tab:hover {
+	background: var(--rtpk-bg-hover);
+	color: var(--rtpk-text);
+}
+
+.rtpk-account__tab:focus-visible {
+	outline: 2px solid var(--rtpk-accent);
+	outline-offset: 2px;
+}
+
+.rtpk-account__tab.is-active {
+	background: color-mix(in srgb, var(--rtpk-accent) 12%, var(--rtpk-bg-deep));
+	border-color: color-mix(in srgb, var(--rtpk-accent) 35%, transparent);
+	color: var(--rtpk-accent);
+}
+
+.rtpk-account__tab-icon {
+	display: inline-flex;
+	flex-shrink: 0;
+	width: 20px;
+	height: 20px;
+}
+
+.rtpk-account__tab-icon svg {
+	width: 20px;
+	height: 20px;
+}
+
+.rtpk-account__panels {
+	min-width: 0;
+	padding: 24px;
+}
+
+.rtpk-account__panel:focus {
+	outline: none;
+}
+
+/* Headings and copy */
+.rtpk-account__title {
+	margin: 0 0 4px;
+	font-size: 20px;
+	font-weight: 700;
+	line-height: 1.2;
+	color: var(--rtpk-heading);
+}
+
+.rtpk-account__subtitle {
+	margin: 0 0 4px;
+	font-size: 16px;
+	font-weight: 700;
+	line-height: 1.3;
+	color: var(--rtpk-heading);
+}
+
+.rtpk-account__desc {
+	margin: 0 0 20px;
+	max-width: 560px;
+	font-size: 14px;
+	color: var(--rtpk-text-secondary);
+}
+
+.rtpk-account__meta {
+	margin: 0;
+	font-size: 13px;
+	color: var(--rtpk-text-secondary);
+}
+
+/* Messages */
+.rtpk-account__msg,
+.rtpk-account__notice {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin: 0 0 16px;
+	padding: 10px 14px;
+	border: 1px solid var(--rtpk-border);
+	border-left: 3px solid var(--rtpk-info);
+	border-radius: var(--rtpk-radius);
+	background: var(--rtpk-bg-deep);
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--rtpk-text);
+}
+
+.rtpk-account__msg.is-success {
+	border-left-color: var(--rtpk-success);
+	background: color-mix(in srgb, var(--rtpk-success) 10%, var(--rtpk-bg-deep));
+}
+
+.rtpk-account__msg.is-error {
+	border-left-color: var(--rtpk-error);
+	background: color-mix(in srgb, var(--rtpk-error) 10%, var(--rtpk-bg-deep));
+}
+
+.rtpk-account__notice.is-info {
+	border-left-color: var(--rtpk-accent);
+}
+
+.rtpk-account__inline-msg {
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--rtpk-text-secondary);
+}
+
+.rtpk-account__inline-msg.is-success {
+	color: var(--rtpk-success);
+}
+
+/* Overview */
+.rtpk-account__profile-card {
+	display: flex;
+	align-items: center;
+	gap: 20px;
+	margin: 0 0 20px;
+	padding: 20px;
+	border: 1px solid var(--rtpk-border);
+	border-radius: var(--rtpk-radius-card);
+	background: var(--rtpk-bg-deep);
+}
+
+.rtpk-account__profile-text {
+	min-width: 0;
+}
+
+.rtpk-account__profile-text .rtpk-account__title {
+	font-size: 24px;
+	letter-spacing: -0.3px;
+}
+
+.rtpk-account__stats {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+	gap: 12px;
+	margin: 0 0 20px;
+}
+
+.rtpk-account__stat {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 16px;
+	border: 1px solid var(--rtpk-border);
+	border-radius: var(--rtpk-radius-card);
+	background: var(--rtpk-bg-deep);
+	color: var(--rtpk-text);
+	text-decoration: none;
+	transition: border-color 0.15s ease, background 0.2s ease;
+}
+
+.rtpk-account__stat:hover {
+	border-color: color-mix(in srgb, var(--rtpk-accent) 35%, var(--rtpk-border));
+	color: var(--rtpk-text);
+}
+
+.rtpk-account__stat:focus-visible {
+	outline: 2px solid var(--rtpk-accent);
+	outline-offset: 2px;
+}
+
+.rtpk-account__stat-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	background: color-mix(in srgb, var(--rtpk-accent) 12%, var(--rtpk-bg-deep));
+	color: var(--rtpk-accent);
+}
+
+.rtpk-account__stat-icon svg {
+	width: 18px;
+	height: 18px;
+}
+
+.rtpk-account__stat-value {
+	margin-top: 4px;
+	font-size: 28px;
+	font-weight: 600;
+	line-height: 1.2;
+	font-variant-numeric: tabular-nums;
+	color: var(--rtpk-heading);
+}
+
+.rtpk-account__stat-label {
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.3px;
+	text-transform: uppercase;
+	color: var(--rtpk-text-muted);
+}
+
+.rtpk-account__links {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.rtpk-account__link {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	min-height: 44px;
+	padding: 12px 16px;
+	border: 1px solid var(--rtpk-border);
+	border-radius: var(--rtpk-radius);
+	color: var(--rtpk-text);
+	text-decoration: none;
+	transition: border-color 0.15s ease, background 0.2s ease;
+}
+
+.rtpk-account__link:hover {
+	border-color: var(--rtpk-border-hover);
+	background: var(--rtpk-bg-hover);
+	color: var(--rtpk-text);
+}
+
+.rtpk-account__link:focus-visible {
+	outline: 2px solid var(--rtpk-accent);
+	outline-offset: 2px;
+}
+
+.rtpk-account__link-text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.rtpk-account__link-text strong {
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--rtpk-heading);
+}
+
+.rtpk-account__link-text span {
+	font-size: 13px;
+	color: var(--rtpk-text-secondary);
+}
+
+.rtpk-account__link .rtpk-icon {
+	flex-shrink: 0;
+	color: var(--rtpk-text-muted);
+}
+
+/* Forms */
+.rtpk-account__form {
+	margin: 0;
+}
+
+.rtpk-account__grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px 16px;
+}
+
+.rtpk-account__field--wide {
+	grid-column: 1 / -1;
+}
+
+.rtpk-account__label {
+	display: block;
+	margin: 0 0 6px;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--rtpk-text);
+}
+
+.rtpk-account__input {
+	display: block;
+	width: 100%;
+	min-height: 44px;
+	padding: 10px 14px;
+	border: 1px solid var(--rtpk-border);
+	border-radius: var(--rtpk-radius);
+	background: var(--rtpk-bg-input);
+	color: var(--rtpk-text);
+	font: inherit;
+	font-size: 15px;
+	line-height: 1.4;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+	-webkit-appearance: none;
+	appearance: none;
+}
+
+.rtpk-account__input::placeholder {
+	color: var(--rtpk-placeholder);
+	opacity: 1;
+}
+
+.rtpk-account__input:hover {
+	border-color: var(--rtpk-border-hover);
+}
+
+.rtpk-account__input:focus {
+	outline: none;
+	border-color: var(--rtpk-accent);
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--rtpk-accent) 25%, transparent);
+}
+
+.rtpk-account__textarea {
+	min-height: 96px;
+	resize: vertical;
+}
+
+.rtpk-account__field.has-error .rtpk-account__input {
+	border-color: var(--rtpk-error);
+}
+
+.rtpk-account__help {
+	margin: 6px 0 0;
+	font-size: 12px;
+	color: var(--rtpk-text-muted);
+}
+
+.rtpk-account__error {
+	margin: 6px 0 0;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--rtpk-error);
+}
+
+.rtpk-account__actions {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin-top: 18px;
+}
+
+/* Security blocks */
+.rtpk-account__block + .rtpk-account__block {
+	margin-top: 16px;
+}
+
+.rtpk-account__block .rtpk-manager {
+	max-width: none;
+}
+
+.rtpk-account__card {
+	padding: 20px 24px;
+	border: 1px solid var(--rtpk-border);
+	border-radius: var(--rtpk-radius-card);
+	background: var(--rtpk-bg);
+}
+
+.rtpk-account__card .rtpk-account__desc {
+	margin-bottom: 16px;
+}
+
+.rtpk-account__card--row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+}
+
+.rtpk-account__card--row .rtpk-account__desc {
+	margin-bottom: 0;
+}
+
+.rtpk-account__card--row .rtpk-btn {
+	flex-shrink: 0;
+}
+
+/* Buttons (same tokens as the manager; defined here so the page works
+   even when the manager stylesheet is not loaded) */
+.rtpk-account .rtpk-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	min-height: 40px;
+	padding: 8px 16px;
+	border: 1px solid var(--rtpk-border);
+	border-radius: var(--rtpk-radius);
+	background: var(--rtpk-bg-deep);
+	color: var(--rtpk-text);
+	font: inherit;
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.2;
+	white-space: nowrap;
+	text-decoration: none;
+	cursor: pointer;
+	transition: background 0.2s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.rtpk-account .rtpk-btn:hover {
+	border-color: var(--rtpk-border-hover);
+	background: var(--rtpk-bg-hover);
+	color: var(--rtpk-text);
+}
+
+.rtpk-account .rtpk-btn:focus-visible {
+	outline: 2px solid var(--rtpk-accent);
+	outline-offset: 2px;
+}
+
+.rtpk-account .rtpk-btn:active {
+	transform: scale(0.97);
+}
+
+.rtpk-account .rtpk-btn[disabled] {
+	opacity: 0.5;
+	cursor: not-allowed;
+	transform: none;
+}
+
+.rtpk-account .rtpk-btn--primary {
+	border-color: var(--rtpk-accent);
+	background: var(--rtpk-accent);
+	color: var(--rtpk-on-accent);
+}
+
+.rtpk-account .rtpk-btn--primary:hover {
+	border-color: var(--rtpk-accent-hover);
+	background: var(--rtpk-accent-hover);
+	color: var(--rtpk-on-accent);
+}
+
+.rtpk-account .rtpk-btn--secondary {
+	background: transparent;
+}
+
+.rtpk-account .rtpk-btn--ghost {
+	border-color: transparent;
+	background: transparent;
+	color: var(--rtpk-text-secondary);
+}
+
+.rtpk-account .rtpk-btn--ghost:hover {
+	border-color: var(--rtpk-border);
+	background: transparent;
+	color: var(--rtpk-text);
+}
+
+.rtpk-account .rtpk-btn--danger {
+	border-color: transparent;
+	background: transparent;
+	color: var(--rtpk-text-secondary);
+}
+
+.rtpk-account .rtpk-btn--danger:hover {
+	border-color: color-mix(in srgb, var(--rtpk-error) 40%, transparent);
+	background: color-mix(in srgb, var(--rtpk-error) 12%, var(--rtpk-bg-deep));
+	color: var(--rtpk-error);
+}
+
+.rtpk-account .rtpk-btn--sm {
+	min-height: 32px;
+	padding: 4px 12px;
+	font-size: 13px;
+}
+
+/* Lists: reviews, favourites, comments */
+.rtpk-account__list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.rtpk-account__item {
+	display: flex;
+	align-items: flex-start;
+	gap: 14px;
+	margin: 0;
+	padding: 14px 16px;
+	border: 1px solid var(--rtpk-border);
+	border-radius: var(--rtpk-radius-card);
+	background: var(--rtpk-bg-deep);
+	transition: border-color 0.15s ease, opacity 0.2s ease;
+}
+
+.rtpk-account__item:hover {
+	border-color: color-mix(in srgb, var(--rtpk-accent) 35%, var(--rtpk-border));
+}
+
+.rtpk-account__item.is-busy {
+	opacity: 0.5;
+	pointer-events: none;
+}
+
+.rtpk-account__thumb {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	width: 56px;
+	height: 56px;
+	border-radius: var(--rtpk-radius);
+	background: var(--rtpk-bg);
+	object-fit: contain;
+	color: var(--rtpk-text-muted);
+}
+
+.rtpk-account__thumb--empty svg {
+	width: 28px;
+	height: 28px;
+}
+
+.rtpk-account__item-body {
+	flex: 1;
+	min-width: 0;
+}
+
+.rtpk-account__item-head {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.rtpk-account__item-name {
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--rtpk-heading);
+	overflow-wrap: anywhere;
+}
+
+a.rtpk-account__item-name:hover {
+	color: var(--rtpk-accent);
+}
+
+.rtpk-account__item-title {
+	margin: 4px 0 0;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--rtpk-text);
+}
+
+.rtpk-account__item-excerpt {
+	margin: 4px 0 0;
+	font-size: 14px;
+	line-height: 1.5;
+	color: var(--rtpk-text-secondary);
+}
+
+.rtpk-account__item-meta {
+	margin: 4px 0 0;
+	font-size: 13px;
+	color: var(--rtpk-text-muted);
+}
+
+.rtpk-account__item-actions {
+	display: flex;
+	flex-shrink: 0;
+	gap: 4px;
+}
+
+.rtpk-account__stars {
+	display: inline-flex;
+	gap: 2px;
+	margin-top: 4px;
+	color: var(--rtpk-accent);
+}
+
+.rtpk-star {
+	filter: drop-shadow(0 1px 3px color-mix(in srgb, var(--rtpk-accent) 35%, transparent));
+}
+
+.rtpk-star.is-empty {
+	color: var(--rtpk-star-empty);
+	filter: none;
+}
+
+.rtpk-badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px 8px;
+	border-radius: var(--rtpk-radius-badge);
+	background: color-mix(in srgb, var(--rtpk-accent) 15%, var(--rtpk-bg-deep));
+	color: var(--rtpk-accent);
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.3px;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.rtpk-badge--success {
+	background: color-mix(in srgb, var(--rtpk-success) 15%, var(--rtpk-bg-deep));
+	color: var(--rtpk-success);
+}
+
+.rtpk-badge--muted {
+	background: color-mix(in srgb, var(--rtpk-text-muted) 18%, var(--rtpk-bg-deep));
+	color: var(--rtpk-text-secondary);
+}
+
+.rtpk-account__empty {
+	margin: 0;
+	padding: 32px 24px;
+	border: 1px dashed var(--rtpk-border);
+	border-radius: var(--rtpk-radius-card);
+	text-align: center;
+	font-size: 14px;
+	color: var(--rtpk-text-muted);
+}
+
+.rtpk-account__list:not(:empty) + .rtpk-account__empty {
+	margin-top: 12px;
+}
+
+/* Signed-out state */
+.rtpk-account__signed-out {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
+	padding: 40px 24px;
+	text-align: center;
+	color: var(--rtpk-text-secondary);
+}
+
+.rtpk-account__signed-out .rtpk-icon {
+	width: 40px;
+	height: 40px;
+	color: var(--rtpk-text-muted);
+}
+
+.rtpk-account__signed-out p {
+	margin: 0;
+	font-size: 15px;
+}
+
+/* Responsive */
+@media (max-width: 782px) {
+	.rtpk-account__layout {
+		grid-template-columns: 180px minmax(0, 1fr);
+	}
+
+	.rtpk-account__panels {
+		padding: 20px;
+	}
+}
+
+@media (max-width: 600px) {
+	.rtpk-account__header {
+		padding: 16px;
+	}
+
+	.rtpk-account__name {
+		font-size: 20px;
+	}
+
+	.rtpk-account__signout span {
+		display: none;
+	}
+
+	.rtpk-account__layout {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.rtpk-account__tabs {
+		padding: 12px;
+		border-right: 0;
+		border-bottom: 1px solid var(--rtpk-border);
+	}
+
+	.rtpk-account__tab {
+		border-color: var(--rtpk-border);
+		background: var(--rtpk-bg);
+	}
+
+	.rtpk-account__tab.is-active {
+		border-color: color-mix(in srgb, var(--rtpk-accent) 35%, transparent);
+		background: color-mix(in srgb, var(--rtpk-accent) 12%, var(--rtpk-bg-deep));
+	}
+
+	.rtpk-account__panels {
+		padding: 16px;
+	}
+
+	.rtpk-account__profile-card {
+		flex-direction: column;
+		text-align: center;
+	}
+
+	.rtpk-account__grid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.rtpk-account__actions .rtpk-btn {
+		width: 100%;
+	}
+
+	.rtpk-account__card {
+		padding: 16px;
+	}
+
+	.rtpk-account__card--row {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.rtpk-account__item {
+		flex-wrap: wrap;
+	}
+
+	.rtpk-account__item-actions {
+		width: 100%;
+		justify-content: flex-end;
+		padding-top: 8px;
+		border-top: 1px solid var(--rtpk-border);
+	}
+
+	.rtpk-account__msg,
+	.rtpk-account__notice {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.rtpk-account * {
+		transition: none !important;
+		animation: none !important;
+	}
+}

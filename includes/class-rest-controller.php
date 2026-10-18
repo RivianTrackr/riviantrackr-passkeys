@@ -520,6 +520,9 @@ final class RestController {
 		/** This filter is documented in wp-login.php */
 		$redirect_to = (string) apply_filters( 'login_redirect', $redirect_to, $requested, $user ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core hook.
 
+		// Members without editing rights land on the account page (same rule as the login_redirect hook).
+		$redirect_to = AccountRedirect::target( $redirect_to, $user->has_cap( 'edit_posts' ), $this->settings->account_page_url(), admin_url() );
+
 		if ( '' === $redirect_to || 'wp-admin/' === $redirect_to || admin_url() === $redirect_to ) {
 			if ( is_multisite() && ! get_active_blog_for_user( $user->ID ) && ! is_super_admin( $user->ID ) ) {
 				$redirect_to = user_admin_url();

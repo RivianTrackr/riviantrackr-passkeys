@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-18
+
+### Added
+- **Member account page.** New `[riviantrackr_account theme="dark|light"]` shortcode renders a tabbed "My Account" page in the dark "ink & brass" theme (left tab rail on desktop, stacked list under 600px, no icon-font dependency): **Overview** (avatar, name, email, member since, passkey/review/favorite/comment counts, quick links), **Profile** (display name, first/last name, email, website, bio; an email change stores WordPress's `_new_email` meta and emails the standard confirmation link, so it completes exactly like the profile screen and can be cancelled from the page), **Security** (the passkey manager, a change-password form that requires the current password and keeps this browser signed in while signing out every other device, and a "Sign out other devices" button), **Reviews** and **Favorites** (only while the Rivian Tire Guide is active: the member's approved and pending tire reviews with stars, status badge, excerpt, Edit link to the tire page and Delete; favorite tires with View and Remove) and **Comments** (recent approved comments with post links). Signed-out visitors get a sign-in link.
+- **Tabs filter.** `riviantrackr_passkeys_account_tabs` lets other plugins add, remove or reorder sections (`id`, `label`, optional inline-SVG `icon`, `render` callable receiving the `WP_User` and a context array). Invalid entries are dropped, ids are slugified and de-duplicated.
+- **REST routes** under `riviantrackr-passkeys/v1` (logged in, cookie nonce): `POST account/profile`, `POST account/email/cancel`, `POST account/password` (5/min per user), `POST account/sessions/others`, `DELETE account/reviews/{tire_id}`, `DELETE account/favorites/{tire_id}`. Field-level validation errors come back in `data.fields` and are shown inline.
+- **Settings → Passkeys → Pages: Account page** (published page only). When set, members without `edit_posts` land on it after any login (password, passkey, invitation, signup) instead of the dashboard, both through the core `login_redirect` filter and the passkey REST login's redirect resolver (shared `AccountRedirect::target()` rule: an explicit front-end `redirect_to` is honoured, anything pointing at wp-admin goes to the account page); it becomes the default destination after passkey setup and after signup when those fields are blank. New toggles **Hide the admin bar for members without editing rights** (on by default, only while an account page is set) and **Add an "Account" link to the main menu** (off by default; appends to the theme's first registered menu location for signed-in members).
+- **Hooks:** `riviantrackr_passkeys_profile_updated` (`$user, $data`) and `riviantrackr_passkeys_password_changed` (`$user`) actions.
+- `rtpkCore.request()` now exposes the REST error's `data` on the thrown error (`err.data`), so callers can read field-level errors.
+
 ## [1.1.1] - 2026-10-16
 
 ### Fixed
@@ -61,7 +71,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Bundled `lbuchs/webauthn` v2.2** (MIT) under `lib/`, autoloaded by the plugin; no Composer required on the server.
 - **Tooling:** PHPUnit suite with a software P-256 authenticator that drives real registration and assertion verification, `node:test` JS tests, PHPCS (WordPress standard), esbuild minification, and GitHub Actions CI on PHP 8.1–8.4.
 
-[Unreleased]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.0.0...v1.0.1

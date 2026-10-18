@@ -70,6 +70,7 @@ function rtpk_test_reset(): void {
 	$GLOBALS['rtpk_test_notifications'] = [];
 	$GLOBALS['rtpk_test_mail_ok']       = true;
 	$GLOBALS['rtpk_test_posts']         = [];
+	$GLOBALS['rtpk_test_current_user']  = null;
 }
 
 /* ---------------------------------------------------------------- options */
@@ -337,6 +338,24 @@ function get_permalink( $post = 0 ) {
 	return $GLOBALS['rtpk_test_posts'][ (int) $post ]['url'] ?? false;
 }
 
+/* ---------------------------------------------------------------- account */
+
+function admin_url( $path = '' ) {
+	return 'https://riviantrackr.test/wp-admin/' . ltrim( (string) $path, '/' );
+}
+function wp_check_password( $password, $hash, $user_id = 0 ) {
+	return hash_equals( (string) $hash, 'hashed:' . $password );
+}
+function is_user_logged_in() {
+	return ! empty( $GLOBALS['rtpk_test_current_user'] );
+}
+function wp_get_current_user() {
+	return $GLOBALS['rtpk_test_current_user'] ?? new WP_User( 0, '', '', '' );
+}
+function get_current_user_id() {
+	return isset( $GLOBALS['rtpk_test_current_user'] ) ? (int) $GLOBALS['rtpk_test_current_user']->ID : 0;
+}
+
 /* -------------------------------------------------------------- site info */
 
 function home_url( $path = '' ) {
@@ -353,12 +372,24 @@ class WP_User {
 	public string $user_login;
 	public string $display_name;
 	public string $user_email;
+	public string $user_pass = '';
+	public string $user_url = '';
+	public string $user_registered = '2026-01-01 00:00:00';
+	public string $first_name = '';
+	public string $last_name = '';
+	public string $description = '';
+	/** @var string[] */
+	public array $caps = [];
 
 	public function __construct( int $id, string $login = 'jose', string $display = 'Jose', string $email = 'jose@riviantrackr.test' ) {
 		$this->ID           = $id;
 		$this->user_login   = $login;
 		$this->display_name = $display;
 		$this->user_email   = $email;
+	}
+
+	public function has_cap( string $cap ): bool {
+		return in_array( $cap, $this->caps, true );
 	}
 }
 

@@ -104,7 +104,11 @@ final class SignupService {
 	 */
 	public function continue_url(): string {
 		$url = trim( (string) $this->get( 'continue_url' ) );
-		return '' !== $url ? $url : home_url( '/' );
+		if ( '' !== $url ) {
+			return $url;
+		}
+		$account = $this->settings->account_page_url();
+		return '' !== $account ? $account : home_url( '/' );
 	}
 
 	/**

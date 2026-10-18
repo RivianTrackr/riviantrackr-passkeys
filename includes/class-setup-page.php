@@ -18,7 +18,8 @@ final class SetupPage {
 	public function __construct(
 		private InviteService $invites,
 		private ProfileManager $manager,
-		private CredentialStore $store
+		private CredentialStore $store,
+		private Settings $settings
 	) {}
 
 	public function register_hooks(): void {
@@ -131,7 +132,11 @@ final class SetupPage {
 		if ( '' !== $requested ) {
 			return $requested;
 		}
-		return $user->has_cap( 'edit_posts' ) ? admin_url() : home_url( '/' );
+		if ( $user->has_cap( 'edit_posts' ) ) {
+			return admin_url();
+		}
+		$account = $this->settings->account_page_url();
+		return '' !== $account ? $account : home_url( '/' );
 	}
 
 	private function render( \WP_User $user, string $continue_to ): void {

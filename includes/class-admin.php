@@ -238,10 +238,11 @@ final class Admin {
 						<p>
 							<?php
 							printf(
-								/* translators: 1: login shortcode, 2: signup shortcode */
-								esc_html__( 'Replace the standard wp-login.php screens with pages of your own. Create a page containing %1$s and one containing %2$s, pick them below, then turn on the redirect.', 'riviantrackr-passkeys' ),
+								/* translators: 1: login shortcode, 2: signup shortcode, 3: account shortcode */
+								esc_html__( 'Replace the standard wp-login.php screens with pages of your own. Create a page containing %1$s and one containing %2$s, pick them below, then turn on the redirect. A page containing %3$s gives members a front-end account page instead of the dashboard.', 'riviantrackr-passkeys' ),
 								'<code>[riviantrackr_login]</code>',
-								'<code>[riviantrackr_signup]</code>'
+								'<code>[riviantrackr_signup]</code>',
+								'<code>[riviantrackr_account]</code>'
 							);
 							?>
 						</p>
@@ -260,6 +261,33 @@ final class Admin {
 									<p class="rtpk-field-description"><?php esc_html_e( 'The page holding [riviantrackr_signup]. Linked as “Create an account” on the sign-in page while signups are allowed.', 'riviantrackr-passkeys' ); ?></p>
 								</div>
 							</div>
+						</div>
+						<div class="rtpk-field-row">
+							<label class="rtpk-field-label" for="rtpk-account-page"><?php esc_html_e( 'Account page', 'riviantrackr-passkeys' ); ?></label>
+							<?php echo $this->pages_dropdown( $name . '[account_page_id]', 'rtpk-account-page', (int) $o['account_page_id'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_dropdown_pages() escapes its output. ?>
+							<p class="rtpk-field-description"><?php esc_html_e( 'The page holding [riviantrackr_account]. Once set, members without editing rights land here after signing in (password or passkey) instead of the dashboard, and it becomes the default destination after passkey setup and signup when those fields are blank. Exclude it from full-page caching.', 'riviantrackr-passkeys' ); ?></p>
+						</div>
+						<div class="rtpk-field-row rtpk-field-row--toggle">
+							<div>
+								<span class="rtpk-field-label"><?php esc_html_e( 'Hide the admin bar for members without editing rights', 'riviantrackr-passkeys' ); ?></span>
+								<p class="rtpk-field-description"><?php esc_html_e( 'Subscribers see the site without the WordPress toolbar. Editors and administrators keep it. Only applies while an account page is set.', 'riviantrackr-passkeys' ); ?></p>
+							</div>
+							<label class="rtpk-toggle">
+								<input type="checkbox" name="<?php echo esc_attr( $name ); ?>[hide_admin_bar]" value="1" <?php checked( ! empty( $o['hide_admin_bar'] ) ); ?>>
+								<span class="rtpk-toggle__track"><span class="rtpk-toggle__thumb"></span></span>
+								<span class="screen-reader-text"><?php esc_html_e( 'Hide the admin bar for members', 'riviantrackr-passkeys' ); ?></span>
+							</label>
+						</div>
+						<div class="rtpk-field-row rtpk-field-row--toggle">
+							<div>
+								<span class="rtpk-field-label"><?php esc_html_e( 'Add an “Account” link to the main menu', 'riviantrackr-passkeys' ); ?></span>
+								<p class="rtpk-field-description"><?php esc_html_e( 'Appends an Account item to the theme’s first registered menu location for signed-in members. Leave off if you add the page to a menu yourself under Appearance → Menus.', 'riviantrackr-passkeys' ); ?></p>
+							</div>
+							<label class="rtpk-toggle">
+								<input type="checkbox" name="<?php echo esc_attr( $name ); ?>[account_menu_item]" value="1" <?php checked( ! empty( $o['account_menu_item'] ) ); ?>>
+								<span class="rtpk-toggle__track"><span class="rtpk-toggle__thumb"></span></span>
+								<span class="screen-reader-text"><?php esc_html_e( 'Add an Account menu item', 'riviantrackr-passkeys' ); ?></span>
+							</label>
 						</div>
 						<div class="rtpk-field-row rtpk-field-row--toggle">
 							<div>
@@ -450,6 +478,10 @@ final class Admin {
 					<div class="rtpk-field-row">
 						<code>[riviantrackr_passkey_login redirect="/my-account/"]</code>
 						<p class="rtpk-field-description"><?php esc_html_e( 'Stand-alone “Sign in with a passkey” button for custom login pages. Hidden for signed-in visitors.', 'riviantrackr-passkeys' ); ?></p>
+					</div>
+					<div class="rtpk-field-row">
+						<code>[riviantrackr_account theme="dark"]</code>
+						<p class="rtpk-field-description"><?php esc_html_e( 'Tabbed member account page: overview, profile, security (passkeys, password, sign out other devices), tire reviews and favorites when the Rivian Tire Guide is active, comments. Dark theme by default; add theme="light" for light backgrounds. Pick the page above as the Account page.', 'riviantrackr-passkeys' ); ?></p>
 					</div>
 					<div class="rtpk-field-row">
 						<code>[riviantrackr_signup]</code>

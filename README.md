@@ -18,6 +18,10 @@ key once, then sign in with a single tap. Passwords keep working alongside.
   "Anyone can register" stays off. No user exists until they click the emailed link; honeypot,
   timing check, rate limits, a disposable-domain blocklist and optional Cloudflare Turnstile keep
   bots out. New members land straight on passkey setup.
+- **Member account page** — `[riviantrackr_account]` gives members a tabbed front-end account
+  page (profile, email and password changes, passkeys, sign out other devices, tire reviews and
+  favorites from the Rivian Tire Guide, comments) and sends them there after signing in instead of
+  the wp-admin dashboard. Other plugins add tabs through a filter.
 - **Your own login pages** — `[riviantrackr_login]` on a page of your choosing, with wp-login.php's
   login/register screens redirected there and the remaining wp-login.php screens (password reset,
   logout, passkey setup) reskinned in the site's colours with your logo.
@@ -54,6 +58,7 @@ key once, then sign in with a single tap. Passwords keep working alongside.
 | `[riviantrackr_passkeys]` | Passkey manager for the signed-in member. Dark "ink & brass" theme by default; `theme="light"` for light backgrounds. Shows a sign-in link when logged out. |
 | `[riviantrackr_passkey_login redirect="/my-account/" theme="dark" divider="0"]` | Stand-alone sign-in button for custom login pages. Hidden for signed-in visitors. |
 | `[riviantrackr_login theme="dark" redirect=""]` | Full sign-in form for your own login page: passkey button, username/password, "Lost your password?", "Create an account", failure and logout messages. See [Custom login pages](#custom-login-pages). |
+| `[riviantrackr_account theme="dark"]` | Tabbed member account page: Overview, Profile, Security, Reviews and Favorites (tire guide), Comments. Dark by default, `theme="light"` available. Signed-out visitors get a sign-in link. See [Member account page](#member-account-page). |
 | `[riviantrackr_signup theme="dark" redirect=""]` | Verify-first signup form (email + optional name). Dark by default, `theme="light"` available. Requires **Allow signups** under Settings → Passkeys. Signed-in visitors see a "Continue" note instead. |
 
 ## Custom login pages
@@ -94,6 +99,66 @@ with a Continue link.
 carries the current `redirect_to`, the messages depend on the query string, and the signed-in state
 depends on the visitor. Exclude both URLs in your cache plugin or CDN (most ignore requests with
 query strings, but the bare page must be excluded too), or the cached copy will show the wrong state.
+
+## Member account page
+
+Subscribers have no business on the wp-admin dashboard. `[riviantrackr_account]` renders a
+tabbed "My Account" page in the plugin's dark "ink & brass" theme (`theme="light"` for light
+backgrounds; a left tab rail on desktop that becomes a stacked list under 600px; inline SVG icons,
+no icon font):
+
+| Tab | What it shows |
+|---|---|
+| **Overview** | Avatar, display name, email, member since, counts of passkeys / reviews / favorites / comments (each a link to its tab), quick links. |
+| **Profile** | Display name, first and last name, email, website, bio. Saved over REST with inline field errors. Changing the email does not apply immediately: the standard WordPress confirmation link is sent to the new address (same `_new_email` meta and `profile.php?newuseremail=…` link as the profile screen), the pending address is shown on the page and can be cancelled. |
+| **Security** | The passkey manager (add, rename, remove), a change-password form (current password required; this browser stays signed in, every other device is signed out) and **Sign out other devices** (`WP_Session_Tokens::destroy_others()`). |
+| **Reviews** | Only while the Rivian Tire Guide is active. The member's approved reviews (`RTG_Database::get_user_reviews()`) plus pending/rejected ones from `wp_rtg_ratings`, with tire name linked to the tire page, stars, title, excerpt, status badge, date, **Edit** (opens the tire page, where the review form lives) and **Delete** (`RTG_Database::delete_user_rating()`). |
+| **Favorites** | Only while the tire guide is active. `RTG_Database::get_user_favorites()` with name, size and image, **View** and **Remove** (`RTG_Database::remove_favorite()`). |
+| **Comments** | The member's 20 most recent approved comments with post title links. |
+
+A **Sign out** link sits in the header. Tabs are addressed by URL hash (`/account/#security`), so
+quick links and the invitation/setup flows can deep-link into a section.
+
+### Setup
+
+1. Create and publish a page (for example `/account/`) containing `[riviantrackr_account]`.
+2. Under **Settings → Passkeys → Pages** pick it as the **Account page**. From then on:
+   - Members without the `edit_posts` capability land on it after **any** login — password form,
+     `[riviantrackr_login]`, passkey button, invitation magic link, signup link — through the
+     core `login_redirect` filter and the passkey REST login's redirect resolver, which share
+     one rule (`AccountRedirect::target()`): an explicit front-end `redirect_to` is honoured;
+     nothing requested, the dashboard, or any `wp-admin` URL goes to the account page. Editors
+     and administrators keep WordPress's behaviour.
+   - It becomes the default destination after passkey setup and after signup when the
+     **After passkey setup, send new members to** field is blank.
+   - **Hide the admin bar for members without editing rights** (on by default, only effective
+     while an account page is set) removes the toolbar for subscribers on the front end.
+   - **Add an "Account" link to the main menu** (off by default) appends an Account item to the
+     theme's first registered menu location for signed-in members. If you manage menus yourself,
+     leave it off and add the page under Appearance → Menus.
+3. **Exclude the page from full-page caching** (cache plugin or CDN). Everything on it depends on
+   the signed-in user.
+
+### Adding tabs from another plugin
+
+```php
+add_filter( 'riviantrackr_passkeys_account_tabs', function ( array $tabs, ?WP_User $user ) {
+	$tabs[] = [
+		'id'     => 'orders',                 // slug; duplicates are dropped
+		'label'  => __( 'Orders', 'my-plugin' ),
+		'icon'   => '<svg …></svg>',          // optional inline SVG, 20×20
+		'render' => function ( WP_User $user, array $context ): string {
+			// $context: light (bool), account_url, tabs (ids in order). Return escaped HTML.
+			return '<h3 class="rtpk-account__title">Orders</h3>…';
+		},
+	];
+	return $tabs;
+}, 10, 2 );
+```
+
+Entries without an id, label or callable `render` are ignored. The default tab ids are
+`overview`, `profile`, `security`, `reviews`, `favorites` (the last two only with the tire guide)
+and `comments`; remove or reorder them freely.
 
 ## Inviting members
 
@@ -210,6 +275,12 @@ Namespace `riviantrackr-passkeys/v1`. Logged-in routes require the standard REST
 | GET | `/credentials` | user | own list, or `?user_id=` with `edit_user` capability |
 | POST | `/credentials/{id}` | user | rename (own only) |
 | DELETE | `/credentials/{id}` | user | own, or `edit_user` capability |
+| POST | `/account/profile` | user | `display_name`, `first_name`, `last_name`, `email`, `url`, `description`; field errors in `data.fields`; an email change returns `pendingEmail` |
+| POST | `/account/email/cancel` | user | drop a pending email change |
+| POST | `/account/password` | user | 5/min per user; `current`, `new`, `confirm`; re-issues this browser's cookie, signs out other devices |
+| POST | `/account/sessions/others` | user | sign out every other browser/device |
+| DELETE | `/account/reviews/{tire_id}` | user | delete own tire review (tire guide active) |
+| DELETE | `/account/favorites/{tire_id}` | user | remove a favorite tire (tire guide active) |
 
 ## Hooks
 
@@ -233,6 +304,11 @@ do_action( 'riviantrackr_passkeys_counter_mismatch', array $row, WP_User $user )
 do_action( 'riviantrackr_passkeys_signup_requested', string $email );
 do_action( 'riviantrackr_passkeys_signup_verified', WP_User $user, array $pending_row );
 do_action( 'riviantrackr_passkeys_signup_login', WP_User $user );
+do_action( 'riviantrackr_passkeys_profile_updated', WP_User $user, array $data );
+do_action( 'riviantrackr_passkeys_password_changed', WP_User $user );
+
+// Add, remove or reorder account page tabs (see "Member account page").
+add_filter( 'riviantrackr_passkeys_account_tabs', fn( array $tabs, ?WP_User $user ) => $tabs, 10, 2 );
 ```
 
 ## Development
@@ -252,7 +328,7 @@ To upgrade it: `composer update lbuchs/webauthn && cp -R vendor/lbuchs/webauthn/
 
 1. Add an entry under `[Unreleased]` in `CHANGELOG.md` as you go.
 2. To release, move it under a new version heading, bump the version in `riviantrackr-passkeys.php` (header and `RTPK_VERSION`), `readme.txt` (stable tag + changelog) and `package.json`.
-3. Commit, tag `vX.Y.Z`, push with tags. CI runs on every push.
+3. Commit, tag `vX.Y.Z`, push with tags, then publish the GitHub release with the changelog section as its notes (`gh release create vX.Y.Z --title X.Y.Z --latest --notes-file …`). CI runs on every push.
 
 ## Troubleshooting
 

@@ -154,6 +154,7 @@
 					var err = new Error((data && data.message) || ('Request failed (' + res.status + ')'));
 					err.code = data && data.code;
 					err.status = res.status;
+					err.data = (data && data.data) || null;
 					throw err;
 				}
 				return data || {};
