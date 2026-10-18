@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-10-18
+
+### Fixed
+- **The Reviews tab's Edit button went nowhere useful.** It linked to the tire page, which has no review form, so it read as a button that does nothing. It now opens the tire guide's review page with the member's review loaded for editing: `TireGuide::review_edit_url()` asks `RTG_Tire_Review::url( $tire_id, true )` on tire guide 2.14.1 or later and assembles the same `/{tire_review_slug}/?tire={id}&edit=1` URL itself on older builds, where the page simply preselects the tire. Each row from `TireGuide::reviews()` carries it as `edit_url`, and the tab's description says what Edit and Delete do.
+
+### Tests
+- `TireGuideTest`: the edit URL carries the tire and the edit flag, honors the slug setting, rides on every review row, and is empty without a tire. The bootstrap gains a `sanitize_title()` stub.
+
 ## [1.2.1] - 2026-10-18
 
 ### Fixed
