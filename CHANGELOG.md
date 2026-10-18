@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-18
+
+### Added
+- **Password reset page.** New `[riviantrackr_password_reset theme="dark|light"]` shortcode renders the reset flow in the sign-in page's "ink & brass" card, as plain forms that post back to the page (no JavaScript): **Reset your password** (username or email, "Send reset link") calls `retrieve_password()` so the standard WordPress email and its hooks apply, and always answers "Check your inbox" so nothing reveals who is registered (empty input, a malformed address, an account with reset disabled and a mail failure show an inline error; 5 emails per hour per IP, `RTPK_RESET_RATE_LIMIT`). **Choose a new password** is reached from the emailed link: like wp-login.php the key is moved from the URL into a page-scoped cookie before anything renders, the password is asked twice (at least 8 characters, no backslash), `check_password_reset_key()`, `validate_password_reset` and `reset_password()` do the work, and "Password updated" offers a **Sign in** button. An expired or spent key shows a notice above the request form; signed-in visitors are pointed at the account page. Every outcome is a redirect back with `?rtpk_reset=<code>`.
+- **Settings → Passkeys → Pages: Password reset page** (published page only). With **Send wp-login.php visitors to these pages** on, `wp_lostpassword_url()` (every "Lost your password?" link) points at it keeping `redirect_to`, and GET requests for `wp-login.php?action=lostpassword|retrievepassword|rp|resetpass` are redirected there: the emailed link's `key` and `login` ride along, `redirect_to` is kept, and wp-login.php's `error=expiredkey|invalidkey` bounce becomes the page's expired notice. The toggle now takes effect with a reset page alone, and its missing-page warning only fires when neither a sign-in nor a reset page is chosen. `LoginRouter::resolve()` takes the reset page as a seventh argument; `LoginRouter::RESET_ACTIONS` and `reset_page_link()` are new.
+- New stylesheet `assets/passkeys-reset-page.css` (same palette and controls as the sign-in page).
+
+### Changed
+- Settings copy: the Pages intro lists the reset shortcode, and the redirect and branding toggles say that password reset only stays on wp-login.php while no reset page is chosen.
+
+### Tests
+- `PasswordResetPageTest`: screen selection, every notice code, the `retrieve_password()` result mapping (an unknown account reads as sent), the new-password rules, the request's rate limit and the cookie name. `LoginRouterTest`: the four reset actions route to the reset page (GET only, signed-out only, with or without a sign-in page), `key`/`login`/`redirect_to` pass-through, the expired-key bounce, the `lostpassword_url` filter, and `Settings` accepting a reset page alone.
+
 ## [1.3.0] - 2026-10-18
 
 ### Changed
@@ -92,7 +105,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Bundled `lbuchs/webauthn` v2.2** (MIT) under `lib/`, autoloaded by the plugin; no Composer required on the server.
 - **Tooling:** PHPUnit suite with a software P-256 authenticator that drives real registration and assertion verification, `node:test` JS tests, PHPCS (WordPress standard), esbuild minification, and GitHub Actions CI on PHP 8.1–8.4.
 
-[Unreleased]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.3.0...v1.4.0
+[1.3.0]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.2.2...v1.3.0
+[1.2.2]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.1.0...v1.1.1

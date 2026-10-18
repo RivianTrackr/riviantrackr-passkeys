@@ -22,9 +22,10 @@ key once, then sign in with a single tap. Passwords keep working alongside.
   page (profile, email and password changes, passkeys, sign out other devices, tire reviews and
   saved tires from the Rivian Tire Guide, comments) and sends them there after signing in instead of
   the wp-admin dashboard. Other plugins add tabs through a filter.
-- **Your own login pages** — `[riviantrackr_login]` on a page of your choosing, with wp-login.php's
-  login/register screens redirected there and the remaining wp-login.php screens (password reset,
-  logout, passkey setup) reskinned in the site's colours with your logo.
+- **Your own login pages** — `[riviantrackr_login]` and `[riviantrackr_password_reset]` on pages of
+  your choosing, with wp-login.php's login, register and password reset screens redirected there and
+  the remaining wp-login.php screens (logout, passkey setup) reskinned in the site's colours with
+  your logo.
 - **Hardened by default** — single-use challenges, strict exact-origin matching, signature-counter
   clone detection, per-IP and per-user rate limits, opaque 32-byte user handles, a 10-passkey cap
   per account.
@@ -58,33 +59,43 @@ key once, then sign in with a single tap. Passwords keep working alongside.
 | `[riviantrackr_passkeys]` | Passkey manager for the signed-in member. Dark "ink & brass" theme by default; `theme="light"` for light backgrounds. Shows a sign-in link when logged out. |
 | `[riviantrackr_passkey_login redirect="/my-account/" theme="dark" divider="0"]` | Stand-alone sign-in button for custom login pages. Hidden for signed-in visitors. |
 | `[riviantrackr_login theme="dark" redirect=""]` | Full sign-in form for your own login page: passkey button, username/password, "Lost your password?", "Create an account", failure and logout messages. See [Custom login pages](#custom-login-pages). |
+| `[riviantrackr_password_reset theme="dark"]` | Password reset in the same card: "Reset your password" (username or email, sends the standard WordPress reset email) and, from the emailed link, "Choose a new password". Plain forms, no JavaScript. See [Custom login pages](#custom-login-pages). |
 | `[riviantrackr_account theme="dark"]` | Tabbed member account page: Overview, Profile, Security, Reviews and Saved tires (tire guide), Comments. Dark by default, `theme="light"` available. Signed-out visitors get a sign-in link. See [Member account page](#member-account-page). |
 | `[riviantrackr_signup theme="dark" redirect=""]` | Verify-first signup form (email + optional name). Dark by default, `theme="light"` available. Requires **Allow signups** under Settings → Passkeys. Signed-in visitors see a "Continue" note instead. |
 
 ## Custom login pages
 
-Replace the stock `wp-login.php` login and registration screens with pages of your own while
-password reset, logout, post passwords and the passkey landing pages keep working on `wp-login.php`.
+Replace the stock `wp-login.php` login, registration and password reset screens with pages of your
+own while logout, post passwords and the passkey landing pages keep working on `wp-login.php`.
 
-1. Create a page (for example `/sign-in/`) containing `[riviantrackr_login]` and, if you use open
-   signup, a page (for example `/join/`) containing `[riviantrackr_signup]`. Publish both.
-2. Under **Settings → Passkeys → Pages** pick them as **Sign-in page** and **Join page**.
+1. Create a page (for example `/sign-in/`) containing `[riviantrackr_login]`, a page (for example
+   `/reset-password/`) containing `[riviantrackr_password_reset]` and, if you use open signup, a
+   page (for example `/join/`) containing `[riviantrackr_signup]`. Publish them.
+2. Under **Settings → Passkeys → Pages** pick them as **Sign-in page**, **Password reset page** and
+   **Join page**.
 3. Turn on **Send wp-login.php visitors to these pages**. From now on:
    - `wp_login_url()` (and so `auth_redirect()`, "Log in" links, the logout confirmation) points at
-     the sign-in page, keeping `redirect_to`; `wp_registration_url()` points at the join page.
+     the sign-in page, keeping `redirect_to`; `wp_registration_url()` points at the join page;
+     `wp_lostpassword_url()` (every "Lost your password?" link) points at the reset page.
    - A GET request for `wp-login.php` with no action, `action=login` or `action=register` is
      redirected to the matching page. `redirect_to`, `login`, `loggedout`, `checkemail`,
      `rtpk_invite` and `rtpk_signup` are carried over so the page can show the right message.
+   - A GET request for `action=lostpassword`, `retrievepassword`, `rp` or `resetpass` is redirected
+     to the reset page. The emailed link's `key` and `login` ride along (so the standard reset email
+     needs no change), `redirect_to` is kept, and wp-login.php's own `error=expiredkey|invalidkey`
+     bounce becomes the page's "link expired" notice. A screen whose page is not chosen stays on
+     wp-login.php.
    - A wrong password or an empty username/password sends the visitor back to the sign-in page with
      `?login=failed` or `?login=empty` instead of rendering `wp-login.php`.
    - Never redirected: POST requests, `interim-login`, `reauth=1`, signed-in visitors (wp-login.php
-     already forwards them), and `postpass`, `logout`, `lostpassword`, `retrievepassword`,
-     `resetpass`, `rp`, `confirmaction`, `passkey-setup`, `passkey-signup`.
+     already forwards them), and `postpass`, `logout`, `confirmaction`, `passkey-setup`,
+     `passkey-signup`.
    - If the chosen page is unpublished or deleted the redirect switches itself off. The stock form
      is always reachable at `wp-login.php?reauth=1`.
-4. Optionally turn on **Brand the remaining wp-login.php screens** to restyle password reset, logout
-   and the passkey setup/signup pages in the dark "ink & brass" palette with a gold button and your
-   logo (the invitations logo, else the theme's custom logo, else the site icon, else the site name).
+4. Optionally turn on **Brand the remaining wp-login.php screens** to restyle logout, the passkey
+   setup/signup pages and (while no reset page is chosen) password reset in the dark "ink & brass"
+   palette with a gold button and your logo (the invitations logo, else the theme's custom logo,
+   else the site icon, else the site name).
 
 `[riviantrackr_login theme="dark|light" redirect=""]` renders `wp_login_form()` in the plugin's card:
 passkey button on top, "or", username, password, "Keep me signed in", "Sign in", then "Lost your
@@ -95,10 +106,32 @@ message for `?login=failed`, `?login=empty`, `?loggedout=true`, `?checkemail=con
 else the `redirect` attribute, else the home page. Signed-in visitors see "You're signed in as …"
 with a Continue link.
 
-**Caching caveat:** the sign-in and join pages must not be served from a full-page cache. The form
-carries the current `redirect_to`, the messages depend on the query string, and the signed-in state
-depends on the visitor. Exclude both URLs in your cache plugin or CDN (most ignore requests with
-query strings, but the bare page must be excluded too), or the cached copy will show the wrong state.
+`[riviantrackr_password_reset theme="dark|light"]` renders the reset flow in the same card, as plain
+forms that post back to the page (no JavaScript needed):
+
+- **Reset your password:** username or email, "Send reset link". It calls `retrieve_password()`, so
+  the standard WordPress email (and the `retrieve_password_message`, `lostpassword_post`,
+  `allow_password_reset` hooks) apply. Whether or not an account matches, the visitor sees "Check
+  your inbox", like open signup: nothing reveals who is registered. Empty input, a malformed
+  address, an account with reset disabled and a mail failure show an inline error. Limited to
+  5 emails per hour per IP (`RTPK_RESET_RATE_LIMIT`).
+- **Choose a new password:** reached from the emailed link. Like wp-login.php, the key is moved from
+  the URL into a cookie scoped to the page before anything renders, so it never leaks through the
+  referrer. The form asks for the password twice (at least 8 characters, no backslash),
+  `check_password_reset_key()` verifies the key, `validate_password_reset` runs, then
+  `reset_password()` saves it and "Password updated" offers a **Sign in** button
+  (`wp_login_url()`, so it lands on your sign-in page). An expired or spent key shows "This reset
+  link has expired" above the request form.
+- Signed-in visitors are pointed at the account page (or `profile.php`) to change their password,
+  with a "Not you? Sign out" link.
+- Every outcome is a redirect back to the page with `?rtpk_reset=<code>`, so a refresh never
+  resubmits a form.
+
+**Caching caveat:** the sign-in, reset and join pages must not be served from a full-page cache. The
+forms carry the current `redirect_to` and a nonce, the messages depend on the query string, and the
+signed-in and reset states depend on the visitor. Exclude the URLs in your cache plugin or CDN (most
+ignore requests with query strings, but the bare pages must be excluded too), or the cached copy
+will show the wrong state.
 
 ## Member account page
 

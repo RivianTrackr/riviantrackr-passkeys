@@ -9,6 +9,7 @@ final class LoginRouterTest extends TestCase {
 
 	private const LOGIN    = 'https://riviantrackr.test/sign-in/';
 	private const REGISTER = 'https://riviantrackr.test/join/';
+	private const RESET    = 'https://riviantrackr.test/reset-password/';
 
 	protected function setUp(): void {
 		rtpk_test_reset();
@@ -16,11 +17,12 @@ final class LoginRouterTest extends TestCase {
 			10 => [ 'status' => 'publish', 'url' => self::LOGIN ],
 			11 => [ 'status' => 'publish', 'url' => self::REGISTER ],
 			12 => [ 'status' => 'draft', 'url' => 'https://riviantrackr.test/?page_id=12' ],
+			13 => [ 'status' => 'publish', 'url' => self::RESET ],
 		];
 	}
 
-	private function resolve( string $method, string $action, array $query = [], bool $logged_in = false, string $login = self::LOGIN, string $register = self::REGISTER ): ?string {
-		return LoginRouter::resolve( $method, $action, $query, $logged_in, $login, $register );
+	private function resolve( string $method, string $action, array $query = [], bool $logged_in = false, string $login = self::LOGIN, string $register = self::REGISTER, string $reset = '' ): ?string {
+		return LoginRouter::resolve( $method, $action, $query, $logged_in, $login, $register, $reset );
 	}
 
 	// ---- resolve() ---------------------------------------------------------
@@ -66,6 +68,76 @@ final class LoginRouterTest extends TestCase {
 			$out[ $action ] = [ $action ];
 		}
 		return $out;
+	}
+
+	// ---- password reset ---------------------------------------------------
+
+	/**
+	 * @dataProvider reset_actions
+	 */
+	public function test_reset_actions_go_to_the_reset_page( string $action ): void {
+		$this->assertSame( self::RESET, $this->resolve( 'GET', $action, [], false, self::LOGIN, self::REGISTER, self::RESET ) );
+		$this->assertSame( self::RESET, $this->resolve( 'GET', $action, [], false, '', '', self::RESET ), 'a reset page works without a sign-in page' );
+		$this->assertNull( $this->resolve( 'POST', $action, [], false, self::LOGIN, self::REGISTER, self::RESET ), 'wp-login.php keeps its own form posts' );
+		$this->assertNull( $this->resolve( 'GET', $action, [], true, self::LOGIN, self::REGISTER, self::RESET ), 'signed-in visitors stay on wp-login.php' );
+	}
+
+	/**
+	 * @return array<string,array{string}>
+	 */
+	public static function reset_actions(): array {
+		$out = [];
+		foreach ( LoginRouter::RESET_ACTIONS as $action ) {
+			$out[ $action ] = [ $action ];
+		}
+		return $out;
+	}
+
+	public function test_emailed_link_carries_key_and_login_to_the_reset_page(): void {
+		$target = $this->resolve( 'GET', 'rp', [ 'key' => 'AbC123xyz', 'login' => 'jose smith', 'wp_lang' => 'en_US' ], false, self::LOGIN, self::REGISTER, self::RESET );
+		$this->assertSame( self::RESET . '?key=AbC123xyz&login=jose%20smith', $target );
+	}
+
+	public function test_key_without_login_is_dropped(): void {
+		$this->assertSame( self::RESET, $this->resolve( 'GET', 'rp', [ 'key' => 'AbC123xyz' ], false, self::LOGIN, self::REGISTER, self::RESET ) );
+		$this->assertSame( self::RESET, $this->resolve( 'GET', 'rp', [ 'login' => 'jose' ], false, self::LOGIN, self::REGISTER, self::RESET ) );
+	}
+
+	public function test_wp_login_expired_key_bounce_becomes_the_expired_notice(): void {
+		$this->assertSame( self::RESET . '?rtpk_reset=expired', $this->resolve( 'GET', 'lostpassword', [ 'error' => 'expiredkey' ], false, self::LOGIN, self::REGISTER, self::RESET ) );
+		$this->assertSame( self::RESET . '?rtpk_reset=expired', $this->resolve( 'GET', 'lostpassword', [ 'error' => 'invalidkey' ], false, self::LOGIN, self::REGISTER, self::RESET ) );
+		$this->assertSame( self::RESET, $this->resolve( 'GET', 'lostpassword', [ 'error' => 'other' ], false, self::LOGIN, self::REGISTER, self::RESET ) );
+	}
+
+	public function test_reset_page_keeps_redirect_to(): void {
+		$target = $this->resolve( 'GET', 'lostpassword', [ 'redirect_to' => '/account/' ], false, self::LOGIN, self::REGISTER, self::RESET );
+		$this->assertSame( self::RESET . '?redirect_to=%2Faccount%2F', $target );
+	}
+
+	public function test_lostpassword_url_filter_points_at_the_reset_page(): void {
+		$router = $this->router( [ 'reset_page_id' => 13, 'redirect_wp_login' => true ] );
+		$stock  = 'https://riviantrackr.test/wp-login.php?action=lostpassword';
+
+		$this->assertSame( self::RESET, $router->filter_lostpassword_url( $stock, '' ) );
+		$this->assertSame( self::RESET . '?redirect_to=%2Faccount%2F', $router->filter_lostpassword_url( $stock, '/account/' ) );
+		$this->assertSame( $stock, $this->router( [ 'reset_page_id' => 12 ] )->filter_lostpassword_url( $stock, '' ), 'draft page' );
+		$this->assertSame( $stock, $this->router( [] )->filter_lostpassword_url( $stock, '' ) );
+	}
+
+	public function test_settings_wants_redirect_with_only_a_reset_page(): void {
+		update_option( RTPK_OPTION_NAME, [ 'reset_page_id' => 13, 'redirect_wp_login' => true ] );
+		$this->assertTrue( ( new Settings() )->wants_wp_login_redirect() );
+		$this->assertSame( self::RESET, ( new Settings() )->reset_page_url() );
+	}
+
+	public function test_sanitize_keeps_a_published_reset_page(): void {
+		$out = ( new Settings() )->sanitize( [ 'reset_page_id' => '13', 'redirect_wp_login' => '1' ] );
+		$this->assertSame( 13, $out['reset_page_id'] );
+		$this->assertSame( [], $GLOBALS['rtpk_test_errors'], 'a reset page alone satisfies the redirect toggle' );
+
+		$out = ( new Settings() )->sanitize( [ 'reset_page_id' => '12' ] );
+		$this->assertSame( 0, $out['reset_page_id'], 'draft page is cleared' );
+		$this->assertSame( 'rtpk_reset_page', $GLOBALS['rtpk_test_errors'][0]['code'] );
 	}
 
 	public function test_interim_and_reauth_requests_reach_the_stock_form(): void {
@@ -220,6 +292,7 @@ final class LoginRouterTest extends TestCase {
 		$out = ( new Settings() )->sanitize( [] );
 		$this->assertSame( 0, $out['login_page_id'] );
 		$this->assertSame( 0, $out['register_page_id'] );
+		$this->assertSame( 0, $out['reset_page_id'] );
 		$this->assertFalse( $out['redirect_wp_login'] );
 		$this->assertFalse( $out['brand_wp_login'] );
 	}

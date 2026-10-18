@@ -31,6 +31,7 @@ final class Plugin {
 	private SignupPage $signup_page;
 	private LoginPage $login_page;
 	private LoginRouter $router;
+	private PasswordResetPage $reset_page;
 	private LoginBranding $branding;
 	private AccountPage $account;
 	private AccountRest $account_rest;
@@ -60,6 +61,7 @@ final class Plugin {
 		$this->signup_page      = new SignupPage( $this->signup, $this->invites );
 		$this->login_page       = new LoginPage( $this->settings, $this->signup );
 		$this->router           = new LoginRouter( $this->settings );
+		$this->reset_page       = new PasswordResetPage( $this->settings, $this->limiter );
 		$this->branding         = new LoginBranding( $this->settings, $this->invites );
 		$this->account          = new AccountPage( $this->settings, $this->store, $this->profile );
 		$this->account_rest     = new AccountRest( $this->limiter );
@@ -84,6 +86,7 @@ final class Plugin {
 		$this->signup_page->register_hooks();
 		$this->login_page->register_hooks();
 		$this->router->register_hooks();
+		$this->reset_page->register_hooks();
 		$this->branding->register_hooks();
 		$this->account->register_hooks();
 		$this->account_redirect->register_hooks();

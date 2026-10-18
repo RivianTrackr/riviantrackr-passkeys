@@ -30,11 +30,15 @@ define( 'RTPK_NAME_MAX_LENGTH', 60 );
 define( 'RTPK_SIGNUP_IP_RATE_LIMIT', 5 );
 define( 'RTPK_SIGNUP_EMAIL_RATE_LIMIT', 3 );
 define( 'RTPK_SIGNUP_MIN_SECONDS', 3 );
+define( 'RTPK_RESET_RATE_LIMIT', 5 );
 if ( ! defined( 'DAY_IN_SECONDS' ) ) {
 	define( 'DAY_IN_SECONDS', 86400 );
 }
 if ( ! defined( 'HOUR_IN_SECONDS' ) ) {
 	define( 'HOUR_IN_SECONDS', 3600 );
+}
+if ( ! defined( 'COOKIEHASH' ) ) {
+	define( 'COOKIEHASH', md5( 'https://riviantrackr.test' ) );
 }
 
 require_once dirname( __DIR__ ) . '/vendor/autoload.php';
@@ -71,6 +75,8 @@ function rtpk_test_reset(): void {
 	$GLOBALS['rtpk_test_mail_ok']       = true;
 	$GLOBALS['rtpk_test_posts']         = [];
 	$GLOBALS['rtpk_test_current_user']  = null;
+	$GLOBALS['rtpk_test_reset_result']  = true;
+	$GLOBALS['rtpk_test_reset_calls']   = [];
 }
 
 /* ---------------------------------------------------------------- options */
@@ -329,6 +335,16 @@ function wp_remote_retrieve_response_code( $response ) {
 }
 function wp_remote_retrieve_body( $response ) {
 	return is_array( $response ) ? (string) ( $response['body'] ?? '' ) : '';
+}
+
+/* --------------------------------------------------------- password reset */
+
+$GLOBALS['rtpk_test_reset_result'] = true; // What retrieve_password() returns.
+$GLOBALS['rtpk_test_reset_calls']  = [];
+
+function retrieve_password( $user_login = null ) {
+	$GLOBALS['rtpk_test_reset_calls'][] = $user_login;
+	return $GLOBALS['rtpk_test_reset_result'] ?? true;
 }
 
 /* ------------------------------------------------------------------ posts */
