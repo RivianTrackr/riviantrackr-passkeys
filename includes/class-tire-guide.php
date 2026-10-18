@@ -141,17 +141,17 @@ final class TireGuide {
 			$tire    = self::tire( $tire_id );
 			$status  = (string) ( $row['review_status'] ?? 'approved' );
 			$out[]   = [
-				'id'      => (int) ( $row['id'] ?? 0 ),
-				'tire_id' => $tire_id,
-				'tire'    => self::tire_label( $row ),
-				'url'     => self::tire_url( $tire ),
+				'id'       => (int) ( $row['id'] ?? 0 ),
+				'tire_id'  => $tire_id,
+				'tire'     => self::tire_label( $row ),
+				'url'      => self::tire_url( $tire ),
 				'edit_url' => self::review_edit_url( $tire_id ),
-				'image'   => (string) ( $row['image'] ?? '' ),
-				'rating'  => (float) ( $row['rating'] ?? 0 ),
-				'title'   => (string) ( $row['review_title'] ?? '' ),
-				'text'    => (string) ( $row['review_text'] ?? '' ),
-				'status'  => in_array( $status, [ 'approved', 'pending', 'rejected' ], true ) ? $status : 'pending',
-				'date'    => (string) ( $row['updated_at'] ?? $row['created_at'] ?? '' ),
+				'image'    => (string) ( $row['image'] ?? '' ),
+				'rating'   => (float) ( $row['rating'] ?? 0 ),
+				'title'    => (string) ( $row['review_title'] ?? '' ),
+				'text'     => (string) ( $row['review_text'] ?? '' ),
+				'status'   => in_array( $status, [ 'approved', 'pending', 'rejected' ], true ) ? $status : 'pending',
+				'date'     => (string) ( $row['updated_at'] ?? $row['created_at'] ?? '' ),
 			];
 		}
 		usort( $out, static fn( array $a, array $b ): int => strcmp( $b['date'], $a['date'] ) );
