@@ -241,7 +241,7 @@ final class AccountRest {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public function delete_review( \WP_REST_Request $request ) {
-		if ( ! TireGuide::is_active() ) {
+		if ( ! TireGuide::supports_reviews() ) {
 			return new \WP_Error( 'rtpk_no_tire_guide', __( 'The tire guide is not available.', 'riviantrackr-passkeys' ), [ 'status' => 404 ] );
 		}
 		$tire_id = sanitize_text_field( (string) $request->get_param( 'tire_id' ) );
@@ -261,7 +261,7 @@ final class AccountRest {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public function remove_favorite( \WP_REST_Request $request ) {
-		if ( ! TireGuide::is_active() ) {
+		if ( ! TireGuide::supports_favorites() ) {
 			return new \WP_Error( 'rtpk_no_tire_guide', __( 'The tire guide is not available.', 'riviantrackr-passkeys' ), [ 'status' => 404 ] );
 		}
 		$tire_id = sanitize_text_field( (string) $request->get_param( 'tire_id' ) );

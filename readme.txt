@@ -4,7 +4,7 @@ Tags: passkeys, webauthn, fido2, passwordless, login, security
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.1
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,9 @@ Yes. Put [riviantrackr_account] on a page, choose it under Settings → Passkeys
 Yes. Set the relying party ID to the parent domain and list each subdomain origin under "Additional allowed origins". Existing passkeys must be re-registered after changing the RP ID.
 
 == Changelog ==
+
+= 1.2.1 =
+* Fixed a fatal error on the account page when an older Rivian Tire Guide build lacks RTG_Database::get_user_favorites() (or other helpers): the bridge now feature-detects each helper and reads the tire guide tables directly, hiding the Reviews or Favorites tab only when there is no data source at all.
 
 = 1.2.0 =
 * Member account page: [riviantrackr_account] shortcode (dark/light) with Overview, Profile (name, email with confirmation, website, bio), Security (passkeys, change password, sign out other devices), Reviews and Favorites from the Rivian Tire Guide, and Comments. Other plugins add tabs with the riviantrackr_passkeys_account_tabs filter.

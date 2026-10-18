@@ -23,17 +23,19 @@ final class AccountPageTest extends TestCase {
 		$this->page = new AccountPage( $settings, $store, new ProfileManager( $settings, $store, $rest ) );
 	}
 
-	public function test_default_tabs_depend_on_the_tire_guide(): void {
-		$this->assertSame( [ 'overview', 'profile', 'security', 'reviews', 'favorites', 'comments' ], AccountPage::default_tab_ids( true ) );
-		$this->assertSame( [ 'overview', 'profile', 'security', 'comments' ], AccountPage::default_tab_ids( false ) );
+	public function test_default_tabs_depend_on_what_the_tire_guide_offers(): void {
+		$this->assertSame( [ 'overview', 'profile', 'security', 'reviews', 'favorites', 'comments' ], AccountPage::default_tab_ids( true, true ) );
+		$this->assertSame( [ 'overview', 'profile', 'security', 'reviews', 'comments' ], AccountPage::default_tab_ids( true, false ), 'an older tire guide without favourites' );
+		$this->assertSame( [ 'overview', 'profile', 'security', 'favorites', 'comments' ], AccountPage::default_tab_ids( false, true ) );
+		$this->assertSame( [ 'overview', 'profile', 'security', 'comments' ], AccountPage::default_tab_ids( false, false ) );
 	}
 
 	public function test_tabs_are_built_from_the_defaults(): void {
-		$with    = $this->page->tabs( true );
-		$without = $this->page->tabs( false );
+		$with    = $this->page->tabs( true, true );
+		$without = $this->page->tabs( false, false );
 
-		$this->assertSame( AccountPage::default_tab_ids( true ), array_keys( $with ) );
-		$this->assertSame( AccountPage::default_tab_ids( false ), array_keys( $without ) );
+		$this->assertSame( AccountPage::default_tab_ids( true, true ), array_keys( $with ) );
+		$this->assertSame( AccountPage::default_tab_ids( false, false ), array_keys( $without ) );
 		$this->assertSame( 'Reviews', $with['reviews']['label'] );
 		$this->assertStringContainsString( '<svg', $with['security']['icon'] );
 		$this->assertTrue( is_callable( $with['profile']['render'] ) );
@@ -57,7 +59,7 @@ final class AccountPageTest extends TestCase {
 			return $tabs;
 		};
 
-		$tabs = $this->page->tabs( false );
+		$tabs = $this->page->tabs( false, false );
 		$this->assertSame( [ 'overview', 'orders', 'profile', 'security' ], array_keys( $tabs ), 'id is slugified, comments removed, orders inserted' );
 		$this->assertSame( '', $tabs['orders']['icon'] );
 		$this->assertSame( '<p>orders</p>', call_user_func( $tabs['orders']['render'] ) );

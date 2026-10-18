@@ -424,6 +424,9 @@ class RTPK_Fake_Wpdb {
 	public function prepare( $query, ...$args ) {
 		return $query;
 	}
+	public function esc_like( $text ) {
+		return addcslashes( (string) $text, '_%\\' );
+	}
 	public function get_row( $query, $output = null ) {
 		return null;
 	}

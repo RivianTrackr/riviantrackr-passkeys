@@ -37,13 +37,16 @@ final class AccountPage {
 	/**
 	 * IDs of the built-in tabs, in order. Pure.
 	 *
-	 * @param bool $tire_guide Whether the Rivian Tire Guide is active.
+	 * @param bool $reviews   Whether tire reviews are available (tire guide active with a ratings source).
+	 * @param bool $favorites Whether favourite tires are available.
 	 * @return string[]
 	 */
-	public static function default_tab_ids( bool $tire_guide ): array {
+	public static function default_tab_ids( bool $reviews, bool $favorites ): array {
 		$ids = [ 'overview', 'profile', 'security' ];
-		if ( $tire_guide ) {
+		if ( $reviews ) {
 			$ids[] = 'reviews';
+		}
+		if ( $favorites ) {
 			$ids[] = 'favorites';
 		}
 		$ids[] = 'comments';
@@ -85,12 +88,14 @@ final class AccountPage {
 	/**
 	 * The tabs to render for a member.
 	 *
-	 * @param bool|null $tire_guide Override tire-guide detection (tests).
+	 * @param bool|null $reviews   Override tire-review detection (tests).
+	 * @param bool|null $favorites Override favourite detection (tests).
 	 * @return array<string,array{id:string,label:string,icon:string,render:callable}>
 	 */
-	public function tabs( ?bool $tire_guide = null ): array {
-		$tire_guide = $tire_guide ?? TireGuide::is_active();
-		$labels     = [
+	public function tabs( ?bool $reviews = null, ?bool $favorites = null ): array {
+		$reviews   = $reviews ?? TireGuide::supports_reviews();
+		$favorites = $favorites ?? TireGuide::supports_favorites();
+		$labels    = [
 			'overview'  => __( 'Overview', 'riviantrackr-passkeys' ),
 			'profile'   => __( 'Profile', 'riviantrackr-passkeys' ),
 			'security'  => __( 'Security', 'riviantrackr-passkeys' ),
@@ -98,7 +103,7 @@ final class AccountPage {
 			'favorites' => __( 'Favorites', 'riviantrackr-passkeys' ),
 			'comments'  => __( 'Comments', 'riviantrackr-passkeys' ),
 		];
-		$icons      = [
+		$icons     = [
 			'overview'  => 'home',
 			'profile'   => 'user',
 			'security'  => 'shield',
@@ -108,7 +113,7 @@ final class AccountPage {
 		];
 
 		$tabs = [];
-		foreach ( self::default_tab_ids( $tire_guide ) as $id ) {
+		foreach ( self::default_tab_ids( $reviews, $favorites ) as $id ) {
 			$tabs[] = [
 				'id'     => $id,
 				'label'  => $labels[ $id ],
@@ -267,11 +272,12 @@ final class AccountPage {
 	 * @param array<string,mixed> $context light, account_url, tabs.
 	 */
 	public function render_overview( \WP_User $user, array $context ): string {
-		$tabs       = (array) ( $context['tabs'] ?? [] );
-		$tire_guide = in_array( 'reviews', $tabs, true );
-		$name       = '' !== $user->display_name ? $user->display_name : $user->user_login;
-		$since      = $user->user_registered ? date_i18n( (string) get_option( 'date_format' ), strtotime( (string) $user->user_registered ) ) : '';
-		$comments   = (int) get_comments(
+		$tabs      = (array) ( $context['tabs'] ?? [] );
+		$reviews   = in_array( 'reviews', $tabs, true );
+		$favorites = in_array( 'favorites', $tabs, true );
+		$name      = '' !== $user->display_name ? $user->display_name : $user->user_login;
+		$since     = $user->user_registered ? date_i18n( (string) get_option( 'date_format' ), strtotime( (string) $user->user_registered ) ) : '';
+		$comments  = (int) get_comments(
 			[
 				'user_id' => $user->ID,
 				'status'  => 'approve',
@@ -287,13 +293,15 @@ final class AccountPage {
 				'label' => __( 'Passkeys', 'riviantrackr-passkeys' ),
 			],
 		];
-		if ( $tire_guide ) {
+		if ( $reviews ) {
 			$stats[] = [
 				'tab'   => 'reviews',
 				'icon'  => 'star',
 				'value' => TireGuide::review_count( $user->ID ),
 				'label' => __( 'Reviews', 'riviantrackr-passkeys' ),
 			];
+		}
+		if ( $favorites ) {
 			$stats[] = [
 				'tab'   => 'favorites',
 				'icon'  => 'heart',
@@ -312,8 +320,10 @@ final class AccountPage {
 			'profile'  => [ __( 'Edit your profile', 'riviantrackr-passkeys' ), __( 'Name, email, website and bio.', 'riviantrackr-passkeys' ) ],
 			'security' => [ __( 'Passkeys and password', 'riviantrackr-passkeys' ), __( 'Add a passkey, change your password, sign out other devices.', 'riviantrackr-passkeys' ) ],
 		];
-		if ( $tire_guide ) {
-			$links['reviews']   = [ __( 'Your tire reviews', 'riviantrackr-passkeys' ), __( 'See, edit or delete what you have written.', 'riviantrackr-passkeys' ) ];
+		if ( $reviews ) {
+			$links['reviews'] = [ __( 'Your tire reviews', 'riviantrackr-passkeys' ), __( 'See, edit or delete what you have written.', 'riviantrackr-passkeys' ) ];
+		}
+		if ( $favorites ) {
 			$links['favorites'] = [ __( 'Favorite tires', 'riviantrackr-passkeys' ), __( 'Tires you saved for later.', 'riviantrackr-passkeys' ) ];
 		}
 		$links['comments'] = [ __( 'Your comments', 'riviantrackr-passkeys' ), __( 'Conversations you joined.', 'riviantrackr-passkeys' ) ];

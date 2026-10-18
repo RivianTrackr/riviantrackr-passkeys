@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-18
+
+### Fixed
+- **Fatal error on the account page with an older Rivian Tire Guide build** (`Call to undefined method RTG_Database::get_user_favorites()`), which also broke the block editor's preload when editing the page. The tire guide bridge now feature-detects every `RTG_Database` helper (`get_user_reviews`, `delete_user_rating`, `get_user_favorites`, `remove_favorite`, `get_tire`) and falls back to the `wp_rtg_ratings`, `wp_rtg_favorites` and `wp_rtg_tires` tables when a helper is missing. The Reviews and Favorites tabs, their overview counts and their REST routes are now enabled independently (`TireGuide::supports_reviews()` / `supports_favorites()`): a tab is hidden only when neither the helper nor the table exists. `AccountPage::default_tab_ids()` takes the two flags separately.
+
 ## [1.2.0] - 2026-10-18
 
 ### Added
@@ -71,7 +76,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Bundled `lbuchs/webauthn` v2.2** (MIT) under `lib/`, autoloaded by the plugin; no Composer required on the server.
 - **Tooling:** PHPUnit suite with a software P-256 authenticator that drives real registration and assertion verification, `node:test` JS tests, PHPCS (WordPress standard), esbuild minification, and GitHub Actions CI on PHP 8.1–8.4.
 
-[Unreleased]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.0.1...v1.1.0
