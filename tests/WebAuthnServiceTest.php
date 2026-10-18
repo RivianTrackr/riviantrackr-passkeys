@@ -55,7 +55,8 @@ final class WebAuthnServiceTest extends TestCase {
 		$this->assertSame( 32, strlen( $first ) );
 		$this->assertSame( $first, $second );
 		$this->assertStringNotContainsString( 'jose', $first );
-		$this->assertStringNotContainsString( '42', FakeAuthenticator::b64url( $first ) );
+		$this->assertNotSame( $first, $this->service->user_handle( new WP_User( 43, 'jose', 'Jose' ) ), 'not derived from the login alone' );
+		$this->assertNotSame( str_pad( '42', 32, "\0" ), $first, 'not the user ID' );
 
 		$built = $this->service->registration_options( $this->user );
 		$this->assertSame( FakeAuthenticator::b64url( $first ), $built['options']['publicKey']['user']['id'] );
