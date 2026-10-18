@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *   POST   account/password             change password (current password required)
  *   POST   account/sessions/others      sign out every other browser
  *   DELETE account/reviews/{tire_id}    delete the member's tire review (tire guide)
- *   DELETE account/favorites/{tire_id}  remove a favourite tire (tire guide)
+ *   DELETE account/favorites/{tire_id}  take a tire off the member's saved list (tire guide)
  */
 final class AccountRest {
 
@@ -266,12 +266,12 @@ final class AccountRest {
 		}
 		$tire_id = sanitize_text_field( (string) $request->get_param( 'tire_id' ) );
 		if ( ! TireGuide::remove_favorite( $tire_id, get_current_user_id() ) ) {
-			return new \WP_Error( 'rtpk_not_found', __( 'Favourite not found.', 'riviantrackr-passkeys' ), [ 'status' => 404 ] );
+			return new \WP_Error( 'rtpk_not_found', __( 'That tire is not on your saved list.', 'riviantrackr-passkeys' ), [ 'status' => 404 ] );
 		}
 		return rest_ensure_response(
 			[
 				'success' => true,
-				'message' => __( 'Removed from favourites.', 'riviantrackr-passkeys' ),
+				'message' => __( 'Removed from your saved tires.', 'riviantrackr-passkeys' ),
 			]
 		);
 	}

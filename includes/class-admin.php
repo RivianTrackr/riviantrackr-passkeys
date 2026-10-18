@@ -481,7 +481,7 @@ final class Admin {
 					</div>
 					<div class="rtpk-field-row">
 						<code>[riviantrackr_account theme="dark"]</code>
-						<p class="rtpk-field-description"><?php esc_html_e( 'Tabbed member account page: overview, profile, security (passkeys, password, sign out other devices), tire reviews and favorites when the Rivian Tire Guide is active, comments. Dark theme by default; add theme="light" for light backgrounds. Pick the page above as the Account page.', 'riviantrackr-passkeys' ); ?></p>
+						<p class="rtpk-field-description"><?php esc_html_e( 'Tabbed member account page: overview, profile, security (passkeys, password, sign out other devices), tire reviews and saved tires when the Rivian Tire Guide is active, comments. Dark theme by default; add theme="light" for light backgrounds. Pick the page above as the Account page.', 'riviantrackr-passkeys' ); ?></p>
 					</div>
 					<div class="rtpk-field-row">
 						<code>[riviantrackr_signup]</code>

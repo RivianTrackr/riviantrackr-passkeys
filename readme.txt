@@ -4,7 +4,7 @@ Tags: passkeys, webauthn, fido2, passwordless, login, security
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.1
-Stable tag: 1.2.2
+Stable tag: 1.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -19,7 +19,7 @@ Adds passkey (WebAuthn / FIDO2) sign-in to WordPress.
 * Members add, rename and remove passkeys from their profile or via the [riviantrackr_passkeys] shortcode
 * Settings screen for relying party, user verification policy, allowed origins and timeout
 * Invite members without a passkey by email: personal one-tap setup link, batch sending by role, per-user and bulk actions on the Users list
-* A front-end member account page via [riviantrackr_account]: profile, email and password changes, passkeys, sign out other devices, tire reviews and favorites (with the Rivian Tire Guide), comments; members land there after signing in instead of the dashboard
+* A front-end member account page via [riviantrackr_account]: profile, email and password changes, passkeys, sign out other devices, tire reviews and saved tires (with the Rivian Tire Guide), comments; members land there after signing in instead of the dashboard
 * Your own sign-in page via [riviantrackr_login], with wp-login.php's login and registration screens redirected there and the remaining wp-login.php screens restyled in your colours with your logo
 * Spam-resistant open signup via [riviantrackr_signup]: no account until the emailed link is clicked; honeypot, timing check, rate limits, disposable-domain blocklist, optional Cloudflare Turnstile
 * Single-use challenges, strict origin checks, signature-counter clone detection, rate limiting
@@ -52,6 +52,9 @@ Yes. Put [riviantrackr_account] on a page, choose it under Settings → Passkeys
 Yes. Set the relying party ID to the parent domain and list each subdomain origin under "Additional allowed origins". Existing passkeys must be re-registered after changing the RP ID.
 
 == Changelog ==
+
+= 1.3.0 =
+* The account page's Favorites tab is now Saved tires, fed by the Rivian Tire Guide's heart (guide 2.14.0 or later): each saved tire with today's price, how it has moved since you saved it, the save date, View and Remove, and a link to the guide's saved tires page. The retired favorites table is no longer read.
 
 = 1.2.2 =
 * The Edit button on the account page's Reviews tab now opens the tire guide's review page with that review loaded into the form (tire guide 2.14.1 or later; older builds land on the review page with the tire picked).
