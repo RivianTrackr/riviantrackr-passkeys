@@ -53,6 +53,32 @@ final class TireGuide {
 	}
 
 	/**
+	 * The tire guide's review page with the member's own review of a tire
+	 * loaded for editing, or '' when there is nothing to link to.
+	 *
+	 * Tire guide 2.14.1 builds it (`RTG_Tire_Review::url()`); an older
+	 * build gets the same URL assembled here, where `edit=1` is simply
+	 * ignored and the tire is preselected.
+	 */
+	public static function review_edit_url( string $tire_id ): string {
+		if ( '' === $tire_id || ! self::supports_reviews() ) {
+			return '';
+		}
+		if ( class_exists( 'RTG_Tire_Review' ) && method_exists( 'RTG_Tire_Review', 'url' ) ) {
+			return (string) \RTG_Tire_Review::url( $tire_id, true );
+		}
+		$settings = get_option( 'rtg_settings', [] );
+		$slug     = is_array( $settings ) ? sanitize_title( (string) ( $settings['tire_review_slug'] ?? '' ) ) : '';
+		return add_query_arg(
+			[
+				'tire' => rawurlencode( $tire_id ),
+				'edit' => '1',
+			],
+			home_url( '/' . ( '' !== $slug ? $slug : 'tire-review' ) . '/' )
+		);
+	}
+
+	/**
 	 * "Brand Model" label for a tire row, falling back to the tire ID.
 	 *
 	 * @param array<string,mixed> $row Row with brand/model (and tire_id).
@@ -65,7 +91,7 @@ final class TireGuide {
 	/**
 	 * All of the member's reviews (approved, pending, rejected), newest first.
 	 *
-	 * @return array<int,array<string,mixed>> Each: id, tire_id, tire, url, image, rating, title, text, status, date.
+	 * @return array<int,array<string,mixed>> Each: id, tire_id, tire, url, edit_url, image, rating, title, text, status, date.
 	 */
 	public static function reviews( int $user_id, int $limit = 50 ): array {
 		if ( ! self::supports_reviews() ) {
@@ -119,6 +145,7 @@ final class TireGuide {
 				'tire_id' => $tire_id,
 				'tire'    => self::tire_label( $row ),
 				'url'     => self::tire_url( $tire ),
+				'edit_url' => self::review_edit_url( $tire_id ),
 				'image'   => (string) ( $row['image'] ?? '' ),
 				'rating'  => (float) ( $row['rating'] ?? 0 ),
 				'title'   => (string) ( $row['review_title'] ?? '' ),

@@ -177,6 +177,11 @@ function sanitize_text_field( $str ) {
 	$str = preg_replace( '/[\r\n\t ]+/', ' ', $str );
 	return trim( (string) $str );
 }
+function sanitize_title( $title ) {
+	$title = strtolower( strip_tags( (string) $title ) );
+	$title = preg_replace( '/[^a-z0-9 _-]/', '', $title );
+	return trim( preg_replace( '/[\s_-]+/', '-', $title ), '-' );
+}
 function sanitize_key( $key ) {
 	return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $key ) );
 }

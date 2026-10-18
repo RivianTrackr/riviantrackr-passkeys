@@ -77,4 +77,22 @@ final class TireGuideTest extends TestCase {
 		$this->assertTrue( TireGuide::remove_favorite( 'tire001', 7 ) );
 		$this->assertTrue( TireGuide::delete_review( 'tire001', 7 ) );
 	}
+
+	/**
+	 * The account page's Edit button opens the tire guide's review page with
+	 * the member's review loaded. Without RTG_Tire_Review::url() (older
+	 * builds, and this suite) the URL is assembled from the slug setting.
+	 */
+	public function test_edit_links_open_the_review_page_with_the_review_loaded(): void {
+		$this->tables = [ 'rtg_ratings', 'rtg_tires' ];
+
+		$this->assertSame( 'https://riviantrackr.test/tire-review/?tire=tire001&edit=1', TireGuide::review_edit_url( 'tire001' ) );
+		$this->assertSame( '', TireGuide::review_edit_url( '' ), 'no tire, no link' );
+
+		update_option( 'rtg_settings', [ 'tire_review_slug' => 'Review a Tire' ] );
+		$this->assertSame( 'https://riviantrackr.test/review-a-tire/?tire=tire001&edit=1', TireGuide::review_edit_url( 'tire001' ), 'the slug setting is honored' );
+
+		$reviews = TireGuide::reviews( 7 );
+		$this->assertSame( 'https://riviantrackr.test/review-a-tire/?tire=tire001&edit=1', $reviews[0]['edit_url'] );
+	}
 }

@@ -538,7 +538,7 @@ final class AccountPage {
 		ob_start();
 		?>
 		<h3 class="rtpk-account__title"><?php esc_html_e( 'Your tire reviews', 'riviantrackr-passkeys' ); ?></h3>
-		<p class="rtpk-account__desc"><?php esc_html_e( 'To edit a review, open the tire page and update the form there.', 'riviantrackr-passkeys' ); ?></p>
+		<p class="rtpk-account__desc"><?php esc_html_e( 'Edit opens your review in the tire guide with everything you wrote filled in. Delete removes it for good.', 'riviantrackr-passkeys' ); ?></p>
 
 		<ul class="rtpk-account__list" data-rtpk-list="reviews">
 			<?php foreach ( $reviews as $review ) : ?>
@@ -567,8 +567,8 @@ final class AccountPage {
 						<p class="rtpk-account__item-meta"><?php echo '' !== $review['date'] ? esc_html( date_i18n( $format, strtotime( $review['date'] . ' UTC' ) ) ) : ''; ?></p>
 					</div>
 					<div class="rtpk-account__item-actions">
-						<?php if ( '' !== $review['url'] ) : ?>
-							<a class="rtpk-btn rtpk-btn--ghost rtpk-btn--sm" href="<?php echo esc_url( $review['url'] ); ?>"><?php esc_html_e( 'Edit', 'riviantrackr-passkeys' ); ?></a>
+						<?php if ( '' !== $review['edit_url'] ) : ?>
+							<a class="rtpk-btn rtpk-btn--ghost rtpk-btn--sm" href="<?php echo esc_url( $review['edit_url'] ); ?>"><?php esc_html_e( 'Edit', 'riviantrackr-passkeys' ); ?></a>
 						<?php endif; ?>
 						<button type="button" class="rtpk-btn rtpk-btn--danger rtpk-btn--sm" data-rtpk-delete-review><?php esc_html_e( 'Delete', 'riviantrackr-passkeys' ); ?></button>
 					</div>
