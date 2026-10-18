@@ -38,12 +38,14 @@ final class TireGuideTest extends TestCase {
 				}
 				return null;
 			}
-			public function get_col( $query ) {
-				$this->queries[] = $query;
-				return str_contains( $query, 'rtg_favorites' ) ? [ 'tire001', 'tire999' ] : [];
-			}
 			public function get_results( $query, $output = null ) {
 				$this->queries[] = $query;
+				if ( str_contains( $query, 'rtg_saved_tires' ) ) {
+					return [
+						[ 'tire_id' => 'tire001', 'slug' => 'pirelli-scorpion', 'brand' => 'Pirelli', 'model' => 'Scorpion', 'size' => '275/65R20', 'image' => '', 'price' => 289.0, 'saved_at' => '2026-10-03 09:00:00', 'price_at_save' => 301.0 ],
+						[ 'tire_id' => 'tire999', 'slug' => '', 'brand' => '', 'model' => '', 'size' => '', 'image' => '', 'price' => 0, 'saved_at' => '2026-10-01 09:00:00', 'price_at_save' => 250.0 ],
+					];
+				}
 				return str_contains( $query, 'rtg_ratings' ) ? [ [ 'id' => 1, 'tire_id' => 'tire001', 'rating' => 4, 'review_title' => 'Good', 'review_text' => 'Quiet.', 'review_status' => 'approved', 'created_at' => '2026-10-01 00:00:00', 'updated_at' => '2026-10-01 00:00:00', 'brand' => 'Pirelli', 'model' => 'Scorpion', 'image' => '' ] ] : [];
 			}
 		};
@@ -55,7 +57,7 @@ final class TireGuideTest extends TestCase {
 	}
 
 	public function test_missing_helpers_fall_back_to_the_tables(): void {
-		$this->tables = [ 'rtg_ratings', 'rtg_favorites', 'rtg_tires' ];
+		$this->tables = [ 'rtg_ratings', 'rtg_saved_tires', 'rtg_tires' ];
 
 		$this->assertTrue( TireGuide::supports_reviews() );
 		$this->assertTrue( TireGuide::supports_favorites() );
@@ -63,10 +65,23 @@ final class TireGuideTest extends TestCase {
 		$favorites = TireGuide::favorites( 7 );
 		$this->assertSame( [ 'tire001', 'tire999' ], array_column( $favorites, 'tire_id' ) );
 		$this->assertSame( 'Pirelli Scorpion', $favorites[0]['tire'] );
+		$this->assertSame( '275/65R20', $favorites[0]['size'] );
 		$this->assertSame( 'https://riviantrackr.test/tires/pirelli-scorpion/', $favorites[0]['url'] );
+		$this->assertSame( 289.0, $favorites[0]['price'] );
+		$this->assertSame( 301.0, $favorites[0]['price_at_save'] );
+		$this->assertSame( -12, $favorites[0]['price_move'], 'the price fell since the save' );
+		$this->assertSame( '2026-10-03 09:00:00', $favorites[0]['saved_at'] );
 		$this->assertSame( 'tire999', $favorites[1]['tire'], 'unknown tire keeps its id as the label' );
 		$this->assertSame( '', $favorites[1]['url'] );
+		$this->assertSame( 0, $favorites[1]['price_move'], 'no price today, no movement' );
 		$this->assertSame( 2, TireGuide::favorite_count( 7 ) );
+		$queries = implode( "\n", $GLOBALS['wpdb']->queries );
+		$this->assertStringContainsString( 'rtg_saved_tires s INNER JOIN wp_rtg_tires t', $queries, 'the fallback joins the saved list to the tires' );
+		$this->assertStringNotContainsString( 'rtg_favorites', $queries, 'the retired favorites table is never read' );
+
+		$this->assertSame( 'https://riviantrackr.test/saved-tires/', TireGuide::saved_tires_url() );
+		update_option( 'rtg_settings', [ 'saved_tires_slug' => 'My Saved Tires' ] );
+		$this->assertSame( 'https://riviantrackr.test/my-saved-tires/', TireGuide::saved_tires_url(), 'the slug setting is honored' );
 
 		$reviews = TireGuide::reviews( 7 );
 		$this->assertCount( 1, $reviews );

@@ -40,7 +40,7 @@ final class InviteService {
 			/* translators: %s: site name */
 			'subject'     => sprintf( __( 'Sign in to %s faster with a passkey', 'riviantrackr-passkeys' ), (string) get_bloginfo( 'name' ) ),
 			'body'        => __(
-				"Hi {name},\n\n{site} now supports passkeys, so you can sign in with Face ID, Touch ID, Windows Hello or a security key instead of typing a password. Passkeys can't be phished or guessed, and there's nothing to remember.\n\nSigning in gets you the member side of {site}:\n\n* Comment on posts without the extra steps\n* Favorite tires and leave or edit your tire reviews\n* Get notified about new articles, editorials and features\n* More coming soon\n\nIt takes about ten seconds. Tap the button below on the device you usually use, then follow the prompt from your browser.\n\nYou can add more devices later from your profile.",
+				"Hi {name},\n\n{site} now supports passkeys, so you can sign in with Face ID, Touch ID, Windows Hello or a security key instead of typing a password. Passkeys can't be phished or guessed, and there's nothing to remember.\n\nSigning in gets you the member side of {site}:\n\n* Comment on posts without the extra steps\n* Save tires and leave or edit your tire reviews\n* Get notified about new articles, editorials and features\n* More coming soon\n\nIt takes about ten seconds. Tap the button below on the device you usually use, then follow the prompt from your browser.\n\nYou can add more devices later from your profile.",
 				'riviantrackr-passkeys'
 			),
 			'expiry_days' => 7,

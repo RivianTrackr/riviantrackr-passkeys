@@ -718,6 +718,17 @@ a.rtpk-account__item-name:hover {
 	color: var(--rtpk-text-muted);
 }
 
+.rtpk-account__item-move {
+	margin: 4px 0 0;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--rtpk-text-secondary);
+}
+
+.rtpk-account__item-move.is-drop {
+	color: var(--rtpk-success);
+}
+
 .rtpk-account__item-actions {
 	display: flex;
 	flex-shrink: 0;

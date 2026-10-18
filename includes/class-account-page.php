@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * [riviantrackr_account]: a tabbed "My Account" page for members.
  *
  * Tabs: Overview, Profile, Security (passkeys, password, sessions),
- * Reviews and Favorites (when the Rivian Tire Guide is active), Comments.
+ * Reviews and Saved tires (when the Rivian Tire Guide is active), Comments.
  * Other plugins add or reorder tabs through the
  * `riviantrackr_passkeys_account_tabs` filter.
  */
@@ -38,7 +38,7 @@ final class AccountPage {
 	 * IDs of the built-in tabs, in order. Pure.
 	 *
 	 * @param bool $reviews   Whether tire reviews are available (tire guide active with a ratings source).
-	 * @param bool $favorites Whether favourite tires are available.
+	 * @param bool $favorites Whether saved tires are available (the tab keeps the `favorites` id).
 	 * @return string[]
 	 */
 	public static function default_tab_ids( bool $reviews, bool $favorites ): array {
@@ -89,7 +89,7 @@ final class AccountPage {
 	 * The tabs to render for a member.
 	 *
 	 * @param bool|null $reviews   Override tire-review detection (tests).
-	 * @param bool|null $favorites Override favourite detection (tests).
+	 * @param bool|null $favorites Override saved-tire detection (tests).
 	 * @return array<string,array{id:string,label:string,icon:string,render:callable}>
 	 */
 	public function tabs( ?bool $reviews = null, ?bool $favorites = null ): array {
@@ -100,7 +100,7 @@ final class AccountPage {
 			'profile'   => __( 'Profile', 'riviantrackr-passkeys' ),
 			'security'  => __( 'Security', 'riviantrackr-passkeys' ),
 			'reviews'   => __( 'Reviews', 'riviantrackr-passkeys' ),
-			'favorites' => __( 'Favorites', 'riviantrackr-passkeys' ),
+			'favorites' => __( 'Saved tires', 'riviantrackr-passkeys' ),
 			'comments'  => __( 'Comments', 'riviantrackr-passkeys' ),
 		];
 		$icons     = [
@@ -164,10 +164,10 @@ final class AccountPage {
 						'working'              => __( 'Working…', 'riviantrackr-passkeys' ),
 						'genericError'         => __( 'Something went wrong. Please try again.', 'riviantrackr-passkeys' ),
 						'confirmDeleteReview'  => __( 'Delete this review? This cannot be undone.', 'riviantrackr-passkeys' ),
-						'confirmRemoveFav'     => __( 'Remove this tire from your favorites?', 'riviantrackr-passkeys' ),
+						'confirmRemoveFav'     => __( 'Remove this tire from your saved tires?', 'riviantrackr-passkeys' ),
 						'confirmSignOutOthers' => __( 'Sign out of every other browser and device? This one stays signed in.', 'riviantrackr-passkeys' ),
 						'noReviews'            => __( 'You have not reviewed any tires yet.', 'riviantrackr-passkeys' ),
-						'noFavorites'          => __( 'No favorite tires yet.', 'riviantrackr-passkeys' ),
+						'noFavorites'          => __( 'No saved tires yet. Tap the heart on a tire in the guide to keep it here.', 'riviantrackr-passkeys' ),
 						/* translators: %s: email address */
 						'pendingEmail'         => __( 'A confirmation link was sent to %s. Your email changes once you click it.', 'riviantrackr-passkeys' ),
 					],
@@ -306,7 +306,7 @@ final class AccountPage {
 				'tab'   => 'favorites',
 				'icon'  => 'heart',
 				'value' => TireGuide::favorite_count( $user->ID ),
-				'label' => __( 'Favorites', 'riviantrackr-passkeys' ),
+				'label' => __( 'Saved tires', 'riviantrackr-passkeys' ),
 			];
 		}
 		$stats[] = [
@@ -324,7 +324,7 @@ final class AccountPage {
 			$links['reviews'] = [ __( 'Your tire reviews', 'riviantrackr-passkeys' ), __( 'See, edit or delete what you have written.', 'riviantrackr-passkeys' ) ];
 		}
 		if ( $favorites ) {
-			$links['favorites'] = [ __( 'Favorite tires', 'riviantrackr-passkeys' ), __( 'Tires you saved for later.', 'riviantrackr-passkeys' ) ];
+			$links['favorites'] = [ __( 'Saved tires', 'riviantrackr-passkeys' ), __( 'The tires you hearted in the guide, with how their prices have moved.', 'riviantrackr-passkeys' ) ];
 		}
 		$links['comments'] = [ __( 'Your comments', 'riviantrackr-passkeys' ), __( 'Conversations you joined.', 'riviantrackr-passkeys' ) ];
 
@@ -580,7 +580,7 @@ final class AccountPage {
 		return (string) ob_get_clean();
 	}
 
-	// ---- favorites -------------------------------------------------------
+	// ---- saved tires (the `favorites` tab) --------------------------------
 
 	/**
 	 * @param \WP_User            $user    The member.
@@ -588,14 +588,36 @@ final class AccountPage {
 	 */
 	public function render_favorites( \WP_User $user, array $context ): string { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- Tab renderer signature.
 		$favorites = TireGuide::favorites( $user->ID );
+		$format    = (string) get_option( 'date_format' );
+		$guide_url = TireGuide::saved_tires_url();
 
 		ob_start();
 		?>
-		<h3 class="rtpk-account__title"><?php esc_html_e( 'Favorite tires', 'riviantrackr-passkeys' ); ?></h3>
-		<p class="rtpk-account__desc"><?php esc_html_e( 'Tires you saved while browsing the guide.', 'riviantrackr-passkeys' ); ?></p>
+		<h3 class="rtpk-account__title"><?php esc_html_e( 'Saved tires', 'riviantrackr-passkeys' ); ?></h3>
+		<p class="rtpk-account__desc">
+			<?php esc_html_e( 'Tap the heart on any tire in the guide and it lands here, with what it costs today and how the price has moved since you saved it.', 'riviantrackr-passkeys' ); ?>
+			<?php if ( '' !== $guide_url ) : ?>
+				<a href="<?php echo esc_url( $guide_url ); ?>"><?php esc_html_e( 'Open your saved tires in the guide', 'riviantrackr-passkeys' ); ?></a>
+				<?php esc_html_e( 'to compare them side by side.', 'riviantrackr-passkeys' ); ?>
+			<?php endif; ?>
+		</p>
 
 		<ul class="rtpk-account__list" data-rtpk-list="favorites">
 			<?php foreach ( $favorites as $fav ) : ?>
+				<?php
+				$meta = [];
+				if ( '' !== $fav['size'] ) {
+					$meta[] = $fav['size'];
+				}
+				if ( $fav['price'] > 0 ) {
+					/* translators: %s: price */
+					$meta[] = sprintf( __( '$%s today', 'riviantrackr-passkeys' ), number_format_i18n( $fav['price'], 0 ) );
+				}
+				if ( '' !== $fav['saved_at'] ) {
+					/* translators: %s: date */
+					$meta[] = sprintf( __( 'Saved %s', 'riviantrackr-passkeys' ), mysql2date( $format, $fav['saved_at'] ) );
+				}
+				?>
 				<li class="rtpk-account__item" data-rtpk-item data-tire-id="<?php echo esc_attr( $fav['tire_id'] ); ?>">
 					<?php if ( '' !== $fav['image'] ) : ?>
 						<img class="rtpk-account__thumb" src="<?php echo esc_url( $fav['image'] ); ?>" alt="" loading="lazy" width="56" height="56">
@@ -608,8 +630,21 @@ final class AccountPage {
 						<?php else : ?>
 							<span class="rtpk-account__item-name"><?php echo esc_html( $fav['tire'] ); ?></span>
 						<?php endif; ?>
-						<?php if ( '' !== $fav['size'] ) : ?>
-							<p class="rtpk-account__item-meta"><?php echo esc_html( $fav['size'] ); ?></p>
+						<?php if ( ! empty( $meta ) ) : ?>
+							<p class="rtpk-account__item-meta"><?php echo esc_html( implode( ' · ', $meta ) ); ?></p>
+						<?php endif; ?>
+						<?php if ( 0 !== $fav['price_move'] ) : ?>
+							<p class="rtpk-account__item-move <?php echo $fav['price_move'] < 0 ? 'is-drop' : 'is-rise'; ?>">
+								<?php
+								echo esc_html(
+									$fav['price_move'] < 0
+										/* translators: %s: dollar amount */
+										? sprintf( __( '▼ $%s since you saved it', 'riviantrackr-passkeys' ), number_format_i18n( -$fav['price_move'], 0 ) )
+										/* translators: %s: dollar amount */
+										: sprintf( __( '▲ $%s since you saved it', 'riviantrackr-passkeys' ), number_format_i18n( $fav['price_move'], 0 ) )
+								);
+								?>
+							</p>
 						<?php endif; ?>
 					</div>
 					<div class="rtpk-account__item-actions">
@@ -621,7 +656,7 @@ final class AccountPage {
 				</li>
 			<?php endforeach; ?>
 		</ul>
-		<p class="rtpk-account__empty" data-rtpk-empty <?php echo empty( $favorites ) ? '' : 'hidden'; ?>><?php esc_html_e( 'No favorite tires yet.', 'riviantrackr-passkeys' ); ?></p>
+		<p class="rtpk-account__empty" data-rtpk-empty <?php echo empty( $favorites ) ? '' : 'hidden'; ?>><?php esc_html_e( 'No saved tires yet. Tap the heart on a tire in the guide to keep it here.', 'riviantrackr-passkeys' ); ?></p>
 		<?php
 		return (string) ob_get_clean();
 	}

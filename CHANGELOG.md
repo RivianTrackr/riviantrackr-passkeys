@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-18
+
+### Changed
+- **Favorites are now the tire guide's saved tires.** The account page's Favorites tab read the tire guide's retired `wp_rtg_favorites` table (the guide dropped favorites in 1.90.0 and stopped creating the table), so on a fresh site the tab never appeared, and on an older site it showed a stale list the guide's heart never wrote to. The tab is now **Saved tires**, fed by what the guide's heart saves (`wp_rtg_saved_tires`, tire guide 2.14.0+): `TireGuide::supports_favorites()` detects `RTG_Database::get_saved_tires()` or the table, `favorites()` returns each saved tire with today's price, `price_at_save`, a whole-dollar `price_move` (the guide's rule: 0 when either price is unknown) and `saved_at`, `favorite_count()` uses `get_saved_count()`, `remove_favorite()` calls `unsave_tire()`, and `saved_tires_url()` points at the guide's saved tires page (`RTG_Saved_Tires::url()`, or the `saved_tires_slug` setting). The tab lists size, "$289 today", "Saved Oct 3" and a green "▼ $12 since you saved it" (or a rise), links to the guide's page to compare, and its empty state says where the heart is. The overview stat, quick link, confirm prompt, REST messages, settings description, invitation email ("Save tires and leave or edit your tire reviews") and docs follow. The tab id, the `riviantrackr_passkeys_account_tabs` filter contract and the `DELETE account/favorites/{tire_id}` route are unchanged.
+
+### Tests
+- `TireGuideTest`: the fallback reads `wp_rtg_saved_tires` joined to the tires table, carries the price movement, counts the list, removes a row, and points at the saved tires page from the slug setting. `InviteServiceTest` follows the new perk line.
+
 ## [1.2.2] - 2026-10-18
 
 ### Fixed

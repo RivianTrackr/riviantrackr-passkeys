@@ -9,11 +9,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Read-only bridge to the Rivian Tire Guide plugin for the member's reviews
- * and favourites.
+ * and saved tires.
+ *
+ * Saved tires are the guide's heart (tire guide 2.14.0+, `wp_rtg_saved_tires`).
+ * The plugin's earlier "favorites" list (`wp_rtg_favorites`) was retired by
+ * the guide in 1.90.0 and is not read any more; the account page keeps the
+ * `favorites` tab id and REST path for the filter and the page script.
  *
  * Every RTG_Database helper is feature-detected: older builds of the tire
  * guide lack some of them, so each call falls back to the plugin's own
- * tables (wp_rtg_ratings, wp_rtg_favorites, wp_rtg_tires) when the helper
+ * tables (wp_rtg_ratings, wp_rtg_saved_tires, wp_rtg_tires) when the helper
  * is missing, and to "unsupported" when the table is missing too. Every
  * method is a no-op when the tire guide is not active.
  */
@@ -31,10 +36,10 @@ final class TireGuide {
 	}
 
 	/**
-	 * Whether favourite tires can be listed.
+	 * Whether the member's saved tires can be listed.
 	 */
 	public static function supports_favorites(): bool {
-		return self::is_active() && ( self::has( 'get_user_favorites' ) || self::table_exists( 'rtg_favorites' ) );
+		return self::is_active() && ( self::has( 'get_saved_tires' ) || self::table_exists( 'rtg_saved_tires' ) );
 	}
 
 	/**
@@ -186,69 +191,120 @@ final class TireGuide {
 	}
 
 	/**
-	 * The member's favourite tire IDs, newest first.
+	 * The member's saved tires, newest first: the tire guide's own rows
+	 * (`RTG_Database::get_saved_tires()`, tire columns plus `saved_at` and
+	 * `price_at_save`), or the same shape read from `wp_rtg_saved_tires`
+	 * joined to `wp_rtg_tires` on a build without the helper.
 	 *
-	 * @return string[]
+	 * @return array<int,array<string,mixed>>
 	 */
-	private static function favorite_ids( int $user_id ): array {
+	private static function saved_rows( int $user_id ): array {
 		if ( ! self::supports_favorites() ) {
 			return [];
 		}
-		if ( self::has( 'get_user_favorites' ) ) {
-			$ids = (array) \RTG_Database::get_user_favorites( $user_id );
-		} else {
-			global $wpdb;
-			$table = $wpdb->prefix . 'rtg_favorites';
-			$ids   = (array) $wpdb->get_col(
-				$wpdb->prepare( "SELECT tire_id FROM {$table} WHERE user_id = %d ORDER BY created_at DESC", $user_id ) // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name from $wpdb->prefix.
-			);
+		if ( self::has( 'get_saved_tires' ) ) {
+			return array_values( array_filter( (array) \RTG_Database::get_saved_tires( $user_id ), 'is_array' ) );
 		}
-		return array_values( array_filter( array_map( 'strval', $ids ) ) );
+		global $wpdb;
+		$saved  = $wpdb->prefix . 'rtg_saved_tires';
+		$tires  = $wpdb->prefix . 'rtg_tires';
+		$join   = self::table_exists( 'rtg_tires' ) ? "INNER JOIN {$tires} t ON t.tire_id = s.tire_id" : '';
+		$select = '' !== $join ? 't.*,' : '';
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table names come from $wpdb->prefix; fragments are static.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT {$select} s.tire_id, s.created_at AS saved_at, s.price_at_save
+				 FROM {$saved} s {$join}
+				 WHERE s.user_id = %d
+				 ORDER BY s.created_at DESC, s.id DESC",
+				$user_id
+			),
+			ARRAY_A
+		);
+		// phpcs:enable
+		return array_values( array_filter( (array) $rows, 'is_array' ) );
 	}
 
 	/**
-	 * The member's favourite tires with name, brand and image.
+	 * The member's saved tires with name, size, image, today's price and how
+	 * it has moved since the save (the tire guide's rule: a whole-dollar
+	 * difference, 0 when either price is unknown).
 	 *
-	 * @return array<int,array<string,mixed>> Each: tire_id, tire, brand, model, size, url, image.
+	 * @return array<int,array<string,mixed>> Each: tire_id, tire, brand, model, size, url, image, price, price_at_save, price_move, saved_at.
 	 */
 	public static function favorites( int $user_id ): array {
 		$out = [];
-		foreach ( self::favorite_ids( $user_id ) as $tire_id ) {
-			$tire  = self::tire( $tire_id );
+		foreach ( self::saved_rows( $user_id ) as $row ) {
+			$tire_id = (string) ( $row['tire_id'] ?? '' );
+			if ( '' === $tire_id ) {
+				continue;
+			}
+			$tire  = ! empty( $row['slug'] ) ? $row : self::tire( $tire_id );
+			$now   = (float) ( $row['price'] ?? $tire['price'] ?? 0 );
+			$then  = (float) ( $row['price_at_save'] ?? 0 );
 			$out[] = [
-				'tire_id' => $tire_id,
-				'tire'    => $tire ? self::tire_label( $tire ) : $tire_id,
-				'brand'   => (string) ( $tire['brand'] ?? '' ),
-				'model'   => (string) ( $tire['model'] ?? '' ),
-				'size'    => (string) ( $tire['size'] ?? '' ),
-				'url'     => self::tire_url( $tire ),
-				'image'   => (string) ( $tire['image'] ?? '' ),
+				'tire_id'       => $tire_id,
+				'tire'          => self::tire_label( $tire ?? $row ),
+				'brand'         => (string) ( $tire['brand'] ?? $row['brand'] ?? '' ),
+				'model'         => (string) ( $tire['model'] ?? $row['model'] ?? '' ),
+				'size'          => (string) ( $tire['size'] ?? $row['size'] ?? '' ),
+				'url'           => self::tire_url( $tire ),
+				'image'         => (string) ( $tire['image'] ?? $row['image'] ?? '' ),
+				'price'         => $now,
+				'price_at_save' => $then,
+				'price_move'    => ( $now > 0 && $then > 0 ) ? (int) round( $now - $then ) : 0,
+				'saved_at'      => (string) ( $row['saved_at'] ?? '' ),
 			];
 		}
 		return $out;
 	}
 
 	public static function favorite_count( int $user_id ): int {
-		return count( self::favorite_ids( $user_id ) );
+		if ( ! self::supports_favorites() ) {
+			return 0;
+		}
+		if ( self::has( 'get_saved_count' ) ) {
+			return (int) \RTG_Database::get_saved_count( $user_id );
+		}
+		return count( self::favorites( $user_id ) );
 	}
 
+	/**
+	 * Take a tire off the member's saved list.
+	 */
 	public static function remove_favorite( string $tire_id, int $user_id ): bool {
 		if ( ! self::supports_favorites() ) {
 			return false;
 		}
-		if ( self::has( 'remove_favorite' ) ) {
-			return (bool) \RTG_Database::remove_favorite( $tire_id, $user_id );
+		if ( self::has( 'unsave_tire' ) ) {
+			return (bool) \RTG_Database::unsave_tire( $user_id, $tire_id );
 		}
 		global $wpdb;
 		$result = $wpdb->delete(
-			$wpdb->prefix . 'rtg_favorites',
+			$wpdb->prefix . 'rtg_saved_tires',
 			[
 				'tire_id' => $tire_id,
 				'user_id' => $user_id,
 			],
 			[ '%s', '%d' ]
 		);
-		return false !== $result;
+		return false !== $result && (int) $result > 0;
+	}
+
+	/**
+	 * The tire guide's saved tires page (prices, Compare, Remove), or '' when
+	 * saved tires are not available.
+	 */
+	public static function saved_tires_url(): string {
+		if ( ! self::supports_favorites() ) {
+			return '';
+		}
+		if ( class_exists( 'RTG_Saved_Tires' ) && method_exists( 'RTG_Saved_Tires', 'url' ) ) {
+			return (string) \RTG_Saved_Tires::url();
+		}
+		$settings = get_option( 'rtg_settings', [] );
+		$slug     = is_array( $settings ) ? sanitize_title( (string) ( $settings['saved_tires_slug'] ?? '' ) ) : '';
+		return home_url( '/' . ( '' !== $slug ? $slug : 'saved-tires' ) . '/' );
 	}
 
 	// ---- internals -------------------------------------------------------

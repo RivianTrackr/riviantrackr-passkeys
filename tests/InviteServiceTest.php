@@ -103,7 +103,7 @@ final class InviteServiceTest extends TestCase {
 		$this->assertSame( 2, substr_count( $html, '<p style=' ) );
 
 		$default = $this->invites->render_email( $this->user, 'https://riviantrackr.test/x' )['html'];
-		$this->assertStringContainsString( 'Favorite tires and leave or edit your tire reviews', $default );
+		$this->assertStringContainsString( 'Save tires and leave or edit your tire reviews', $default );
 		$this->assertSame( 4, substr_count( $default, '&#8226;' ), 'default message lists four benefits' );
 	}
 

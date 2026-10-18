@@ -20,7 +20,7 @@ key once, then sign in with a single tap. Passwords keep working alongside.
   bots out. New members land straight on passkey setup.
 - **Member account page** — `[riviantrackr_account]` gives members a tabbed front-end account
   page (profile, email and password changes, passkeys, sign out other devices, tire reviews and
-  favorites from the Rivian Tire Guide, comments) and sends them there after signing in instead of
+  saved tires from the Rivian Tire Guide, comments) and sends them there after signing in instead of
   the wp-admin dashboard. Other plugins add tabs through a filter.
 - **Your own login pages** — `[riviantrackr_login]` on a page of your choosing, with wp-login.php's
   login/register screens redirected there and the remaining wp-login.php screens (password reset,
@@ -58,7 +58,7 @@ key once, then sign in with a single tap. Passwords keep working alongside.
 | `[riviantrackr_passkeys]` | Passkey manager for the signed-in member. Dark "ink & brass" theme by default; `theme="light"` for light backgrounds. Shows a sign-in link when logged out. |
 | `[riviantrackr_passkey_login redirect="/my-account/" theme="dark" divider="0"]` | Stand-alone sign-in button for custom login pages. Hidden for signed-in visitors. |
 | `[riviantrackr_login theme="dark" redirect=""]` | Full sign-in form for your own login page: passkey button, username/password, "Lost your password?", "Create an account", failure and logout messages. See [Custom login pages](#custom-login-pages). |
-| `[riviantrackr_account theme="dark"]` | Tabbed member account page: Overview, Profile, Security, Reviews and Favorites (tire guide), Comments. Dark by default, `theme="light"` available. Signed-out visitors get a sign-in link. See [Member account page](#member-account-page). |
+| `[riviantrackr_account theme="dark"]` | Tabbed member account page: Overview, Profile, Security, Reviews and Saved tires (tire guide), Comments. Dark by default, `theme="light"` available. Signed-out visitors get a sign-in link. See [Member account page](#member-account-page). |
 | `[riviantrackr_signup theme="dark" redirect=""]` | Verify-first signup form (email + optional name). Dark by default, `theme="light"` available. Requires **Allow signups** under Settings → Passkeys. Signed-in visitors see a "Continue" note instead. |
 
 ## Custom login pages
@@ -109,11 +109,11 @@ no icon font):
 
 | Tab | What it shows |
 |---|---|
-| **Overview** | Avatar, display name, email, member since, counts of passkeys / reviews / favorites / comments (each a link to its tab), quick links. |
+| **Overview** | Avatar, display name, email, member since, counts of passkeys / reviews / saved tires / comments (each a link to its tab), quick links. |
 | **Profile** | Display name, first and last name, email, website, bio. Saved over REST with inline field errors. Changing the email does not apply immediately: the standard WordPress confirmation link is sent to the new address (same `_new_email` meta and `profile.php?newuseremail=…` link as the profile screen), the pending address is shown on the page and can be cancelled. |
 | **Security** | The passkey manager (add, rename, remove), a change-password form (current password required; this browser stays signed in, every other device is signed out) and **Sign out other devices** (`WP_Session_Tokens::destroy_others()`). |
-| **Reviews** | Only while the Rivian Tire Guide is active (helper methods are feature-detected; older builds are read through `wp_rtg_ratings` directly). The member's approved reviews (`RTG_Database::get_user_reviews()`) plus pending/rejected ones from `wp_rtg_ratings`, with tire name linked to the tire page, stars, title, excerpt, status badge, date, **Edit** (opens the tire page, where the review form lives) and **Delete** (`RTG_Database::delete_user_rating()`). |
-| **Favorites** | Only while the tire guide is active. `RTG_Database::get_user_favorites()` with name, size and image, **View** and **Remove** (`RTG_Database::remove_favorite()`). |
+| **Reviews** | Only while the Rivian Tire Guide is active (helper methods are feature-detected; older builds are read through `wp_rtg_ratings` directly). The member's approved reviews (`RTG_Database::get_user_reviews()`) plus pending/rejected ones from `wp_rtg_ratings`, with tire name linked to the tire page, stars, title, excerpt, status badge, date, **Edit** (opens the guide's review page with the review loaded, `RTG_Tire_Review::url()`) and **Delete** (`RTG_Database::delete_user_rating()`). |
+| **Saved tires** | Only while the tire guide is active (2.14.0+ hearts; older builds are read through `wp_rtg_saved_tires`). `RTG_Database::get_saved_tires()` with name, size, image, today's price, the move since the save and the save date, a link to the guide's saved tires page, **View** and **Remove** (`RTG_Database::unsave_tire()`). The tab id and REST path stay `favorites`. |
 | **Comments** | The member's 20 most recent approved comments with post title links. |
 
 A **Sign out** link sits in the header. Tabs are addressed by URL hash (`/account/#security`), so
@@ -157,7 +157,7 @@ add_filter( 'riviantrackr_passkeys_account_tabs', function ( array $tabs, ?WP_Us
 ```
 
 Entries without an id, label or callable `render` are ignored. The default tab ids are
-`overview`, `profile`, `security`, `reviews`, `favorites` (the last two only with the tire guide)
+`overview`, `profile`, `security`, `reviews`, `favorites` (saved tires; the last two only with the tire guide)
 and `comments`; remove or reorder them freely.
 
 ## Inviting members
@@ -280,7 +280,7 @@ Namespace `riviantrackr-passkeys/v1`. Logged-in routes require the standard REST
 | POST | `/account/password` | user | 5/min per user; `current`, `new`, `confirm`; re-issues this browser's cookie, signs out other devices |
 | POST | `/account/sessions/others` | user | sign out every other browser/device |
 | DELETE | `/account/reviews/{tire_id}` | user | delete own tire review (tire guide active) |
-| DELETE | `/account/favorites/{tire_id}` | user | remove a favorite tire (tire guide active) |
+| DELETE | `/account/favorites/{tire_id}` | user | take a tire off the saved list (tire guide active) |
 
 ## Hooks
 
