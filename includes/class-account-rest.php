@@ -15,6 +15,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  *   POST   account/email/cancel         drop a pending email change
  *   POST   account/password             change password (current password required)
  *   POST   account/password/link        email a reset link (set a password / forgot the current one)
+ *   POST   account/avatar               upload a photo (multipart field "avatar")
+ *   DELETE account/avatar               remove the photo, back to Gravatar
  *   POST   account/data/export          confirmed personal data export request
  *   DELETE account                      delete the account (or file an erasure request), confirm = username
  *   POST   account/sessions/others      sign out every other browser
@@ -89,6 +91,22 @@ final class AccountRest {
 				'methods'             => 'POST',
 				'callback'            => [ $this, 'sign_out_others' ],
 				'permission_callback' => $auth,
+			]
+		);
+		register_rest_route(
+			$ns,
+			'/account/avatar',
+			[
+				[
+					'methods'             => 'POST',
+					'callback'            => [ $this, 'upload_avatar' ],
+					'permission_callback' => $auth,
+				],
+				[
+					'methods'             => 'DELETE',
+					'callback'            => [ $this, 'remove_avatar' ],
+					'permission_callback' => $auth,
+				],
 			]
 		);
 		register_rest_route(
@@ -304,6 +322,59 @@ final class AccountRest {
 			[
 				'success' => true,
 				'message' => __( 'Signed out everywhere else. This browser stays signed in.', 'riviantrackr-passkeys' ),
+			]
+		);
+	}
+
+	/**
+	 * POST account/avatar (multipart, field "avatar"): store the photo and
+	 * answer with the URL the page should show.
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function upload_avatar( \WP_REST_Request $request ) {
+		$user = wp_get_current_user();
+
+		if ( $this->limiter->is_limited( 'account-avatar', (string) $user->ID, 10, HOUR_IN_SECONDS ) ) {
+			return new \WP_Error( 'rtpk_rate_limited', __( 'Too many uploads. Please try again in an hour.', 'riviantrackr-passkeys' ), [ 'status' => 429 ] );
+		}
+
+		$files = $request->get_file_params();
+		$file  = isset( $files['avatar'] ) && is_array( $files['avatar'] ) ? $files['avatar'] : [];
+		$error = Avatars::validate( $file );
+		if ( null !== $error ) {
+			return new \WP_Error( 'rtpk_invalid_avatar', $error, [ 'status' => 400 ] );
+		}
+
+		$stored = Avatars::store( $user, $file );
+		if ( is_wp_error( $stored ) ) {
+			return new \WP_Error( 'rtpk_avatar_failed', $stored->get_error_message(), [ 'status' => 500 ] );
+		}
+
+		return rest_ensure_response(
+			[
+				'success' => true,
+				'message' => __( 'Photo updated.', 'riviantrackr-passkeys' ),
+				'url'     => Avatars::url( $user->ID ),
+				'custom'  => true,
+			]
+		);
+	}
+
+	/**
+	 * DELETE account/avatar: back to Gravatar.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function remove_avatar() {
+		$user = wp_get_current_user();
+		Avatars::remove( $user->ID );
+		return rest_ensure_response(
+			[
+				'success' => true,
+				'message' => __( 'Photo removed. Your Gravatar shows instead.', 'riviantrackr-passkeys' ),
+				'url'     => (string) get_avatar_url( $user->ID, [ 'size' => 192 ] ),
+				'custom'  => false,
 			]
 		);
 	}

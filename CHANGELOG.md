@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-19
+
+### Added
+- **Profile photos.** The account page's Profile tab opens with a **Your photo** card: the current avatar, **Upload a photo** (JPG, PNG, GIF or WebP, 2 MB by default via the new `riviantrackr_passkeys_avatar_max_bytes` filter, never below 100 KB) and **Remove photo**. New `Avatars` class: uploads are checked server-side (upload error, size, real MIME through `wp_check_filetype_and_ext()`, at least 64px each way), cropped to a centred square of at most 512px with the image editor (the editor's output path is used, since PHP temp names have no extension), stored through `media_handle_sideload()` as a private attachment owned by the member (members need no `upload_files`; the checks stand in for it), and pointed at by `riviantrackr_passkeys_avatar` user meta. `pre_get_avatar_data` serves the photo for every shape `get_avatar()` accepts (ID, email, `WP_User`, `WP_Post`, `WP_Comment`), so it shows in the account header, comments, author boxes and wp-admin; everyone else keeps Gravatar. A new upload deletes the previous attachment, Remove deletes it and falls back to Gravatar, and deleting the account takes it along with the member's other posts. New routes `POST account/avatar` (multipart field `avatar`, 10/hour per user) and `DELETE account/avatar`; `riviantrackr_passkeys_avatar_updated` action. The account script validates size and type before uploading, posts multipart with the REST nonce and swaps every avatar image on the page.
+
+### Changed
+- Uninstall also removes the avatar pointer meta (uploaded photos stay in the media library).
+
+### Tests
+- `AvatarsTest`: user resolution for every `get_avatar()` input, the filter's square/full fallback, validation of missing, failed, oversized, non-image, mislabelled and tiny uploads, the size filter's floor. `AvatarIntegrationTest` (real WordPress): a 640×480 sample becomes a 480×480 private attachment served by `get_avatar_url()` by ID, email and comment; a 1920×1080 replacement is cropped and scaled to 512×512 and the old attachment deleted; text files, mislabelled images, tiny images and signed-out requests are refused; removal returns to Gravatar; deleting the account deletes the photo. JS: local size/type checks, the multipart upload swapping every avatar image, and confirm-gated removal.
+
 ## [1.5.0] - 2026-10-19
 
 ### Added
@@ -132,7 +143,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Bundled `lbuchs/webauthn` v2.2** (MIT) under `lib/`, autoloaded by the plugin; no Composer required on the server.
 - **Tooling:** PHPUnit suite with a software P-256 authenticator that drives real registration and assertion verification, `node:test` JS tests, PHPCS (WordPress standard), esbuild minification, and GitHub Actions CI on PHP 8.1–8.4.
 
-[Unreleased]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/RivianTrackr/riviantrackr-passkeys/compare/v1.2.2...v1.3.0

@@ -80,6 +80,8 @@ function rtpk_test_reset(): void {
 	$GLOBALS['rtpk_test_updated_users'] = [];
 	$GLOBALS['rtpk_test_privacy_requests'] = [];
 	$GLOBALS['rtpk_test_deleted_users']    = [];
+	$GLOBALS['rtpk_test_posts_types']      = [];
+	$GLOBALS['rtpk_test_attachment_urls']  = [];
 }
 
 /* ---------------------------------------------------------------- options */
@@ -169,6 +171,9 @@ function remove_filter( $tag, $callback, $priority = 10 ) {
 	return true;
 }
 function wp_get_attachment_image_url( $id, $size = 'thumbnail' ) {
+	if ( isset( $GLOBALS['rtpk_test_attachment_urls'][ (int) $id ] ) ) {
+		return $GLOBALS['rtpk_test_attachment_urls'][ (int) $id ][ $size ] ?? false;
+	}
 	return $GLOBALS['rtpk_test_attachments'][ (int) $id ] ?? false;
 }
 function get_theme_mod( $name, $default = false ) {
@@ -438,6 +443,38 @@ function wp_delete_user( $id, $reassign = null ) {
 }
 function wp_logout() {
 	$GLOBALS['rtpk_test_current_user'] = null;
+}
+
+/* ----------------------------------------------------------- avatars */
+
+$GLOBALS['rtpk_test_posts_types'] = []; // id => post_type, for get_post_type().
+$GLOBALS['rtpk_test_attachment_urls'] = []; // id => [ size => url ].
+
+function get_post_type( $post = null ) {
+	return $GLOBALS['rtpk_test_posts_types'][ (int) $post ] ?? false;
+}
+if ( ! function_exists( 'wp_get_attachment_image_url' ) ) {
+	function wp_get_attachment_image_url( $id, $size = 'thumbnail' ) {
+		return $GLOBALS['rtpk_test_attachment_urls'][ (int) $id ][ $size ] ?? false;
+	}
+}
+function wp_check_filetype_and_ext( $file, $filename, $mimes = null ) {
+	$ext  = strtolower( pathinfo( (string) $filename, PATHINFO_EXTENSION ) );
+	$map  = [ 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif', 'webp' => 'image/webp', 'txt' => 'text/plain' ];
+	$real = @getimagesize( (string) $file );
+	// Like core: a file with an image extension whose bytes are not an image gets no type at all.
+	if ( isset( $map[ $ext ] ) && str_starts_with( $map[ $ext ], 'image/' ) ) {
+		$type = is_array( $real ) ? (string) $real['mime'] : false;
+	} else {
+		$type = $map[ $ext ] ?? false;
+	}
+	return [ 'ext' => $ext ?: false, 'type' => $type ?: false, 'proper_filename' => false ];
+}
+function size_format( $bytes, $decimals = 0 ) {
+	return $bytes >= 1048576 ? round( $bytes / 1048576, $decimals ) . ' MB' : round( $bytes / 1024, $decimals ) . ' KB';
+}
+if ( ! defined( 'UPLOAD_ERR_OK' ) ) {
+	define( 'UPLOAD_ERR_OK', 0 );
 }
 
 /* -------------------------------------------------------------- site info */

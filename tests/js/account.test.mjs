@@ -31,6 +31,14 @@ const securityPanel = `
 	<button type="button" data-rtpk-password-link>Email me a reset link</button>
 	<button type="button" data-rtpk-signout-others>Sign out others</button>`;
 
+const avatarCard = `
+	<div data-rtpk-avatar data-custom="0">
+		<img class="rtpk-account__avatar rtpk-account__avatar--lg" src="https://gravatar.test/a" srcset="https://gravatar.test/a2x 2x">
+		<label data-rtpk-avatar-pick><input type="file" name="avatar" data-rtpk-avatar-input><span>Upload a photo</span></label>
+		<button type="button" data-rtpk-avatar-remove hidden>Remove photo</button>
+		<span data-rtpk-avatar-msg></span>
+	</div>`;
+
 const dataPanel = `
 	<button type="button" data-rtpk-export-data>Request my data</button>
 	<form data-rtpk-delete-form data-username="jose" novalidate>
@@ -45,13 +53,20 @@ function markup() {
 			<nav role="tablist">${tab('overview', true)}${tab('profile', false)}${tab('security', false)}${tab('data', false)}</nav>
 			<p data-rtpk-msg hidden></p>
 			${panel('overview', true, '<a data-rtpk-goto="security" href="#security">Passkeys</a>')}
-			${panel('profile', false, profileForm)}
+			${panel('profile', false, avatarCard + profileForm)}
 			${panel('security', false, securityPanel)}
 			${panel('data', false, dataPanel)}
 		</div>`;
 }
 
-const globals = { rtpkAccount: { restUrl: REST, nonce: 'n0nce', i18n } };
+const globals = { rtpkAccount: { restUrl: REST, nonce: 'n0nce', i18n, avatar: { maxBytes: 1024, types: ['image/jpeg', 'image/png'] } } };
+
+function pickFile(window, input, { name = 'me.png', type = 'image/png', size = 100 } = {}) {
+	const file = new window.File([new Uint8Array(size)], name, { type });
+	Object.defineProperty(input, 'files', { configurable: true, value: [file] });
+	input.dispatchEvent(new window.Event('change', { bubbles: true }));
+	return file;
+}
 
 function submit(form) {
 	form.dispatchEvent(new form.ownerDocument.defaultView.Event('submit', { bubbles: true, cancelable: true }));
@@ -157,6 +172,59 @@ test('the reset-link button and sign-out-others report the server message', asyn
 	await flush();
 	assert.equal(document.querySelector('[data-rtpk-msg]').textContent, 'Signed out everywhere else.');
 	assert.equal(fetch.calls.length, 2);
+});
+
+test('an avatar upload is checked locally, posted as multipart and swaps every avatar image', async () => {
+	const fetch = mockFetch({ 'POST account/avatar': { message: 'Photo updated.', url: 'https://example.test/uploads/me-512x512.png', custom: true } });
+	const { document, window } = page(markup(), ['passkeys-account'], { fetch, globals });
+	const card = document.querySelector('[data-rtpk-avatar]');
+	const input = card.querySelector('[data-rtpk-avatar-input]');
+	const msg = card.querySelector('[data-rtpk-avatar-msg]');
+
+	pickFile(window, input, { size: 5000 });
+	await flush();
+	assert.equal(fetch.calls.length, 0, 'too large: refused before any request');
+	assert.equal(msg.textContent, 'That photo is too large.');
+
+	pickFile(window, input, { name: 'doc.pdf', type: 'application/pdf' });
+	await flush();
+	assert.equal(fetch.calls.length, 0, 'wrong type: refused before any request');
+
+	pickFile(window, input);
+	await flush();
+	assert.equal(fetch.calls.length, 1);
+	assert.equal(fetch.calls[0].path, 'account/avatar');
+	assert.equal(fetch.calls[0].headers['X-WP-Nonce'], 'n0nce');
+	assert.ok(fetch.calls[0].body instanceof window.FormData, 'multipart body');
+	assert.equal(fetch.calls[0].body.get('avatar').name, 'me.png');
+	assert.equal(msg.textContent, 'Photo updated.');
+	assert.equal(card.getAttribute('data-custom'), '1');
+	assert.equal(card.querySelector('[data-rtpk-avatar-remove]').hidden, false);
+	assert.equal(card.querySelector('[data-rtpk-avatar-pick] span').textContent, 'Change photo');
+	const img = card.querySelector('img.rtpk-account__avatar');
+	assert.equal(img.getAttribute('src'), 'https://example.test/uploads/me-512x512.png');
+	assert.equal(img.hasAttribute('srcset'), false, 'the Gravatar srcset is dropped');
+});
+
+test('removing the photo asks first and falls back to Gravatar', async () => {
+	const fetch = mockFetch({ 'DELETE account/avatar': { message: 'Photo removed.', url: 'https://gravatar.test/back', custom: false } });
+	const { document, window } = page(markup(), ['passkeys-account'], { fetch, globals });
+	const card = document.querySelector('[data-rtpk-avatar]');
+	const remove = card.querySelector('[data-rtpk-avatar-remove]');
+	remove.hidden = false;
+
+	window.confirm = () => false;
+	remove.click();
+	await flush();
+	assert.equal(fetch.calls.length, 0);
+
+	window.confirm = () => true;
+	remove.click();
+	await flush();
+	assert.equal(fetch.calls[0].method, 'DELETE');
+	assert.equal(remove.hidden, true);
+	assert.equal(card.querySelector('img.rtpk-account__avatar').getAttribute('src'), 'https://gravatar.test/back');
+	assert.equal(card.querySelector('[data-rtpk-avatar-pick] span').textContent, 'Upload a photo');
 });
 
 test('data export asks the server and relays the message', async () => {

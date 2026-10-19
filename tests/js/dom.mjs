@@ -39,7 +39,7 @@ export function mockFetch(routes, base = 'https://example.test/wp-json/riviantra
 		const method = (init.method || 'GET').toUpperCase();
 		const rel = String(url).replace(base, '').replace(/^\/+/, '');
 		const key = `${method} ${rel}`;
-		const body = init.body ? JSON.parse(init.body) : null;
+		const body = init.body && typeof init.body === 'string' ? JSON.parse(init.body) : (init.body || null);
 		calls.push({ method, path: rel, body, headers: init.headers || {} });
 		const handler = routes[key];
 		if (!handler) {
