@@ -1,7 +1,8 @@
 /*!
  * RivianTrackr Passkeys — member account page.
- * Tab switching (URL hash), profile save, password change, sign out
- * other devices, delete review / remove favourite.
+ * Tab switching (URL hash), profile save, password change or reset link,
+ * sign out other devices, delete review / remove favourite, data export
+ * and account deletion.
  */
 (function (window, document) {
 	'use strict';
@@ -153,6 +154,24 @@
 			});
 		}
 
+		/* ------------------------------------------- password reset link */
+
+		toArray(root.querySelectorAll('[data-rtpk-password-link]')).forEach(function (btn) {
+			btn.addEventListener('click', function () {
+				setBusy(btn, true);
+				api('account/password/link', {})
+					.then(function (result) {
+						showMsg(msg, result.message, 'success');
+					})
+					.catch(function (err) {
+						showMsg(msg, describe(err), 'error');
+					})
+					.then(function () {
+						setBusy(btn, false);
+					});
+			});
+		});
+
 		/* ------------------------------------------------------ sessions */
 
 		var signOutOthers = root.querySelector('[data-rtpk-signout-others]');
@@ -172,6 +191,54 @@
 					.then(function () {
 						signOutOthers.disabled = false;
 					});
+			});
+		}
+
+		/* ------------------------------------------------- your data */
+
+		var exportBtn = root.querySelector('[data-rtpk-export-data]');
+		if (exportBtn) {
+			exportBtn.addEventListener('click', function () {
+				setBusy(exportBtn, true);
+				api('account/data/export', {})
+					.then(function (result) {
+						showMsg(msg, result.message, 'success');
+					})
+					.catch(function (err) {
+						showMsg(msg, describe(err), 'error');
+					})
+					.then(function () {
+						setBusy(exportBtn, false);
+					});
+			});
+		}
+
+		var deleteForm = root.querySelector('[data-rtpk-delete-form]');
+		if (deleteForm) {
+			var deleteInput = deleteForm.querySelector('input[name="confirm"]');
+			var deleteBtn = deleteForm.querySelector('[type="submit"]');
+			var username = deleteForm.getAttribute('data-username') || '';
+			if (deleteInput && deleteBtn) {
+				deleteInput.addEventListener('input', function () {
+					deleteBtn.disabled = !confirmMatches(deleteInput.value, username);
+				});
+			}
+			deleteForm.addEventListener('submit', function (event) {
+				event.preventDefault();
+				if (!confirmMatches(deleteInput ? deleteInput.value : '', username)) {
+					return;
+				}
+				if (!window.confirm(i18n.confirmDeleteAccount || 'Delete your account? This cannot be undone.')) {
+					return;
+				}
+				submitForm(deleteForm, 'account', function (result) {
+					if (result.deleted && result.redirect) {
+						window.location.assign(result.redirect);
+						return true;
+					}
+					deleteForm.reset();
+					return false; // keep the button disabled until the username is typed again
+				}, 'DELETE');
 			});
 		}
 
@@ -218,10 +285,15 @@
 
 		/* --------------------------------------------------------- forms */
 
-		function submitForm(form, path, onSuccess) {
+		/**
+		 * Post a form's fields as JSON. onSuccess may return false to leave
+		 * the submit button disabled afterwards.
+		 */
+		function submitForm(form, path, onSuccess, method) {
 			var submit = form.querySelector('[type="submit"]');
 			var inline = form.querySelector('[data-rtpk-form-msg]');
 			var body = {};
+			var stayDisabled = false;
 			toArray(form.querySelectorAll('input[name], textarea[name]')).forEach(function (field) {
 				body[field.name] = field.value;
 			});
@@ -229,12 +301,12 @@
 			setBusy(submit, true);
 			setInline(inline, i18n.saving || 'Saving…', '');
 
-			api(path, body)
+			api(path, body, method)
 				.then(function (result) {
 					setInline(inline, result.message || '', 'success');
 					showMsg(msg, '');
 					if (onSuccess) {
-						onSuccess(result);
+						stayDisabled = onSuccess(result) === false;
 					}
 				})
 				.catch(function (err) {
@@ -246,11 +318,18 @@
 				})
 				.then(function () {
 					setBusy(submit, false);
+					if (stayDisabled && submit) {
+						submit.disabled = true;
+					}
 				});
 		}
 	}
 
 	/* ------------------------------------------------------------- helpers */
+
+	function confirmMatches(typed, username) {
+		return !!username && String(typed || '').trim().toLowerCase() === String(username).toLowerCase();
+	}
 
 	function setPendingEmail(root, email) {
 		var box = root.querySelector('[data-rtpk-pending-email]');

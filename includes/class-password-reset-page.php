@@ -49,6 +49,24 @@ final class PasswordResetPage {
 	public function register_hooks(): void {
 		add_shortcode( self::SHORTCODE, [ $this, 'shortcode' ] );
 		add_action( 'template_redirect', [ $this, 'handle' ] );
+		add_action( 'lostpassword_post', [ $this, 'guard_lostpassword' ], 5, 2 );
+	}
+
+	/**
+	 * Runs inside retrieve_password() for every reset request, whether it
+	 * came from this page, wp-login.php or another plugin, so the per-IP
+	 * limit cannot be sidestepped by posting to wp-login.php directly.
+	 *
+	 * @param \WP_Error           $errors    Errors so far; adding one aborts the email.
+	 * @param \WP_User|false|null $user_data The matched user, if any.
+	 */
+	public function guard_lostpassword( $errors, $user_data = null ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- Hook signature.
+		if ( ! $errors instanceof \WP_Error ) {
+			return;
+		}
+		if ( $this->limiter->is_limited( 'password-reset', Helpers::client_ip(), RTPK_RESET_RATE_LIMIT, HOUR_IN_SECONDS ) ) {
+			$errors->add( 'rtpk_rate_limited', __( 'Too many password reset requests from this connection. Please try again in an hour.', 'riviantrackr-passkeys' ) );
+		}
 	}
 
 	public function enqueue(): void {
@@ -91,7 +109,6 @@ final class PasswordResetPage {
 	public static function notice( string $code ): ?array {
 		$errors = [
 			'empty'          => __( 'Enter your username or email address.', 'riviantrackr-passkeys' ),
-			'invalid_email'  => __( 'That doesn’t look like a valid email address.', 'riviantrackr-passkeys' ),
 			'not_allowed'    => __( 'Password reset is not allowed for this account.', 'riviantrackr-passkeys' ),
 			'mail'           => __( 'The reset email could not be sent. Please try again later or contact us.', 'riviantrackr-passkeys' ),
 			'limited'        => __( 'Too many reset requests from this connection. Please try again in an hour.', 'riviantrackr-passkeys' ),
@@ -118,7 +135,8 @@ final class PasswordResetPage {
 
 	/**
 	 * Map retrieve_password()'s result to a page code. A username or email
-	 * that matches nothing is reported as "sent" on purpose.
+	 * that matches nothing (core's invalidcombo, or invalid_email for an
+	 * unknown address) is reported as "sent" on purpose.
 	 *
 	 * @param true|\WP_Error $result What retrieve_password() returned.
 	 */
@@ -130,9 +148,10 @@ final class PasswordResetPage {
 			case 'empty_username':
 				return 'empty';
 			case 'invalid_email':
-				return 'invalid_email';
 			case 'invalidcombo':
 				return 'sent';
+			case 'rtpk_rate_limited':
+				return 'limited';
 			case 'no_password_reset':
 				return 'not_allowed';
 			case 'retrieve_password_email_failure':
@@ -163,17 +182,15 @@ final class PasswordResetPage {
 	}
 
 	/**
-	 * Send the reset email for a username or email address. Returns the page code.
+	 * Send the reset email for a username or email address. Returns the
+	 * page code. The per-IP limit is applied inside retrieve_password() by
+	 * guard_lostpassword().
 	 *
 	 * @param string $login Username or email as typed.
-	 * @param string $ip    Client IP for rate limiting.
 	 */
-	public function request( string $login, string $ip ): string {
+	public function request( string $login ): string {
 		if ( '' === $login ) {
 			return 'empty';
-		}
-		if ( $this->limiter->is_limited( 'password-reset', $ip, RTPK_RESET_RATE_LIMIT, HOUR_IN_SECONDS ) ) {
-			return 'limited';
 		}
 		return self::code_for( retrieve_password( $login ) );
 	}
@@ -212,7 +229,7 @@ final class PasswordResetPage {
 		}
 		$login = isset( $_POST['user_login'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['user_login'] ) ) : '';
 		// phpcs:enable
-		$this->finish( $this->request( $login, Helpers::client_ip() ) );
+		$this->finish( $this->request( $login ) );
 	}
 
 	private function handle_reset(): void {
@@ -308,6 +325,9 @@ final class PasswordResetPage {
 	}
 
 	private function set_cookie( string $value, int $expires ): void {
+		if ( headers_sent() ) {
+			return;
+		}
 		setcookie(
 			self::cookie_name(),
 			$value,

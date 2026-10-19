@@ -397,6 +397,7 @@ final class SignupService {
 		}
 
 		$this->store->delete( (int) $row['id'] );
+		AccountService::mark_no_password( (int) $user_id );
 
 		$user = get_user_by( 'id', (int) $user_id );
 		if ( ! $user instanceof \WP_User ) {

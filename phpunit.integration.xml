@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+	Integration suite: runs the plugin inside a real WordPress install with a
+	real database through WordPress's own PHPUnit test library.
+
+	  bin/install-wp-tests.sh wordpress_test root '' 127.0.0.1 latest
+	  composer install -d tests/integration
+	  tests/integration/vendor/bin/phpunit -c phpunit.integration.xml
+-->
+<phpunit
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="https://schema.phpunit.net/9.6/phpunit.xsd"
+	bootstrap="tests/integration/bootstrap.php"
+	colors="true"
+	beStrictAboutTestsThatDoNotTestAnything="true"
+	convertErrorsToExceptions="true"
+	convertNoticesToExceptions="true"
+	convertWarningsToExceptions="true"
+	convertDeprecationsToExceptions="false"
+>
+	<testsuites>
+		<testsuite name="integration">
+			<directory suffix="Test.php">tests/integration</directory>
+			<exclude>tests/integration/vendor</exclude>
+		</testsuite>
+	</testsuites>
+</phpunit>

@@ -175,9 +175,23 @@ final class InviteService {
 	// ---- URLs ----------------------------------------------------------
 
 	/**
-	 * The "Set up a passkey" page (wp-login.php?action=passkey-setup).
+	 * The "Set up a passkey" screen: the owner's passkey setup page when one
+	 * is chosen under Settings → Passkeys → Pages, else
+	 * wp-login.php?action=passkey-setup. Invitation links never come here
+	 * (they carry a token wp-login.php has to check first; see invite_link()).
 	 */
 	public function setup_url( string $continue_to = '' ): string {
+		$page = $this->settings->setup_page_url();
+		if ( '' !== $page ) {
+			return '' !== $continue_to ? add_query_arg( 'redirect_to', rawurlencode( $continue_to ), $page ) : $page;
+		}
+		return self::wp_login_setup_url( $continue_to );
+	}
+
+	/**
+	 * The stock setup screen on wp-login.php, whatever the settings say.
+	 */
+	public static function wp_login_setup_url( string $continue_to = '' ): string {
 		$args = [ 'action' => self::SETUP_ACTION ];
 		if ( '' !== $continue_to ) {
 			$args['redirect_to'] = $continue_to;

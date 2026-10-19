@@ -61,7 +61,6 @@ final class PasswordResetPageTest extends TestCase {
 	public static function error_codes(): array {
 		return [
 			'empty'          => [ 'empty', 'username or email' ],
-			'invalid_email'  => [ 'invalid_email', 'valid email' ],
 			'not_allowed'    => [ 'not_allowed', 'not allowed' ],
 			'mail'           => [ 'mail', 'could not be sent' ],
 			'limited'        => [ 'limited', 'Too many' ],
@@ -80,11 +79,12 @@ final class PasswordResetPageTest extends TestCase {
 	public function test_success_and_unknown_accounts_both_read_as_sent(): void {
 		$this->assertSame( 'sent', PasswordResetPage::code_for( true ) );
 		$this->assertSame( 'sent', PasswordResetPage::code_for( new WP_Error( 'invalidcombo', 'There is no account with that username or email address.' ) ), 'nothing reveals who is registered' );
+		$this->assertSame( 'sent', PasswordResetPage::code_for( new WP_Error( 'invalid_email', 'There is no account with that username or email address.' ) ), 'core uses invalid_email for an unknown address' );
 	}
 
 	public function test_retrieve_password_errors_map_to_page_codes(): void {
 		$this->assertSame( 'empty', PasswordResetPage::code_for( new WP_Error( 'empty_username' ) ) );
-		$this->assertSame( 'invalid_email', PasswordResetPage::code_for( new WP_Error( 'invalid_email' ) ) );
+		$this->assertSame( 'limited', PasswordResetPage::code_for( new WP_Error( 'rtpk_rate_limited' ) ) );
 		$this->assertSame( 'not_allowed', PasswordResetPage::code_for( new WP_Error( 'no_password_reset' ) ) );
 		$this->assertSame( 'mail', PasswordResetPage::code_for( new WP_Error( 'retrieve_password_email_failure' ) ) );
 		$this->assertSame( 'failed', PasswordResetPage::code_for( new WP_Error( 'captcha_failed', 'From a plugin' ) ) );
@@ -109,28 +109,44 @@ final class PasswordResetPageTest extends TestCase {
 	// ---- request() -------------------------------------------------------
 
 	public function test_request_sends_the_standard_reset_email(): void {
-		$this->assertSame( 'sent', $this->page()->request( 'jose', '203.0.113.5' ) );
+		$this->assertSame( 'sent', $this->page()->request( 'jose' ) );
 		$this->assertSame( [ 'jose' ], $GLOBALS['rtpk_test_reset_calls'] );
 	}
 
 	public function test_request_with_nothing_typed_sends_nothing(): void {
-		$this->assertSame( 'empty', $this->page()->request( '', '203.0.113.5' ) );
+		$this->assertSame( 'empty', $this->page()->request( '' ) );
 		$this->assertSame( [], $GLOBALS['rtpk_test_reset_calls'] );
 	}
 
 	public function test_request_passes_retrieve_password_errors_through(): void {
 		$GLOBALS['rtpk_test_reset_result'] = new WP_Error( 'retrieve_password_email_failure' );
-		$this->assertSame( 'mail', $this->page()->request( 'jose@riviantrackr.test', '203.0.113.5' ) );
+		$this->assertSame( 'mail', $this->page()->request( 'jose@riviantrackr.test' ) );
 	}
 
-	public function test_request_is_rate_limited_per_ip(): void {
-		$page = $this->page();
+	// ---- guard_lostpassword() (runs inside retrieve_password() everywhere) ----
+
+	public function test_lostpassword_guard_limits_per_ip_and_blocks_the_email(): void {
+		$_SERVER['REMOTE_ADDR'] = '203.0.113.5';
+		$page                   = $this->page();
 		for ( $i = 0; $i < RTPK_RESET_RATE_LIMIT; $i++ ) {
-			$this->assertSame( 'sent', $page->request( 'jose', '203.0.113.5' ) );
+			$errors = new WP_Error();
+			$page->guard_lostpassword( $errors, false );
+			$this->assertFalse( $errors->has_errors(), "request {$i} is allowed" );
 		}
-		$this->assertSame( 'limited', $page->request( 'jose', '203.0.113.5' ) );
-		$this->assertCount( RTPK_RESET_RATE_LIMIT, $GLOBALS['rtpk_test_reset_calls'], 'no email once limited' );
-		$this->assertSame( 'sent', $page->request( 'jose', '203.0.113.6' ), 'another connection is unaffected' );
+		$errors = new WP_Error();
+		$page->guard_lostpassword( $errors, new WP_User( 5 ) );
+		$this->assertSame( [ 'rtpk_rate_limited' ], $errors->get_error_codes(), 'retrieve_password() aborts on any error' );
+
+		$_SERVER['REMOTE_ADDR'] = '203.0.113.6';
+		$errors                 = new WP_Error();
+		$page->guard_lostpassword( $errors, false );
+		$this->assertFalse( $errors->has_errors(), 'another connection is unaffected' );
+	}
+
+	public function test_lostpassword_guard_ignores_a_non_error_argument(): void {
+		$page = $this->page();
+		$page->guard_lostpassword( null );
+		$this->assertTrue( true, 'no type error' );
 	}
 
 	// ---- cookie ----------------------------------------------------------

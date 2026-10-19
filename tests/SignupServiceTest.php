@@ -98,6 +98,7 @@ final class SignupServiceTest extends TestCase {
 		$inserted = reset( $GLOBALS['rtpk_test_inserted'] );
 		$this->assertSame( 'subscriber', $inserted['role'] );
 		$this->assertGreaterThanOrEqual( 32, strlen( $inserted['user_pass'] ), 'random password' );
+		$this->assertTrue( RivianTrackr\Passkeys\AccountService::has_no_password( $user->ID ), 'flagged so the account page offers "Set a password"' );
 
 		$actions = array_column( $GLOBALS['rtpk_test_actions'], 0 );
 		$this->assertContains( 'user_register', $actions, 'core registration hook fired' );

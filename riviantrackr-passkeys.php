@@ -3,7 +3,7 @@
  * Plugin Name: RivianTrackr Passkeys
  * Plugin URI: https://riviantrackr.com
  * Description: Passwordless sign-in with passkeys (WebAuthn / FIDO2). Members can register Face ID, Touch ID, Windows Hello, Android or hardware security keys and log in without typing a password.
- * Version: 1.4.0
+ * Version: 1.5.0
  * Author: RivianTrackr
  * Author URI: https://github.com/RivianTrackr/
  * License: GPL v2 or later
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'RTPK_VERSION', '1.4.0' );
+define( 'RTPK_VERSION', '1.5.0' );
 define( 'RTPK_FILE', __FILE__ );
 define( 'RTPK_DIR', plugin_dir_path( __FILE__ ) );
 define( 'RTPK_URL', plugin_dir_url( __FILE__ ) );
@@ -47,6 +47,7 @@ require_once RTPK_DIR . 'includes/class-autoloader.php';
 RivianTrackr\Passkeys\Autoloader::register( RTPK_DIR . 'includes', RTPK_DIR . 'lib/lbuchs-webauthn' );
 
 register_activation_hook( __FILE__, [ RivianTrackr\Passkeys\Installer::class, 'activate' ] );
+register_deactivation_hook( __FILE__, [ RivianTrackr\Passkeys\Installer::class, 'deactivate' ] );
 
 add_action(
 	'plugins_loaded',

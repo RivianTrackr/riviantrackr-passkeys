@@ -14,6 +14,9 @@ final class Installer {
 
 	public const DB_VERSION_OPTION = 'riviantrackr_passkeys_db_version';
 
+	/** Daily WP-Cron event that drops expired pending signups. */
+	public const PURGE_EVENT = 'riviantrackr_passkeys_purge_signups';
+
 	public static function table_name(): string {
 		global $wpdb;
 		return $wpdb->prefix . 'riviantrackr_passkeys';
@@ -27,14 +30,30 @@ final class Installer {
 	public static function activate(): void {
 		self::create_table();
 		update_option( self::DB_VERSION_OPTION, RTPK_DB_VERSION );
+		self::schedule_purge();
+	}
+
+	public static function deactivate(): void {
+		wp_clear_scheduled_hook( self::PURGE_EVENT );
 	}
 
 	public static function maybe_upgrade(): void {
+		self::schedule_purge();
 		if ( (string) get_option( self::DB_VERSION_OPTION, '' ) === RTPK_DB_VERSION ) {
 			return;
 		}
 		self::create_table();
 		update_option( self::DB_VERSION_OPTION, RTPK_DB_VERSION );
+	}
+
+	/**
+	 * Make sure the daily purge is on the calendar (sites upgraded from a
+	 * version without it never ran the activation hook again).
+	 */
+	public static function schedule_purge(): void {
+		if ( ! wp_next_scheduled( self::PURGE_EVENT ) ) {
+			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', self::PURGE_EVENT );
+		}
 	}
 
 	private static function create_table(): void {

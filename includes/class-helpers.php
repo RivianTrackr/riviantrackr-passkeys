@@ -134,35 +134,73 @@ final class Helpers {
 	}
 
 	/**
-	 * Best-effort authenticator label from an AAGUID (well-known passkey providers).
+	 * Well-known passkey providers by AAGUID (the authenticator's model ID,
+	 * sent with every registration). Used as the default passkey name and
+	 * shown as a badge in the manager. Extend or override with the
+	 * `riviantrackr_passkeys_authenticator_names` filter.
+	 *
+	 * @return array<string,string> Lower-case AAGUID => label.
 	 */
-	public static function provider_from_aaguid( ?string $aaguid ): string {
+	public static function authenticator_names(): array {
 		$known = [
+			// Platform and password-manager passkey providers.
 			'fbfc3007-154e-4ecc-8c0b-6e020557d7bd' => 'iCloud Keychain',
 			'dd4ec289-e01d-41c9-bb89-70fa845d4bf2' => 'iCloud Keychain',
 			'ea9b8d66-4d01-1d21-3ce4-b6b48cb575d4' => 'Google Password Manager',
+			'b5397666-4885-aa6b-cebf-e52262a439a2' => 'Chrome',
 			'adce0002-35bc-c60a-648b-0b25f1f05503' => 'Chrome on Mac',
+			'771b48fd-d3d4-4f74-9232-fc157ab0507a' => 'Edge on Mac',
 			'08987058-cadc-4b81-b6e1-30de50dcbe96' => 'Windows Hello',
 			'9ddd1817-af5a-4672-a2b9-3e3dd95000a9' => 'Windows Hello',
 			'6028b017-b1d4-4c02-b4b3-afcdafc96bb2' => 'Windows Hello',
+			'53414d53-554e-4700-0000-000000000000' => 'Samsung Pass',
 			'bada5566-a7aa-401f-bd96-45619a55120d' => '1Password',
 			'd548826e-79b4-db40-a3d8-11116f7e8349' => 'Bitwarden',
+			'531126d6-e717-415c-9320-3d9aa6981239' => 'Dashlane',
 			'b84e4048-15dc-4dd0-8640-f4f60813c8af' => 'NordPass',
 			'0ea242b4-43c4-4a1b-8b17-dd6d0b6baec6' => 'Keeper',
 			'f3809540-7f14-49c1-a8b3-8f813b225541' => 'Enpass',
-			'531126d6-e717-415c-9320-3d9aa6981239' => 'Dashlane',
-			'53414d53-554e-4700-0000-000000000000' => 'Samsung Pass',
-			'771b48fd-d3d4-4f74-9232-fc157ab0507a' => 'Edge on Mac',
+			'fdb141b2-5d84-443e-8a35-4698c205a502' => 'KeePassXC',
+			'50726f74-6f6e-5061-7373-50726f746f6e' => 'Proton Pass',
+			// Hardware security keys.
 			'cb69481e-8ff7-4039-93ec-0a2729a154a8' => 'YubiKey 5',
 			'ee882879-721c-4913-9775-3dfcce97072a' => 'YubiKey 5',
 			'fa2b99dc-9e39-4257-8f92-4a30d23c4118' => 'YubiKey 5 NFC',
 			'2fc0579f-8113-47ea-b116-bb5a8db9202a' => 'YubiKey 5 NFC',
+			'a25342c0-3cdc-4414-8e46-f4807fca511c' => 'YubiKey 5 NFC',
 			'c5ef55ff-ad9a-4b9f-b580-adebafe026d0' => 'YubiKey 5Ci',
+			'73bb0cd4-e502-49b8-9c6f-b59445bf720b' => 'YubiKey 5 FIPS',
+			'c1f9a0bc-1dd2-404a-b27f-8e29047a43fd' => 'YubiKey 5 NFC FIPS',
+			'85203421-48f9-4355-9bc8-8a53846e5083' => 'YubiKey 5Ci FIPS',
 			'd8522d9f-575b-4866-88a9-ba99fa02f35b' => 'YubiKey Bio',
+			'f8a011f3-8c0a-4d15-8006-17111f9edc7d' => 'Security Key by Yubico',
+			'b92c3f9a-c014-4056-887f-140a2501163b' => 'Security Key by Yubico',
 		];
+		/**
+		 * Filter the AAGUID → provider name map used for default passkey
+		 * names and the provider badge.
+		 *
+		 * @param array<string,string> $known Lower-case AAGUID => label.
+		 */
+		$filtered = apply_filters( 'riviantrackr_passkeys_authenticator_names', $known );
+		$out      = [];
+		foreach ( (array) $filtered as $aaguid => $label ) {
+			$aaguid = strtolower( trim( (string) $aaguid ) );
+			$label  = trim( (string) $label );
+			if ( '' !== $aaguid && '' !== $label ) {
+				$out[ $aaguid ] = $label;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Best-effort authenticator label from an AAGUID (well-known passkey providers).
+	 */
+	public static function provider_from_aaguid( ?string $aaguid ): string {
 		if ( ! $aaguid ) {
 			return '';
 		}
-		return $known[ strtolower( $aaguid ) ] ?? '';
+		return self::authenticator_names()[ strtolower( $aaguid ) ] ?? '';
 	}
 }

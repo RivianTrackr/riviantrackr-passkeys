@@ -76,7 +76,7 @@ final class LoginPage {
 			return $this->signed_in_markup( wp_get_current_user(), $redirect, $light );
 		}
 
-		return $this->form_markup( $redirect, self::notices( $query, $requested ), $light );
+		return $this->form_markup( $redirect, self::notices( $query, $requested, $this->settings->setup_page_url() ), $light );
 	}
 
 	/**
@@ -84,9 +84,10 @@ final class LoginPage {
 	 *
 	 * @param array<string,string> $query       login / loggedout / rtpk_invite / rtpk_signup / checkemail.
 	 * @param string               $redirect_to Validated redirect_to value.
+	 * @param string               $setup_page  URL of the passkey setup page, or ''.
 	 * @return array<int,array{type:string,text:string}>
 	 */
-	public static function notices( array $query, string $redirect_to = '' ): array {
+	public static function notices( array $query, string $redirect_to = '', string $setup_page = '' ): array {
 		$out = [];
 
 		switch ( $query['login'] ?? '' ) {
@@ -131,7 +132,7 @@ final class LoginPage {
 				'type' => 'info',
 				'text' => SetupPage::expired_hint(),
 			];
-		} elseif ( SetupPage::leads_to_setup( $redirect_to ) ) {
+		} elseif ( SetupPage::leads_to_setup( $redirect_to, $setup_page ) ) {
 			$out[] = [
 				'type' => 'info',
 				'text' => SetupPage::setup_hint(),

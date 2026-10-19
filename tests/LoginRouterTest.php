@@ -130,6 +130,18 @@ final class LoginRouterTest extends TestCase {
 		$this->assertSame( self::RESET, ( new Settings() )->reset_page_url() );
 	}
 
+	public function test_sanitize_keeps_a_published_setup_page(): void {
+		$GLOBALS['rtpk_test_posts'][14] = [ 'status' => 'publish', 'url' => 'https://riviantrackr.test/passkey/' ];
+		$out                            = ( new Settings() )->sanitize( [ 'setup_page_id' => '14' ] );
+		$this->assertSame( 14, $out['setup_page_id'] );
+		update_option( RTPK_OPTION_NAME, $out );
+		$this->assertSame( 'https://riviantrackr.test/passkey/', ( new Settings() )->setup_page_url() );
+
+		$out = ( new Settings() )->sanitize( [ 'setup_page_id' => '12' ] );
+		$this->assertSame( 0, $out['setup_page_id'], 'draft page is cleared' );
+		$this->assertSame( 'rtpk_setup_page', $GLOBALS['rtpk_test_errors'][0]['code'] );
+	}
+
 	public function test_sanitize_keeps_a_published_reset_page(): void {
 		$out = ( new Settings() )->sanitize( [ 'reset_page_id' => '13', 'redirect_wp_login' => '1' ] );
 		$this->assertSame( 13, $out['reset_page_id'] );
@@ -293,6 +305,9 @@ final class LoginRouterTest extends TestCase {
 		$this->assertSame( 0, $out['login_page_id'] );
 		$this->assertSame( 0, $out['register_page_id'] );
 		$this->assertSame( 0, $out['reset_page_id'] );
+		$this->assertSame( 0, $out['setup_page_id'] );
+		$this->assertFalse( $out['self_delete'], 'an unchecked toggle saves as off' );
+		$this->assertTrue( ( new Settings() )->allows_self_delete(), 'but the default before saving is on' );
 		$this->assertFalse( $out['redirect_wp_login'] );
 		$this->assertFalse( $out['brand_wp_login'] );
 	}
