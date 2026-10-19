@@ -22,6 +22,14 @@ final class AccountService {
 	public const NEW_EMAIL_META = '_new_email';
 
 	/**
+	 * Set on accounts created by open signup: their password is a random
+	 * string nobody has seen, so the account page offers "Set a password"
+	 * (an emailed reset link) instead of asking for the current one.
+	 * Cleared the first time any password is set.
+	 */
+	public const NO_PASSWORD_META = 'riviantrackr_passkeys_no_password';
+
+	/**
 	 * Sanitise and validate submitted profile fields.
 	 *
 	 * @param array<string,mixed> $input   display_name, first_name, last_name, email, url, description.
@@ -143,7 +151,8 @@ final class AccountService {
 
 	/**
 	 * Store the pending address the way wp-admin/user-edit.php expects and
-	 * email the confirmation link. Returns the pending address.
+	 * email the confirmation link (to the account page when one is set).
+	 * Returns the pending address.
 	 */
 	public static function request_email_change( \WP_User $user, string $new_email ): string {
 		$hash = md5( $new_email . time() . wp_rand() );
@@ -157,7 +166,7 @@ final class AccountService {
 		);
 
 		$sitename = wp_specialchars_decode( (string) get_option( 'blogname' ), ENT_QUOTES );
-		$link     = esc_url_raw( add_query_arg( 'newuseremail', $hash, admin_url( 'profile.php' ) ) );
+		$link     = self::confirm_email_url( $hash );
 
 		/* translators: Do not translate USERNAME, ADMIN_URL, EMAIL, SITENAME, SITEURL: those are placeholders. */
 		$content = __(
@@ -197,16 +206,71 @@ All at ###SITENAME###
 		$content = str_replace( '###SITENAME###', $sitename, $content );
 		$content = str_replace( '###SITEURL###', home_url(), $content );
 
-		wp_mail(
-			$new_email,
-			sprintf(
+		$mail = [
+			'to'      => $new_email,
+			'subject' => sprintf(
 				/* translators: %s: site name */
 				__( '[%s] Email Change Request', 'riviantrackr-passkeys' ),
 				$sitename
 			),
-			$content
-		);
+			'message' => $content,
+			'headers' => [],
+		];
+		/**
+		 * Filter the email-change confirmation before it is sent. BrandedEmails
+		 * uses it to apply the plugin's HTML template.
+		 *
+		 * @param array<string,mixed> $mail      to, subject, message, headers.
+		 * @param \WP_User            $user      The member.
+		 * @param string              $new_email The address awaiting confirmation.
+		 * @param string              $link      Confirmation link.
+		 */
+		$mail = (array) apply_filters( 'riviantrackr_passkeys_email_change_mail', $mail, $user, $new_email, $link );
 
+		wp_mail( (string) $mail['to'], (string) $mail['subject'], (string) $mail['message'], (array) ( $mail['headers'] ?? [] ) );
+
+		return $new_email;
+	}
+
+	/**
+	 * Where the confirmation link lands: the account page when one is set
+	 * (so members never see wp-admin), else the profile screen as in core.
+	 */
+	public static function confirm_email_url( string $hash ): string {
+		$account = ( new Settings() )->account_page_url();
+		$base    = '' !== $account ? $account : admin_url( 'profile.php' );
+		return esc_url_raw( add_query_arg( 'newuseremail', $hash, $base ) );
+	}
+
+	/**
+	 * Apply a pending email change when its hash matches, the same way
+	 * wp-admin/user-edit.php does. Returns the new address, or '' when the
+	 * hash is wrong or nothing is pending (the pending change is left alone,
+	 * so a mistyped link cannot cancel it).
+	 */
+	public static function confirm_email_change( int $user_id, string $hash ): string {
+		$meta = get_user_meta( $user_id, self::NEW_EMAIL_META, true );
+		if ( ! is_array( $meta ) || empty( $meta['hash'] ) || empty( $meta['newemail'] ) || '' === $hash ) {
+			return '';
+		}
+		if ( ! hash_equals( (string) $meta['hash'], $hash ) ) {
+			return '';
+		}
+		$new_email = sanitize_email( (string) $meta['newemail'] );
+		if ( '' === $new_email || ! is_email( $new_email ) ) {
+			delete_user_meta( $user_id, self::NEW_EMAIL_META );
+			return '';
+		}
+		$result = wp_update_user(
+			[
+				'ID'         => $user_id,
+				'user_email' => $new_email,
+			]
+		);
+		if ( is_wp_error( $result ) ) {
+			return '';
+		}
+		delete_user_meta( $user_id, self::NEW_EMAIL_META );
 		return $new_email;
 	}
 
@@ -220,6 +284,37 @@ All at ###SITENAME###
 
 	public static function cancel_email_change( int $user_id ): void {
 		delete_user_meta( $user_id, self::NEW_EMAIL_META );
+	}
+
+	/**
+	 * Whether the member has never chosen a password (open signup account).
+	 */
+	public static function has_no_password( int $user_id ): bool {
+		return '1' === (string) get_user_meta( $user_id, self::NO_PASSWORD_META, true );
+	}
+
+	public static function mark_no_password( int $user_id ): void {
+		update_user_meta( $user_id, self::NO_PASSWORD_META, '1' );
+	}
+
+	/**
+	 * Runs on the core wp_set_password action: whatever set the password
+	 * (reset link, account page, profile screen, WP-CLI), the flag goes.
+	 *
+	 * @param string $password The new password (unused).
+	 * @param int    $user_id  The user.
+	 */
+	public static function on_password_set( $password, $user_id ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- Hook signature.
+		delete_user_meta( (int) $user_id, self::NO_PASSWORD_META );
+	}
+
+	/**
+	 * Email the member the standard password reset link. Used by "Set a
+	 * password" and "Forgot your current password?" on the account page.
+	 * Returns the page code from retrieve_password() (sent, limited, mail…).
+	 */
+	public static function send_password_link( \WP_User $user ): string {
+		return PasswordResetPage::code_for( retrieve_password( $user->user_login ) );
 	}
 
 	/**
@@ -248,6 +343,67 @@ All at ###SITENAME###
 		if ( '' !== $token ) {
 			\WP_Session_Tokens::get_instance( $user_id )->destroy_others( $token );
 		}
+	}
+
+	// ---- personal data -------------------------------------------------
+
+	/**
+	 * How "Delete my account" behaves for a member. Pure.
+	 *
+	 * @param \WP_User $user    The member.
+	 * @param bool     $allowed The "Let members delete their own account" setting.
+	 * @return string 'delete' (immediate) or 'request' (core erasure request for the owner to approve).
+	 */
+	public static function deletion_mode( \WP_User $user, bool $allowed ): string {
+		if ( ! $allowed ) {
+			return 'request';
+		}
+		foreach ( [ 'edit_posts', 'delete_users', 'manage_options' ] as $cap ) {
+			if ( $user->has_cap( $cap ) ) {
+				return 'request';
+			}
+		}
+		return 'delete';
+	}
+
+	/**
+	 * File a core privacy request (Tools → Export / Erase Personal Data) on
+	 * the member's behalf and mark it confirmed: they are signed in, so the
+	 * confirmation email core would send is redundant.
+	 *
+	 * @param \WP_User $user   The member.
+	 * @param string   $action 'export_personal_data' or 'remove_personal_data'.
+	 * @return int|\WP_Error Request ID, or the error (e.g. duplicate_request).
+	 */
+	public static function privacy_request( \WP_User $user, string $action ) {
+		$request_id = wp_create_user_request( $user->user_email, $action, [], 'confirmed' );
+		if ( is_wp_error( $request_id ) ) {
+			return $request_id;
+		}
+		return (int) $request_id;
+	}
+
+	/**
+	 * Delete the member's account now: their posts go with it (single site)
+	 * and the deleted_user hook removes their passkeys. Comments and tire
+	 * reviews stay on the site without a linked account, as in core.
+	 */
+	public static function delete_account( \WP_User $user ): bool {
+		if ( ! function_exists( 'wp_delete_user' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/user.php';
+		}
+		/**
+		 * Fires just before a member deletes their own account from the account page.
+		 *
+		 * @param \WP_User $user The member.
+		 */
+		do_action( 'riviantrackr_passkeys_account_deleting', $user );
+
+		$deleted = (bool) wp_delete_user( $user->ID );
+		if ( $deleted ) {
+			wp_logout();
+		}
+		return $deleted;
 	}
 
 	private static function clip( string $value, int $max ): string {

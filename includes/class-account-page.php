@@ -28,8 +28,61 @@ final class AccountPage {
 		private ProfileManager $manager
 	) {}
 
+	/** Query arg carrying the outcome of an email-change confirmation. */
+	public const EMAIL_QUERY = 'rtpk_email';
+
 	public function register_hooks(): void {
 		add_shortcode( self::SHORTCODE, [ $this, 'shortcode' ] );
+		add_action( 'template_redirect', [ $this, 'maybe_confirm_email' ] );
+	}
+
+	/**
+	 * Completes an email change from the emailed link when it lands on the
+	 * account page (?newuseremail=hash), the way profile.php does it in
+	 * wp-admin. Signed-out visitors are sent to sign in and brought back.
+	 */
+	public function maybe_confirm_email(): void {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- The hash in the link is the credential.
+		if ( ! isset( $_GET['newuseremail'] ) || ! is_singular() ) {
+			return;
+		}
+		$id = (int) get_queried_object_id();
+		if ( $id <= 0 || $id !== (int) $this->settings->get( 'account_page_id' ) ) {
+			return;
+		}
+		$hash = sanitize_text_field( wp_unslash( (string) $_GET['newuseremail'] ) );
+		// phpcs:enable
+		$page = $this->settings->account_page_url();
+
+		if ( ! is_user_logged_in() ) {
+			wp_safe_redirect( wp_login_url( add_query_arg( 'newuseremail', rawurlencode( $hash ), $page ) ) );
+			exit;
+		}
+
+		$changed = AccountService::confirm_email_change( get_current_user_id(), $hash );
+		wp_safe_redirect( add_query_arg( self::EMAIL_QUERY, '' !== $changed ? 'changed' : 'invalid', $page ) . '#profile' );
+		exit;
+	}
+
+	/**
+	 * Notice for ?rtpk_email on the Profile tab. Pure.
+	 *
+	 * @return array{type:string,text:string}|null
+	 */
+	public static function email_notice( string $code ): ?array {
+		switch ( $code ) {
+			case 'changed':
+				return [
+					'type' => 'success',
+					'text' => __( 'Your email address has been updated.', 'riviantrackr-passkeys' ),
+				];
+			case 'invalid':
+				return [
+					'type' => 'error',
+					'text' => __( 'That confirmation link is not valid. If you still want to change your email, save the new address again to get a fresh link.', 'riviantrackr-passkeys' ),
+				];
+		}
+		return null;
 	}
 
 	// ---- tabs ----------------------------------------------------------
@@ -50,6 +103,7 @@ final class AccountPage {
 			$ids[] = 'favorites';
 		}
 		$ids[] = 'comments';
+		$ids[] = 'data';
 		return $ids;
 	}
 
@@ -102,6 +156,7 @@ final class AccountPage {
 			'reviews'   => __( 'Reviews', 'riviantrackr-passkeys' ),
 			'favorites' => __( 'Saved tires', 'riviantrackr-passkeys' ),
 			'comments'  => __( 'Comments', 'riviantrackr-passkeys' ),
+			'data'      => __( 'Your data', 'riviantrackr-passkeys' ),
 		];
 		$icons     = [
 			'overview'  => 'home',
@@ -110,6 +165,7 @@ final class AccountPage {
 			'reviews'   => 'star',
 			'favorites' => 'heart',
 			'comments'  => 'comment',
+			'data'      => 'folder',
 		];
 
 		$tabs = [];
@@ -166,6 +222,7 @@ final class AccountPage {
 						'confirmDeleteReview'  => __( 'Delete this review? This cannot be undone.', 'riviantrackr-passkeys' ),
 						'confirmRemoveFav'     => __( 'Remove this tire from your saved tires?', 'riviantrackr-passkeys' ),
 						'confirmSignOutOthers' => __( 'Sign out of every other browser and device? This one stays signed in.', 'riviantrackr-passkeys' ),
+						'confirmDeleteAccount' => __( 'Delete your account? This cannot be undone.', 'riviantrackr-passkeys' ),
 						'noReviews'            => __( 'You have not reviewed any tires yet.', 'riviantrackr-passkeys' ),
 						'noFavorites'          => __( 'No saved tires yet. Tap the heart on a tire in the guide to keep it here.', 'riviantrackr-passkeys' ),
 						/* translators: %s: email address */
@@ -397,10 +454,18 @@ final class AccountPage {
 			[ 'url', __( 'Website', 'riviantrackr-passkeys' ), 'url', (string) $user->user_url, 'url', '' ],
 		];
 
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Display only.
+		$notice = self::email_notice( isset( $_GET[ self::EMAIL_QUERY ] ) ? sanitize_key( wp_unslash( (string) $_GET[ self::EMAIL_QUERY ] ) ) : '' );
+		// phpcs:enable
+
 		ob_start();
 		?>
 		<h3 class="rtpk-account__title"><?php esc_html_e( 'Profile', 'riviantrackr-passkeys' ); ?></h3>
 		<p class="rtpk-account__desc"><?php esc_html_e( 'How you appear on the site and how we reach you.', 'riviantrackr-passkeys' ); ?></p>
+
+		<?php if ( null !== $notice ) : ?>
+			<div class="rtpk-account__notice is-<?php echo esc_attr( $notice['type'] ); ?>" role="<?php echo 'error' === $notice['type'] ? 'alert' : 'status'; ?>"><span><?php echo esc_html( $notice['text'] ); ?></span></div>
+		<?php endif; ?>
 
 		<div class="rtpk-account__notice is-info" data-rtpk-pending-email <?php echo '' === $pending ? 'hidden' : ''; ?>>
 			<span data-rtpk-pending-text>
@@ -472,6 +537,15 @@ final class AccountPage {
 			<?php echo $manager; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in ProfileManager::markup(). ?>
 		</div>
 
+		<?php if ( AccountService::has_no_password( $user->ID ) ) : ?>
+		<div class="rtpk-account__block rtpk-account__card rtpk-account__card--row" data-rtpk-no-password>
+			<div>
+				<h4 class="rtpk-account__subtitle"><?php esc_html_e( 'Set a password', 'riviantrackr-passkeys' ); ?></h4>
+				<p class="rtpk-account__desc"><?php esc_html_e( 'Your account was created from an email link, so it has no password yet. Passkeys are all you need, but a password works as a backup on devices without one. We’ll email you a link to choose it.', 'riviantrackr-passkeys' ); ?></p>
+			</div>
+			<button type="button" class="rtpk-btn rtpk-btn--secondary" data-rtpk-password-link><?php esc_html_e( 'Email me a link', 'riviantrackr-passkeys' ); ?></button>
+		</div>
+		<?php else : ?>
 		<div class="rtpk-account__block rtpk-account__card">
 			<h4 class="rtpk-account__subtitle"><?php esc_html_e( 'Change password', 'riviantrackr-passkeys' ); ?></h4>
 			<p class="rtpk-account__desc"><?php esc_html_e( 'You stay signed in here; every other device is signed out.', 'riviantrackr-passkeys' ); ?></p>
@@ -507,7 +581,12 @@ final class AccountPage {
 					<span class="rtpk-account__inline-msg" data-rtpk-form-msg role="status" aria-live="polite"></span>
 				</div>
 			</form>
+			<p class="rtpk-account__help rtpk-account__help--action">
+				<?php esc_html_e( 'Forgot your current password?', 'riviantrackr-passkeys' ); ?>
+				<button type="button" class="rtpk-account__textbtn" data-rtpk-password-link><?php esc_html_e( 'Email me a reset link', 'riviantrackr-passkeys' ); ?></button>
+			</p>
 		</div>
+		<?php endif; ?>
 
 		<div class="rtpk-account__block rtpk-account__card rtpk-account__card--row">
 			<div>
@@ -708,6 +787,73 @@ final class AccountPage {
 		return (string) ob_get_clean();
 	}
 
+	// ---- your data -------------------------------------------------------
+
+	/**
+	 * @param \WP_User            $user    The member.
+	 * @param array<string,mixed> $context light, account_url, tabs.
+	 */
+	public function render_data( \WP_User $user, array $context ): string { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- Tab renderer signature.
+		$immediate = 'delete' === AccountService::deletion_mode( $user, $this->settings->allows_self_delete() );
+
+		ob_start();
+		?>
+		<h3 class="rtpk-account__title"><?php esc_html_e( 'Your data', 'riviantrackr-passkeys' ); ?></h3>
+		<p class="rtpk-account__desc"><?php esc_html_e( 'Get a copy of what we hold about you, or close your account.', 'riviantrackr-passkeys' ); ?></p>
+
+		<div class="rtpk-account__block rtpk-account__card rtpk-account__card--row">
+			<div>
+				<h4 class="rtpk-account__subtitle"><?php esc_html_e( 'Download a copy of your data', 'riviantrackr-passkeys' ); ?></h4>
+				<p class="rtpk-account__desc">
+					<?php
+					printf(
+						/* translators: %s: email address */
+						esc_html__( 'Your profile, comments and the other personal data stored here, as a file. We’ll email a download link to %s once it’s ready.', 'riviantrackr-passkeys' ),
+						'<strong>' . esc_html( $user->user_email ) . '</strong>'
+					);
+					?>
+				</p>
+			</div>
+			<button type="button" class="rtpk-btn rtpk-btn--secondary" data-rtpk-export-data><?php esc_html_e( 'Request my data', 'riviantrackr-passkeys' ); ?></button>
+		</div>
+
+		<div class="rtpk-account__block rtpk-account__card rtpk-account__card--danger">
+			<h4 class="rtpk-account__subtitle"><?php esc_html_e( 'Delete your account', 'riviantrackr-passkeys' ); ?></h4>
+			<p class="rtpk-account__desc">
+				<?php
+				if ( $immediate ) {
+					esc_html_e( 'This removes your profile, passkeys and sign-in straight away and cannot be undone. Comments and reviews you posted stay on the site without a linked account.', 'riviantrackr-passkeys' );
+				} else {
+					esc_html_e( 'Because your account has publishing rights, the site owner reviews deletions. This files the request and you’ll get an email when it’s done.', 'riviantrackr-passkeys' );
+				}
+				?>
+			</p>
+			<form class="rtpk-account__form" data-rtpk-delete-form data-username="<?php echo esc_attr( $user->user_login ); ?>" novalidate>
+				<div class="rtpk-account__grid">
+					<div class="rtpk-account__field rtpk-account__field--wide" data-rtpk-field="confirm">
+						<label class="rtpk-account__label" for="rtpk-delete-confirm">
+							<?php
+							printf(
+								/* translators: %s: username */
+								esc_html__( 'Type your username (%s) to confirm', 'riviantrackr-passkeys' ),
+								'<strong>' . esc_html( $user->user_login ) . '</strong>'
+							);
+							?>
+						</label>
+						<input class="rtpk-account__input" type="text" id="rtpk-delete-confirm" name="confirm" autocomplete="off" autocapitalize="off" spellcheck="false" required>
+						<p class="rtpk-account__error" data-rtpk-error hidden></p>
+					</div>
+				</div>
+				<div class="rtpk-account__actions">
+					<button type="submit" class="rtpk-btn rtpk-btn--danger" disabled><?php echo $immediate ? esc_html__( 'Delete my account', 'riviantrackr-passkeys' ) : esc_html__( 'Request deletion', 'riviantrackr-passkeys' ); ?></button>
+					<span class="rtpk-account__inline-msg" data-rtpk-form-msg role="status" aria-live="polite"></span>
+				</div>
+			</form>
+		</div>
+		<?php
+		return (string) ob_get_clean();
+	}
+
 	// ---- helpers ---------------------------------------------------------
 
 	/**
@@ -736,6 +882,7 @@ final class AccountPage {
 			'star'    => '<path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1.1 5.9L12 16.9l-5.3 2.8 1.1-5.9L3.5 9.7l5.9-.8z"/>',
 			'heart'   => '<path d="M12 20.5s-7.5-4.6-7.5-10A4 4 0 0 1 12 8a4 4 0 0 1 7.5 2.5c0 5.4-7.5 10-7.5 10z"/>',
 			'comment' => '<path d="M4 5.5h16v10H9l-5 4z"/>',
+			'folder'  => '<path d="M3.5 6.5A1.5 1.5 0 0 1 5 5h4l2 2h8a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z"/><path d="M12 11v5"/><path d="m9.5 13.5 2.5 2.5 2.5-2.5"/>',
 			'logout'  => '<path d="M10 4H5v16h5"/><path d="M14 8l4 4-4 4"/><path d="M18 12H9"/>',
 			'chevron' => '<path d="m9 6 6 6-6 6"/>',
 			'tire'    => '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3"/><path d="M12 3.5v5M12 15.5v5M3.5 12h5M15.5 12h5"/>',

@@ -238,10 +238,12 @@ final class Admin {
 						<p>
 							<?php
 							printf(
-								/* translators: 1: login shortcode, 2: signup shortcode, 3: account shortcode */
-								esc_html__( 'Replace the standard wp-login.php screens with pages of your own. Create a page containing %1$s and one containing %2$s, pick them below, then turn on the redirect. A page containing %3$s gives members a front-end account page instead of the dashboard.', 'riviantrackr-passkeys' ),
+								/* translators: 1: login shortcode, 2: signup shortcode, 3: password reset shortcode, 4: passkey setup shortcode, 5: account shortcode */
+								esc_html__( 'Replace the standard wp-login.php screens with pages of your own. Create pages containing %1$s, %2$s, %3$s and %4$s, pick them below, then turn on the redirect. A page containing %5$s gives members a front-end account page instead of the dashboard.', 'riviantrackr-passkeys' ),
 								'<code>[riviantrackr_login]</code>',
 								'<code>[riviantrackr_signup]</code>',
+								'<code>[riviantrackr_password_reset]</code>',
+								'<code>[riviantrackr_passkey_setup]</code>',
 								'<code>[riviantrackr_account]</code>'
 							);
 							?>
@@ -259,6 +261,16 @@ final class Admin {
 									<label class="rtpk-field-label" for="rtpk-register-page"><?php esc_html_e( 'Join page', 'riviantrackr-passkeys' ); ?></label>
 									<?php echo $this->pages_dropdown( $name . '[register_page_id]', 'rtpk-register-page', (int) $o['register_page_id'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_dropdown_pages() escapes its output. ?>
 									<p class="rtpk-field-description"><?php esc_html_e( 'The page holding [riviantrackr_signup]. Linked as “Create an account” on the sign-in page while signups are allowed.', 'riviantrackr-passkeys' ); ?></p>
+								</div>
+								<div>
+									<label class="rtpk-field-label" for="rtpk-reset-page"><?php esc_html_e( 'Password reset page', 'riviantrackr-passkeys' ); ?></label>
+									<?php echo $this->pages_dropdown( $name . '[reset_page_id]', 'rtpk-reset-page', (int) $o['reset_page_id'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_dropdown_pages() escapes its output. ?>
+									<p class="rtpk-field-description"><?php esc_html_e( 'The page holding [riviantrackr_password_reset]. “Lost your password?” links and the emailed reset link lead here while the redirect below is on.', 'riviantrackr-passkeys' ); ?></p>
+								</div>
+								<div>
+									<label class="rtpk-field-label" for="rtpk-setup-page"><?php esc_html_e( 'Passkey setup page', 'riviantrackr-passkeys' ); ?></label>
+									<?php echo $this->pages_dropdown( $name . '[setup_page_id]', 'rtpk-setup-page', (int) $o['setup_page_id'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_dropdown_pages() escapes its output. ?>
+									<p class="rtpk-field-description"><?php esc_html_e( 'The page holding [riviantrackr_passkey_setup]. Invitation links and new signups land here once signed in. While unset, the setup screen shows on wp-login.php.', 'riviantrackr-passkeys' ); ?></p>
 								</div>
 							</div>
 						</div>
@@ -291,8 +303,19 @@ final class Admin {
 						</div>
 						<div class="rtpk-field-row rtpk-field-row--toggle">
 							<div>
+								<span class="rtpk-field-label"><?php esc_html_e( 'Let members delete their own account', 'riviantrackr-passkeys' ); ?></span>
+								<p class="rtpk-field-description"><?php esc_html_e( 'The account page’s “Your data” tab removes the account immediately for members without editing rights (after they type their username). Off, or for editors and administrators, it files a standard erasure request under Tools → Erase Personal Data for you to approve instead. Data export requests always go to Tools → Export Personal Data.', 'riviantrackr-passkeys' ); ?></p>
+							</div>
+							<label class="rtpk-toggle">
+								<input type="checkbox" name="<?php echo esc_attr( $name ); ?>[self_delete]" value="1" <?php checked( ! empty( $o['self_delete'] ) ); ?>>
+								<span class="rtpk-toggle__track"><span class="rtpk-toggle__thumb"></span></span>
+								<span class="screen-reader-text"><?php esc_html_e( 'Allow self-service account deletion', 'riviantrackr-passkeys' ); ?></span>
+							</label>
+						</div>
+						<div class="rtpk-field-row rtpk-field-row--toggle">
+							<div>
 								<span class="rtpk-field-label"><?php esc_html_e( 'Send wp-login.php visitors to these pages', 'riviantrackr-passkeys' ); ?></span>
-								<p class="rtpk-field-description"><?php esc_html_e( 'Anyone opening the standard login or registration screen lands on the pages above, and a wrong password returns them there with a message. Password reset, logout, post passwords and the passkey landing pages stay on wp-login.php. The standard form is always reachable at wp-login.php?reauth=1.', 'riviantrackr-passkeys' ); ?></p>
+								<p class="rtpk-field-description"><?php esc_html_e( 'Anyone opening the standard login, registration or password reset screen lands on the pages above, and a wrong password returns them to the sign-in page with a message. A screen without a page chosen, plus logout, post passwords and the passkey landing pages, stays on wp-login.php. The standard form is always reachable at wp-login.php?reauth=1.', 'riviantrackr-passkeys' ); ?></p>
 							</div>
 							<label class="rtpk-toggle">
 								<input type="checkbox" name="<?php echo esc_attr( $name ); ?>[redirect_wp_login]" value="1" <?php checked( ! empty( $o['redirect_wp_login'] ) ); ?>>
@@ -303,7 +326,7 @@ final class Admin {
 						<div class="rtpk-field-row rtpk-field-row--toggle">
 							<div>
 								<span class="rtpk-field-label"><?php esc_html_e( 'Brand the remaining wp-login.php screens', 'riviantrackr-passkeys' ); ?></span>
-								<p class="rtpk-field-description"><?php esc_html_e( 'Restyles whatever still shows on wp-login.php (password reset, logout, passkey setup and signup pages) in the site’s dark palette with a gold button, and shows your logo instead of the WordPress one. The logo comes from Users → Passkey invitations, then the theme’s custom logo, then the site icon.', 'riviantrackr-passkeys' ); ?></p>
+								<p class="rtpk-field-description"><?php esc_html_e( 'Restyles whatever still shows on wp-login.php (logout, the passkey setup and expired-signup screens while no setup or join page is chosen, password reset while no reset page is chosen) in the site’s dark palette with a gold button, and shows your logo instead of the WordPress one. The logo comes from Users → Passkey invitations, then the theme’s custom logo, then the site icon.', 'riviantrackr-passkeys' ); ?></p>
 							</div>
 							<label class="rtpk-toggle">
 								<input type="checkbox" name="<?php echo esc_attr( $name ); ?>[brand_wp_login]" value="1" <?php checked( ! empty( $o['brand_wp_login'] ) ); ?>>

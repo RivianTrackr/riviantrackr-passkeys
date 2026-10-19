@@ -1,6 +1,6 @@
 {
   "name": "riviantrackr-passkeys",
-  "version": "1.3.0",
+  "version": "1.5.0",
   "private": true,
   "description": "Passkey (WebAuthn) sign-in for WordPress — build tooling.",
   "scripts": {
@@ -8,6 +8,7 @@
     "test": "node --test tests/js/*.test.mjs"
   },
   "devDependencies": {
-    "esbuild": "^0.25.0"
+    "esbuild": "^0.25.0",
+    "jsdom": "^26.1.0"
   }
 }

@@ -14,13 +14,19 @@ if ( ! defined( 'ABSPATH' ) ) {
  *   POST   account/profile              save profile fields; email change needs confirmation
  *   POST   account/email/cancel         drop a pending email change
  *   POST   account/password             change password (current password required)
+ *   POST   account/password/link        email a reset link (set a password / forgot the current one)
+ *   POST   account/data/export          confirmed personal data export request
+ *   DELETE account                      delete the account (or file an erasure request), confirm = username
  *   POST   account/sessions/others      sign out every other browser
  *   DELETE account/reviews/{tire_id}    delete the member's tire review (tire guide)
  *   DELETE account/favorites/{tire_id}  take a tire off the member's saved list (tire guide)
  */
 final class AccountRest {
 
-	public function __construct( private RateLimiter $limiter ) {}
+	public function __construct(
+		private RateLimiter $limiter,
+		private ?Settings $settings = null
+	) {}
 
 	public function register_routes(): void {
 		$ns   = RTPK_REST_NAMESPACE;
@@ -69,11 +75,44 @@ final class AccountRest {
 		);
 		register_rest_route(
 			$ns,
+			'/account/password/link',
+			[
+				'methods'             => 'POST',
+				'callback'            => [ $this, 'send_password_link' ],
+				'permission_callback' => $auth,
+			]
+		);
+		register_rest_route(
+			$ns,
 			'/account/sessions/others',
 			[
 				'methods'             => 'POST',
 				'callback'            => [ $this, 'sign_out_others' ],
 				'permission_callback' => $auth,
+			]
+		);
+		register_rest_route(
+			$ns,
+			'/account/data/export',
+			[
+				'methods'             => 'POST',
+				'callback'            => [ $this, 'request_export' ],
+				'permission_callback' => $auth,
+			]
+		);
+		register_rest_route(
+			$ns,
+			'/account',
+			[
+				'methods'             => 'DELETE',
+				'callback'            => [ $this, 'delete_account' ],
+				'permission_callback' => $auth,
+				'args'                => [
+					'confirm' => [
+						'type'     => 'string',
+						'required' => true,
+					],
+				],
 			]
 		);
 		register_rest_route(
@@ -224,6 +263,39 @@ final class AccountRest {
 	}
 
 	/**
+	 * Email the signed-in member a password reset link: "Set a password" for
+	 * open-signup accounts that never had one, "Forgot your current
+	 * password?" for everyone else. The per-IP limit inside
+	 * retrieve_password() applies; this adds a per-user one.
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function send_password_link() {
+		$user = wp_get_current_user();
+
+		if ( $this->limiter->is_limited( 'account-password-link', (string) $user->ID, 3, HOUR_IN_SECONDS ) ) {
+			return new \WP_Error( 'rtpk_rate_limited', __( 'We already sent you a link. Check your inbox, or try again in an hour.', 'riviantrackr-passkeys' ), [ 'status' => 429 ] );
+		}
+
+		$code = AccountService::send_password_link( $user );
+		if ( 'sent' !== $code ) {
+			$notice = PasswordResetPage::notice( $code );
+			return new \WP_Error( 'rtpk_password_link_failed', $notice ? $notice['text'] : __( 'Something went wrong. Please try again.', 'riviantrackr-passkeys' ), [ 'status' => 'limited' === $code ? 429 : 500 ] );
+		}
+
+		return rest_ensure_response(
+			[
+				'success' => true,
+				'message' => sprintf(
+					/* translators: %s: email address */
+					__( 'We emailed a link to %s. Open it to choose your password.', 'riviantrackr-passkeys' ),
+					$user->user_email
+				),
+			]
+		);
+	}
+
+	/**
 	 * @return \WP_REST_Response
 	 */
 	public function sign_out_others() {
@@ -232,6 +304,83 @@ final class AccountRest {
 			[
 				'success' => true,
 				'message' => __( 'Signed out everywhere else. This browser stays signed in.', 'riviantrackr-passkeys' ),
+			]
+		);
+	}
+
+	/**
+	 * POST account/data/export: a confirmed export request for the owner to
+	 * fulfil under Tools → Export Personal Data.
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function request_export() {
+		$user   = wp_get_current_user();
+		$result = AccountService::privacy_request( $user, 'export_personal_data' );
+		if ( is_wp_error( $result ) ) {
+			$message = 'duplicate_request' === $result->get_error_code()
+				? __( 'A copy of your data has already been requested. You will get an email when it is ready.', 'riviantrackr-passkeys' )
+				: $result->get_error_message();
+			return new \WP_Error( 'rtpk_export_failed', $message, [ 'status' => 409 ] );
+		}
+		return rest_ensure_response(
+			[
+				'success' => true,
+				'message' => sprintf(
+					/* translators: %s: email address */
+					__( 'Request received. We will email a download link to %s once your export is ready, usually within a few days.', 'riviantrackr-passkeys' ),
+					$user->user_email
+				),
+			]
+		);
+	}
+
+	/**
+	 * DELETE account: remove the account now, or file an erasure request,
+	 * depending on the member's role and the setting. The member types their
+	 * username to confirm.
+	 *
+	 * @param \WP_REST_Request $request confirm.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function delete_account( \WP_REST_Request $request ) {
+		$user    = wp_get_current_user();
+		$confirm = trim( (string) $request->get_param( 'confirm' ) );
+		if ( '' === $confirm || 0 !== strcasecmp( $confirm, $user->user_login ) ) {
+			return new \WP_Error(
+				'rtpk_confirm_mismatch',
+				__( 'Type your username exactly to confirm.', 'riviantrackr-passkeys' ),
+				[
+					'status' => 400,
+					'fields' => [ 'confirm' => __( 'That is not your username.', 'riviantrackr-passkeys' ) ],
+				]
+			);
+		}
+
+		$settings = $this->settings ?? new Settings();
+		if ( 'request' === AccountService::deletion_mode( $user, $settings->allows_self_delete() ) ) {
+			$result = AccountService::privacy_request( $user, 'remove_personal_data' );
+			if ( is_wp_error( $result ) && 'duplicate_request' !== $result->get_error_code() ) {
+				return new \WP_Error( 'rtpk_erasure_failed', $result->get_error_message(), [ 'status' => 500 ] );
+			}
+			return rest_ensure_response(
+				[
+					'success' => true,
+					'deleted' => false,
+					'message' => __( 'Request received. Because your account has publishing rights, the site owner reviews the deletion first. You will get an email when it is done.', 'riviantrackr-passkeys' ),
+				]
+			);
+		}
+
+		if ( ! AccountService::delete_account( $user ) ) {
+			return new \WP_Error( 'rtpk_delete_failed', __( 'Your account could not be deleted. Please contact us.', 'riviantrackr-passkeys' ), [ 'status' => 500 ] );
+		}
+		return rest_ensure_response(
+			[
+				'success'  => true,
+				'deleted'  => true,
+				'message'  => __( 'Your account has been deleted.', 'riviantrackr-passkeys' ),
+				'redirect' => home_url( '/' ),
 			]
 		);
 	}

@@ -57,6 +57,34 @@ final class LoginPageTest extends TestCase {
 		$this->assertSame( [], LoginPage::notices( [], 'https://riviantrackr.test/account/' ) );
 	}
 
+	public function test_redirect_to_the_owners_setup_page_also_shows_the_hint(): void {
+		$page = 'https://riviantrackr.test/passkey/';
+		$n    = LoginPage::notices( [], $page . '?redirect_to=%2Faccount%2F', $page );
+		$this->assertSame( [ SetupPage::setup_hint() ], array_column( $n, 'text' ) );
+		$this->assertSame( [], LoginPage::notices( [], $page, '' ), 'without the setting the page is just a page' );
+		$this->assertSame( [], LoginPage::notices( [], 'https://riviantrackr.test/account/', $page ) );
+	}
+
+	public function test_leads_to_setup_matches_paths_and_plain_permalinks(): void {
+		$this->assertTrue( SetupPage::leads_to_setup( 'https://riviantrackr.test/wp-login.php?action=passkey-setup' ) );
+		$this->assertTrue( SetupPage::leads_to_setup( '/passkey/', 'https://riviantrackr.test/passkey/' ) );
+		$this->assertTrue( SetupPage::leads_to_setup( 'https://riviantrackr.test/passkey', 'https://riviantrackr.test/passkey/' ), 'trailing slash is not significant' );
+		$this->assertFalse( SetupPage::leads_to_setup( 'https://riviantrackr.test/passkey-news/', 'https://riviantrackr.test/passkey/' ) );
+		$this->assertTrue( SetupPage::leads_to_setup( 'https://riviantrackr.test/?page_id=14&redirect_to=x', 'https://riviantrackr.test/?page_id=14' ), 'plain permalinks' );
+		$this->assertFalse( SetupPage::leads_to_setup( 'https://riviantrackr.test/?page_id=15', 'https://riviantrackr.test/?page_id=14' ) );
+		$this->assertFalse( SetupPage::leads_to_setup( '', 'https://riviantrackr.test/passkey/' ) );
+	}
+
+	public function test_join_page_notices_for_expired_and_failed_links(): void {
+		$this->assertNull( SignupPage::notice( '', 24 ) );
+		$this->assertNull( SignupPage::notice( 'exists', 24 ), 'exists is a sign-in page notice' );
+		$expired = SignupPage::notice( 'expired', 24 );
+		$this->assertSame( 'info', $expired['type'] );
+		$this->assertStringContainsString( '24 hours', $expired['text'] );
+		$this->assertStringContainsString( '1 hour.', SignupPage::notice( 'expired', 1 )['text'] );
+		$this->assertSame( 'error', SignupPage::notice( 'failed', 24 )['type'] );
+	}
+
 	public function test_expired_invite_wins_over_the_generic_setup_hint(): void {
 		$n = LoginPage::notices( [ 'rtpk_invite' => 'expired' ], 'https://riviantrackr.test/wp-login.php?action=passkey-setup' );
 		$this->assertCount( 1, $n );

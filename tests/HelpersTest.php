@@ -50,5 +50,19 @@ final class HelpersTest extends TestCase {
 		$this->assertSame( 'iCloud Keychain', Helpers::provider_from_aaguid( 'FBFC3007-154E-4ECC-8C0B-6E020557D7BD' ) );
 		$this->assertSame( '', Helpers::provider_from_aaguid( '00000000-0000-0000-0000-000000000000' ) );
 		$this->assertSame( '', Helpers::provider_from_aaguid( null ) );
+		$this->assertSame( 'Proton Pass', Helpers::provider_from_aaguid( '50726f74-6f6e-5061-7373-50726f746f6e' ) );
+		$this->assertSame( 'Security Key by Yubico', Helpers::provider_from_aaguid( 'f8a011f3-8c0a-4d15-8006-17111f9edc7d' ) );
+	}
+
+	public function test_authenticator_names_can_be_extended_or_overridden(): void {
+		$GLOBALS['rtpk_test_filter_hooks']['riviantrackr_passkeys_authenticator_names'] = static function ( array $known ): array {
+			$known['12345678-1234-1234-1234-123456789ABC'] = ' Acme Key ';
+			$known['fbfc3007-154e-4ecc-8c0b-6e020557d7bd'] = 'Apple';
+			$known['bad-entry']                            = '';
+			return $known;
+		};
+		$this->assertSame( 'Acme Key', Helpers::provider_from_aaguid( '12345678-1234-1234-1234-123456789abc' ), 'keys are lower-cased, labels trimmed' );
+		$this->assertSame( 'Apple', Helpers::provider_from_aaguid( 'fbfc3007-154e-4ecc-8c0b-6e020557d7bd' ) );
+		$this->assertArrayNotHasKey( 'bad-entry', Helpers::authenticator_names(), 'empty labels are dropped' );
 	}
 }

@@ -60,6 +60,24 @@
 	box-sizing: border-box;
 }
 
+/* Notice above the form (expired or failed sign-up link) */
+.rtpk-signup__notice {
+	margin: 0 0 16px;
+	padding: 12px 14px;
+	border: 1px solid var(--rtpk-border);
+	border-left: 3px solid var(--rtpk-accent);
+	border-radius: var(--rtpk-radius);
+	background: var(--rtpk-bg-deep);
+	color: var(--rtpk-text);
+	font-size: 14px;
+	line-height: 1.5;
+}
+
+.rtpk-signup__notice.is-error {
+	border-left-color: var(--rtpk-error);
+	background: color-mix(in srgb, var(--rtpk-error) 10%, var(--rtpk-bg-deep));
+}
+
 .rtpk-signup__title {
 	margin: 0 0 6px;
 	font-size: 24px;

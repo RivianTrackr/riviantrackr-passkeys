@@ -32,11 +32,14 @@ final class Settings {
 			'preserve_data'     => false,
 			'login_page_id'     => 0,
 			'register_page_id'  => 0,
+			'reset_page_id'     => 0,
+			'setup_page_id'     => 0,
 			'redirect_wp_login' => false,
 			'brand_wp_login'    => false,
 			'account_page_id'   => 0,
 			'hide_admin_bar'    => true,
 			'account_menu_item' => false,
+			'self_delete'       => true,
 		];
 	}
 
@@ -128,6 +131,21 @@ final class Settings {
 	}
 
 	/**
+	 * Permalink of the owner's password reset page, or ''.
+	 */
+	public function reset_page_url(): string {
+		return $this->page_url( (int) $this->get( 'reset_page_id' ) );
+	}
+
+	/**
+	 * Permalink of the owner's passkey setup page, or ''. While unset the
+	 * setup screen lives on wp-login.php?action=passkey-setup.
+	 */
+	public function setup_page_url(): string {
+		return $this->page_url( (int) $this->get( 'setup_page_id' ) );
+	}
+
+	/**
 	 * Permalink of the member account page, or ''.
 	 */
 	public function account_page_url(): string {
@@ -157,12 +175,20 @@ final class Settings {
 	}
 
 	/**
-	 * Whether wp-login.php's login/register screens should be sent to the
-	 * custom pages. Cheap enough to call at plugins_loaded: no permalink
-	 * lookup, just the stored toggle and page ID.
+	 * Members without editing rights may delete their own account from the
+	 * account page. Off means the page files a core erasure request instead.
+	 */
+	public function allows_self_delete(): bool {
+		return ! empty( $this->get( 'self_delete' ) );
+	}
+
+	/**
+	 * Whether wp-login.php's login/register/reset screens should be sent to
+	 * the custom pages. Cheap enough to call at plugins_loaded: no permalink
+	 * lookup, just the stored toggle and page IDs.
 	 */
 	public function wants_wp_login_redirect(): bool {
-		return ! empty( $this->get( 'redirect_wp_login' ) ) && (int) $this->get( 'login_page_id' ) > 0;
+		return ! empty( $this->get( 'redirect_wp_login' ) ) && ( (int) $this->get( 'login_page_id' ) > 0 || (int) $this->get( 'reset_page_id' ) > 0 );
 	}
 
 	/**
@@ -256,13 +282,16 @@ final class Settings {
 
 		$out['login_page_id']     = $this->published_page_id( $input['login_page_id'] ?? 0, 'rtpk_login_page', __( 'sign-in page', 'riviantrackr-passkeys' ) );
 		$out['register_page_id']  = $this->published_page_id( $input['register_page_id'] ?? 0, 'rtpk_register_page', __( 'join page', 'riviantrackr-passkeys' ) );
+		$out['reset_page_id']     = $this->published_page_id( $input['reset_page_id'] ?? 0, 'rtpk_reset_page', __( 'password reset page', 'riviantrackr-passkeys' ) );
+		$out['setup_page_id']     = $this->published_page_id( $input['setup_page_id'] ?? 0, 'rtpk_setup_page', __( 'passkey setup page', 'riviantrackr-passkeys' ) );
 		$out['redirect_wp_login'] = ! empty( $input['redirect_wp_login'] );
 		$out['brand_wp_login']    = ! empty( $input['brand_wp_login'] );
 		$out['account_page_id']   = $this->published_page_id( $input['account_page_id'] ?? 0, 'rtpk_account_page', __( 'account page', 'riviantrackr-passkeys' ) );
 		$out['hide_admin_bar']    = ! empty( $input['hide_admin_bar'] );
 		$out['account_menu_item'] = ! empty( $input['account_menu_item'] );
+		$out['self_delete']       = ! empty( $input['self_delete'] );
 
-		if ( $out['redirect_wp_login'] && 0 === $out['login_page_id'] && function_exists( 'add_settings_error' ) ) {
+		if ( $out['redirect_wp_login'] && 0 === $out['login_page_id'] && 0 === $out['reset_page_id'] && function_exists( 'add_settings_error' ) ) {
 			add_settings_error(
 				self::OPTION,
 				'rtpk_redirect_needs_page',

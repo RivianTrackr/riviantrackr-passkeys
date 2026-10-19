@@ -30,11 +30,15 @@ define( 'RTPK_NAME_MAX_LENGTH', 60 );
 define( 'RTPK_SIGNUP_IP_RATE_LIMIT', 5 );
 define( 'RTPK_SIGNUP_EMAIL_RATE_LIMIT', 3 );
 define( 'RTPK_SIGNUP_MIN_SECONDS', 3 );
+define( 'RTPK_RESET_RATE_LIMIT', 5 );
 if ( ! defined( 'DAY_IN_SECONDS' ) ) {
 	define( 'DAY_IN_SECONDS', 86400 );
 }
 if ( ! defined( 'HOUR_IN_SECONDS' ) ) {
 	define( 'HOUR_IN_SECONDS', 3600 );
+}
+if ( ! defined( 'COOKIEHASH' ) ) {
+	define( 'COOKIEHASH', md5( 'https://riviantrackr.test' ) );
 }
 
 require_once dirname( __DIR__ ) . '/vendor/autoload.php';
@@ -71,6 +75,11 @@ function rtpk_test_reset(): void {
 	$GLOBALS['rtpk_test_mail_ok']       = true;
 	$GLOBALS['rtpk_test_posts']         = [];
 	$GLOBALS['rtpk_test_current_user']  = null;
+	$GLOBALS['rtpk_test_reset_result']  = true;
+	$GLOBALS['rtpk_test_reset_calls']   = [];
+	$GLOBALS['rtpk_test_updated_users'] = [];
+	$GLOBALS['rtpk_test_privacy_requests'] = [];
+	$GLOBALS['rtpk_test_deleted_users']    = [];
 }
 
 /* ---------------------------------------------------------------- options */
@@ -331,6 +340,16 @@ function wp_remote_retrieve_body( $response ) {
 	return is_array( $response ) ? (string) ( $response['body'] ?? '' ) : '';
 }
 
+/* --------------------------------------------------------- password reset */
+
+$GLOBALS['rtpk_test_reset_result'] = true; // What retrieve_password() returns.
+$GLOBALS['rtpk_test_reset_calls']  = [];
+
+function retrieve_password( $user_login = null ) {
+	$GLOBALS['rtpk_test_reset_calls'][] = $user_login;
+	return $GLOBALS['rtpk_test_reset_result'] ?? true;
+}
+
 /* ------------------------------------------------------------------ posts */
 
 $GLOBALS['rtpk_test_posts'] = [];
@@ -359,6 +378,66 @@ function wp_get_current_user() {
 }
 function get_current_user_id() {
 	return isset( $GLOBALS['rtpk_test_current_user'] ) ? (int) $GLOBALS['rtpk_test_current_user']->ID : 0;
+}
+
+/* --------------------------------------------------------- email change */
+
+$GLOBALS['rtpk_test_updated_users'] = [];
+
+function wp_update_user( $userdata ) {
+	$userdata = (array) $userdata;
+	$id       = (int) ( $userdata['ID'] ?? 0 );
+	$GLOBALS['rtpk_test_updated_users'][] = $userdata;
+	if ( isset( $GLOBALS['rtpk_test_users'][ $id ] ) ) {
+		foreach ( $userdata as $key => $value ) {
+			if ( 'ID' !== $key && property_exists( $GLOBALS['rtpk_test_users'][ $id ], $key ) ) {
+				$GLOBALS['rtpk_test_users'][ $id ]->$key = $value;
+			}
+		}
+	}
+	return $id;
+}
+function wp_specialchars_decode( $text, $quote_style = ENT_NOQUOTES ) {
+	return html_entity_decode( (string) $text, ENT_QUOTES, 'UTF-8' );
+}
+function wp_rand( $min = 0, $max = 0 ) {
+	return random_int( (int) $min, $max > 0 ? (int) $max : PHP_INT_MAX );
+}
+function network_site_url( $path = '', $scheme = null ) {
+	return 'https://riviantrackr.test/' . ltrim( (string) $path, '/' );
+}
+function human_time_diff( $from, $to = 0 ) {
+	$diff = abs( (int) $to - (int) $from );
+	if ( $diff >= DAY_IN_SECONDS ) {
+		$n = (int) round( $diff / DAY_IN_SECONDS );
+		return $n . ( 1 === $n ? ' day' : ' days' );
+	}
+	$n = max( 1, (int) round( $diff / HOUR_IN_SECONDS ) );
+	return $n . ( 1 === $n ? ' hour' : ' hours' );
+}
+
+/* ----------------------------------------------------------- privacy */
+
+$GLOBALS['rtpk_test_privacy_requests'] = [];
+$GLOBALS['rtpk_test_deleted_users']    = [];
+
+function wp_create_user_request( $email, $action, $data = [], $status = 'pending' ) {
+	foreach ( $GLOBALS['rtpk_test_privacy_requests'] as $r ) {
+		if ( $r['email'] === $email && $r['action'] === $action ) {
+			return new WP_Error( 'duplicate_request', 'An incomplete personal data request for this email address already exists.' );
+		}
+	}
+	$GLOBALS['rtpk_test_privacy_requests'][] = compact( 'email', 'action', 'status' );
+	return 500 + count( $GLOBALS['rtpk_test_privacy_requests'] );
+}
+function wp_delete_user( $id, $reassign = null ) {
+	$GLOBALS['rtpk_test_deleted_users'][] = (int) $id;
+	do_action( 'deleted_user', (int) $id, $reassign, $GLOBALS['rtpk_test_users'][ (int) $id ] ?? null );
+	unset( $GLOBALS['rtpk_test_users'][ (int) $id ] );
+	return true;
+}
+function wp_logout() {
+	$GLOBALS['rtpk_test_current_user'] = null;
 }
 
 /* -------------------------------------------------------------- site info */
@@ -399,18 +478,42 @@ class WP_User {
 }
 
 class WP_Error {
-	private string $code;
-	private string $message;
+	/** @var array<string,string[]> */
+	public array $errors = [];
+	/** @var array<string,mixed> */
+	public array $error_data = [];
 
 	public function __construct( string $code = '', string $message = '', $data = null ) {
-		$this->code    = $code;
-		$this->message = $message;
+		if ( '' !== $code ) {
+			$this->add( $code, $message, $data );
+		}
+	}
+	public function add( string $code, string $message, $data = null ): void {
+		$this->errors[ $code ][] = $message;
+		if ( null !== $data ) {
+			$this->error_data[ $code ] = $data;
+		}
+	}
+	public function has_errors(): bool {
+		return [] !== $this->errors;
+	}
+	public function get_error_codes(): array {
+		return array_keys( $this->errors );
 	}
 	public function get_error_code(): string {
-		return $this->code;
+		return (string) ( array_key_first( $this->errors ) ?? '' );
 	}
-	public function get_error_message(): string {
-		return $this->message;
+	public function get_error_message( string $code = '' ): string {
+		if ( '' === $code ) {
+			$code = $this->get_error_code();
+		}
+		return (string) ( $this->errors[ $code ][0] ?? '' );
+	}
+	public function get_error_data( string $code = '' ) {
+		if ( '' === $code ) {
+			$code = $this->get_error_code();
+		}
+		return $this->error_data[ $code ] ?? null;
 	}
 }
 function is_wp_error( $thing ) {

@@ -1,5 +1,6 @@
 node_modules/
 vendor/
+tests/integration/vendor/
 .phpunit.cache/
 .phpunit.result.cache
 .DS_Store

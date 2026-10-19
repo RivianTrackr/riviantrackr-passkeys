@@ -905,3 +905,50 @@ a.rtpk-account__item-name:hover {
 		animation: none !important;
 	}
 }
+
+/* Inline text action ("Forgot your current password? Email me a reset link") */
+.rtpk-account__help--action {
+	margin-top: 12px;
+}
+
+.rtpk-account__textbtn {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--rtpk-accent);
+	font: inherit;
+	font-size: inherit;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+	cursor: pointer;
+}
+
+.rtpk-account__textbtn:hover {
+	color: var(--rtpk-accent-hover);
+}
+
+.rtpk-account__textbtn:focus-visible {
+	outline: 2px solid var(--rtpk-accent);
+	outline-offset: 2px;
+	border-radius: 2px;
+}
+
+.rtpk-account__textbtn[aria-busy="true"] {
+	opacity: 0.6;
+	cursor: progress;
+}
+
+/* "Your data": the delete card gets a warning tint */
+.rtpk-account__card--danger {
+	border-color: color-mix(in srgb, var(--rtpk-error) 35%, var(--rtpk-border));
+}
+
+.rtpk-account__card--danger .rtpk-account__subtitle {
+	color: var(--rtpk-error);
+}
+
+.rtpk-account .rtpk-btn--danger:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}

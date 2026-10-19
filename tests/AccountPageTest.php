@@ -24,10 +24,10 @@ final class AccountPageTest extends TestCase {
 	}
 
 	public function test_default_tabs_depend_on_what_the_tire_guide_offers(): void {
-		$this->assertSame( [ 'overview', 'profile', 'security', 'reviews', 'favorites', 'comments' ], AccountPage::default_tab_ids( true, true ) );
-		$this->assertSame( [ 'overview', 'profile', 'security', 'reviews', 'comments' ], AccountPage::default_tab_ids( true, false ), 'an older tire guide without favourites' );
-		$this->assertSame( [ 'overview', 'profile', 'security', 'favorites', 'comments' ], AccountPage::default_tab_ids( false, true ) );
-		$this->assertSame( [ 'overview', 'profile', 'security', 'comments' ], AccountPage::default_tab_ids( false, false ) );
+		$this->assertSame( [ 'overview', 'profile', 'security', 'reviews', 'favorites', 'comments', 'data' ], AccountPage::default_tab_ids( true, true ) );
+		$this->assertSame( [ 'overview', 'profile', 'security', 'reviews', 'comments', 'data' ], AccountPage::default_tab_ids( true, false ), 'an older tire guide without favourites' );
+		$this->assertSame( [ 'overview', 'profile', 'security', 'favorites', 'comments', 'data' ], AccountPage::default_tab_ids( false, true ) );
+		$this->assertSame( [ 'overview', 'profile', 'security', 'comments', 'data' ], AccountPage::default_tab_ids( false, false ) );
 	}
 
 	public function test_tabs_are_built_from_the_defaults(): void {
@@ -60,7 +60,7 @@ final class AccountPageTest extends TestCase {
 		};
 
 		$tabs = $this->page->tabs( false, false );
-		$this->assertSame( [ 'overview', 'orders', 'profile', 'security' ], array_keys( $tabs ), 'id is slugified, comments removed, orders inserted' );
+		$this->assertSame( [ 'overview', 'orders', 'profile', 'security', 'data' ], array_keys( $tabs ), 'id is slugified, comments removed, orders inserted' );
 		$this->assertSame( '', $tabs['orders']['icon'] );
 		$this->assertSame( '<p>orders</p>', call_user_func( $tabs['orders']['render'] ) );
 	}
@@ -81,6 +81,20 @@ final class AccountPageTest extends TestCase {
 		$this->assertSame( [ 'ok' ], array_keys( $out ) );
 		$this->assertSame( 'OK', $out['ok']['label'] );
 		$this->assertSame( '<svg/>', $out['ok']['icon'] );
+	}
+
+	public function test_your_data_tab_is_last_with_its_own_icon(): void {
+		$tabs = $this->page->tabs( false, false );
+		$this->assertSame( 'Your data', $tabs['data']['label'] );
+		$this->assertStringContainsString( '<svg', $tabs['data']['icon'] );
+		$this->assertNotSame( AccountPage::icon( 'dot' ), $tabs['data']['icon'] );
+	}
+
+	public function test_email_change_notices(): void {
+		$this->assertNull( AccountPage::email_notice( '' ) );
+		$this->assertNull( AccountPage::email_notice( 'other' ) );
+		$this->assertSame( 'success', AccountPage::email_notice( 'changed' )['type'] );
+		$this->assertSame( 'error', AccountPage::email_notice( 'invalid' )['type'] );
 	}
 
 	public function test_icons_and_stars_are_inline_svg(): void {

@@ -19,7 +19,8 @@ final class SignupPage {
 
 	public function __construct(
 		private SignupService $signup,
-		private InviteService $invites
+		private InviteService $invites,
+		private Settings $settings
 	) {}
 
 	public function register_hooks(): void {
@@ -171,14 +172,55 @@ final class SignupPage {
 		}
 
 		$this->enqueue();
-		return $this->form_markup( $light );
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Display only.
+		$code = isset( $_GET['rtpk_signup'] ) ? sanitize_key( wp_unslash( (string) $_GET['rtpk_signup'] ) ) : '';
+		// phpcs:enable
+		$notice = self::notice( $code, (int) $this->signup->get( 'expiry_hours' ) );
+		if ( null === $notice ) {
+			return $this->form_markup( $light );
+		}
+		return $this->form_markup(
+			$light,
+			[
+				'notice' => $notice,
+				'button' => __( 'Send me a new link', 'riviantrackr-passkeys' ),
+			]
+		);
+	}
+
+	/**
+	 * Notice for ?rtpk_signup on the join page: the wp-login.php landing
+	 * page sends expired and failed links back here. Pure.
+	 *
+	 * @param string $code  Query value.
+	 * @param int    $hours Link lifetime from the settings.
+	 * @return array{type:string,text:string}|null
+	 */
+	public static function notice( string $code, int $hours ): ?array {
+		switch ( $code ) {
+			case 'expired':
+				return [
+					'type' => 'info',
+					'text' => sprintf(
+						/* translators: %d: number of hours */
+						_n( 'That sign-up link has expired or was already used. Links work once and expire after %d hour. Enter your email again and we’ll send a fresh one.', 'That sign-up link has expired or was already used. Links work once and expire after %d hours. Enter your email again and we’ll send a fresh one.', $hours, 'riviantrackr-passkeys' ),
+						$hours
+					),
+				];
+			case 'failed':
+				return [
+					'type' => 'error',
+					'text' => __( 'We couldn’t create your account from that link. Enter your email again to get a new one.', 'riviantrackr-passkeys' ),
+				];
+		}
+		return null;
 	}
 
 	/**
 	 * The signup form. Also embedded on the expired-link page.
 	 *
 	 * @param bool                $light Light theme.
-	 * @param array<string,mixed> $args  Optional: title, desc, button, show_login (bool).
+	 * @param array<string,mixed> $args  Optional: title, desc, button, show_login (bool), notice ({type,text}).
 	 */
 	public function form_markup( bool $light, array $args = [] ): string {
 		++$this->instance;
@@ -193,6 +235,11 @@ final class SignupPage {
 		ob_start();
 		?>
 		<div class="rtpk-signup<?php echo $light ? ' is-light' : ''; ?>" data-rtpk-signup data-turnstile="<?php echo $turn ? '1' : '0'; ?>">
+			<?php if ( ! empty( $args['notice']['text'] ) ) : ?>
+				<div class="rtpk-signup__notice is-<?php echo esc_attr( (string) ( $args['notice']['type'] ?? 'info' ) ); ?>" role="<?php echo 'error' === ( $args['notice']['type'] ?? '' ) ? 'alert' : 'status'; ?>">
+					<?php echo esc_html( (string) $args['notice']['text'] ); ?>
+				</div>
+			<?php endif; ?>
 			<form class="rtpk-signup__form" data-rtpk-signup-form method="post" action="" novalidate>
 				<?php if ( '' !== $title ) : ?>
 					<h3 class="rtpk-signup__title"><?php echo esc_html( $title ); ?></h3>
@@ -282,8 +329,14 @@ final class SignupPage {
 			exit;
 		}
 
+		$join = $this->settings->register_page_url();
+
 		$row = '' !== $token ? $this->signup->validate_token( $token ) : null;
 		if ( null === $row ) {
+			if ( '' !== $join ) {
+				wp_safe_redirect( add_query_arg( 'rtpk_signup', 'expired', $join ) );
+				exit;
+			}
 			$hours = (int) $this->signup->get( 'expiry_hours' );
 			$this->render_page(
 				__( 'Sign-up link expired', 'riviantrackr-passkeys' ),
@@ -303,6 +356,10 @@ final class SignupPage {
 		if ( is_wp_error( $user ) ) {
 			if ( 'rtpk_signup_exists' === $user->get_error_code() ) {
 				wp_safe_redirect( add_query_arg( 'rtpk_signup', 'exists', wp_login_url( $this->invites->setup_url( $this->signup->continue_url() ) ) ) );
+				exit;
+			}
+			if ( '' !== $join ) {
+				wp_safe_redirect( add_query_arg( 'rtpk_signup', 'failed', $join ) );
 				exit;
 			}
 			$this->render_page(

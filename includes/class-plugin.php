@@ -31,10 +31,12 @@ final class Plugin {
 	private SignupPage $signup_page;
 	private LoginPage $login_page;
 	private LoginRouter $router;
+	private PasswordResetPage $reset_page;
 	private LoginBranding $branding;
 	private AccountPage $account;
 	private AccountRest $account_rest;
 	private AccountRedirect $account_redirect;
+	private BrandedEmails $emails;
 
 	public static function instance(): Plugin {
 		if ( null === self::$instance ) {
@@ -57,13 +59,15 @@ final class Plugin {
 		$this->setup_page       = new SetupPage( $this->invites, $this->profile, $this->store, $this->settings );
 		$this->pending          = new PendingSignupStore();
 		$this->signup           = new SignupService( $this->settings, $this->invites, $this->pending, $this->limiter );
-		$this->signup_page      = new SignupPage( $this->signup, $this->invites );
+		$this->signup_page      = new SignupPage( $this->signup, $this->invites, $this->settings );
 		$this->login_page       = new LoginPage( $this->settings, $this->signup );
 		$this->router           = new LoginRouter( $this->settings );
+		$this->reset_page       = new PasswordResetPage( $this->settings, $this->limiter );
 		$this->branding         = new LoginBranding( $this->settings, $this->invites );
 		$this->account          = new AccountPage( $this->settings, $this->store, $this->profile );
-		$this->account_rest     = new AccountRest( $this->limiter );
+		$this->account_rest     = new AccountRest( $this->limiter, $this->settings );
 		$this->account_redirect = new AccountRedirect( $this->settings );
+		$this->emails           = new BrandedEmails( $this->invites );
 		$this->admin            = new Admin( $this->settings, $this->store, $this->signup );
 	}
 
@@ -71,10 +75,12 @@ final class Plugin {
 		load_plugin_textdomain( 'riviantrackr-passkeys', false, dirname( plugin_basename( RTPK_FILE ) ) . '/languages' );
 
 		add_action( 'admin_init', [ Installer::class, 'maybe_upgrade' ] );
+		add_action( Installer::PURGE_EVENT, [ $this->pending, 'purge_expired' ] );
 		add_action( 'rest_api_init', [ $this->rest, 'register_routes' ] );
 		add_action( 'rest_api_init', [ $this->signup_page, 'register_routes' ] );
 		add_action( 'rest_api_init', [ $this->account_rest, 'register_routes' ] );
 		add_action( 'deleted_user', [ $this->store, 'delete_for_user' ] );
+		add_action( 'wp_set_password', [ AccountService::class, 'on_password_set' ], 10, 2 );
 		add_action( 'update_option_' . Settings::OPTION, [ $this->settings, 'flush' ] );
 		add_action( 'update_option_' . SignupService::OPTION, [ $this->signup, 'flush' ] );
 
@@ -84,9 +90,11 @@ final class Plugin {
 		$this->signup_page->register_hooks();
 		$this->login_page->register_hooks();
 		$this->router->register_hooks();
+		$this->reset_page->register_hooks();
 		$this->branding->register_hooks();
 		$this->account->register_hooks();
 		$this->account_redirect->register_hooks();
+		$this->emails->register_hooks();
 
 		if ( is_admin() ) {
 			$this->admin->register_hooks();

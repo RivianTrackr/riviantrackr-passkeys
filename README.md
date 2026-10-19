@@ -22,9 +22,11 @@ key once, then sign in with a single tap. Passwords keep working alongside.
   page (profile, email and password changes, passkeys, sign out other devices, tire reviews and
   saved tires from the Rivian Tire Guide, comments) and sends them there after signing in instead of
   the wp-admin dashboard. Other plugins add tabs through a filter.
-- **Your own login pages** — `[riviantrackr_login]` on a page of your choosing, with wp-login.php's
-  login/register screens redirected there and the remaining wp-login.php screens (password reset,
-  logout, passkey setup) reskinned in the site's colours with your logo.
+- **Your own login pages** — `[riviantrackr_login]`, `[riviantrackr_password_reset]` and
+  `[riviantrackr_passkey_setup]` on pages of your choosing, with wp-login.php's login, register,
+  password reset and passkey setup screens redirected there, the emails WordPress sends around
+  sign-in (password reset, welcome, email change) in the same branded template, and whatever is
+  left on wp-login.php reskinned in the site's colours with your logo.
 - **Hardened by default** — single-use challenges, strict exact-origin matching, signature-counter
   clone detection, per-IP and per-user rate limits, opaque 32-byte user handles, a 10-passkey cap
   per account.
@@ -58,33 +60,52 @@ key once, then sign in with a single tap. Passwords keep working alongside.
 | `[riviantrackr_passkeys]` | Passkey manager for the signed-in member. Dark "ink & brass" theme by default; `theme="light"` for light backgrounds. Shows a sign-in link when logged out. |
 | `[riviantrackr_passkey_login redirect="/my-account/" theme="dark" divider="0"]` | Stand-alone sign-in button for custom login pages. Hidden for signed-in visitors. |
 | `[riviantrackr_login theme="dark" redirect=""]` | Full sign-in form for your own login page: passkey button, username/password, "Lost your password?", "Create an account", failure and logout messages. See [Custom login pages](#custom-login-pages). |
-| `[riviantrackr_account theme="dark"]` | Tabbed member account page: Overview, Profile, Security, Reviews and Saved tires (tire guide), Comments. Dark by default, `theme="light"` available. Signed-out visitors get a sign-in link. See [Member account page](#member-account-page). |
+| `[riviantrackr_password_reset theme="dark"]` | Password reset in the same card: "Reset your password" (username or email, sends the standard WordPress reset email) and, from the emailed link, "Choose a new password". Plain forms, no JavaScript. See [Custom login pages](#custom-login-pages). |
+| `[riviantrackr_passkey_setup theme="dark"]` | The one-tap "Set up a passkey" screen in the same card: pitch, create button, done panel, skip link. Invitation links and new signups land here once signed in; signed-out visitors get a Sign in button that brings them back. See [Custom login pages](#custom-login-pages). |
+| `[riviantrackr_account theme="dark"]` | Tabbed member account page: Overview, Profile, Security, Reviews and Saved tires (tire guide), Comments, Your data. Dark by default, `theme="light"` available. Signed-out visitors get a sign-in link. See [Member account page](#member-account-page). |
 | `[riviantrackr_signup theme="dark" redirect=""]` | Verify-first signup form (email + optional name). Dark by default, `theme="light"` available. Requires **Allow signups** under Settings → Passkeys. Signed-in visitors see a "Continue" note instead. |
 
 ## Custom login pages
 
-Replace the stock `wp-login.php` login and registration screens with pages of your own while
-password reset, logout, post passwords and the passkey landing pages keep working on `wp-login.php`.
+Replace the stock `wp-login.php` login, registration, password reset and passkey setup screens
+with pages of your own while logout, post passwords and the token-checking landing URLs keep
+working on `wp-login.php`.
 
-1. Create a page (for example `/sign-in/`) containing `[riviantrackr_login]` and, if you use open
-   signup, a page (for example `/join/`) containing `[riviantrackr_signup]`. Publish both.
-2. Under **Settings → Passkeys → Pages** pick them as **Sign-in page** and **Join page**.
+1. Create a page (for example `/sign-in/`) containing `[riviantrackr_login]`, a page (for example
+   `/reset-password/`) containing `[riviantrackr_password_reset]`, a page (for example `/passkey/`)
+   containing `[riviantrackr_passkey_setup]` and, if you use open signup, a page (for example
+   `/join/`) containing `[riviantrackr_signup]`. Publish them.
+2. Under **Settings → Passkeys → Pages** pick them as **Sign-in page**, **Password reset page**,
+   **Passkey setup page** and **Join page**. The setup page takes effect as soon as it is chosen
+   (no redirect toggle needed): `InviteService::setup_url()` points at it, so the invitation
+   landing URL, the signup landing URL and the sign-in page's "set up your passkey" hint all end
+   there, and `wp-login.php?action=passkey-setup` forwards signed-in visitors to it after its token
+   work. Expired or failed signup links land on the join page with a notice instead of a
+   wp-login.php screen, as soon as a join page is chosen.
 3. Turn on **Send wp-login.php visitors to these pages**. From now on:
    - `wp_login_url()` (and so `auth_redirect()`, "Log in" links, the logout confirmation) points at
-     the sign-in page, keeping `redirect_to`; `wp_registration_url()` points at the join page.
+     the sign-in page, keeping `redirect_to`; `wp_registration_url()` points at the join page;
+     `wp_lostpassword_url()` (every "Lost your password?" link) points at the reset page.
    - A GET request for `wp-login.php` with no action, `action=login` or `action=register` is
      redirected to the matching page. `redirect_to`, `login`, `loggedout`, `checkemail`,
      `rtpk_invite` and `rtpk_signup` are carried over so the page can show the right message.
+   - A GET request for `action=lostpassword`, `retrievepassword`, `rp` or `resetpass` is redirected
+     to the reset page. The emailed link's `key` and `login` ride along (so the standard reset email
+     needs no change), `redirect_to` is kept, and wp-login.php's own `error=expiredkey|invalidkey`
+     bounce becomes the page's "link expired" notice. A screen whose page is not chosen stays on
+     wp-login.php.
    - A wrong password or an empty username/password sends the visitor back to the sign-in page with
      `?login=failed` or `?login=empty` instead of rendering `wp-login.php`.
-   - Never redirected: POST requests, `interim-login`, `reauth=1`, signed-in visitors (wp-login.php
-     already forwards them), and `postpass`, `logout`, `lostpassword`, `retrievepassword`,
-     `resetpass`, `rp`, `confirmaction`, `passkey-setup`, `passkey-signup`.
+   - Never redirected by the router: POST requests, `interim-login`, `reauth=1`, signed-in
+     visitors (wp-login.php already forwards them), and `postpass`, `logout`, `confirmaction`,
+     `passkey-setup`, `passkey-signup` (the last two check their tokens on wp-login.php, then
+     forward to your pages themselves).
    - If the chosen page is unpublished or deleted the redirect switches itself off. The stock form
      is always reachable at `wp-login.php?reauth=1`.
-4. Optionally turn on **Brand the remaining wp-login.php screens** to restyle password reset, logout
-   and the passkey setup/signup pages in the dark "ink & brass" palette with a gold button and your
-   logo (the invitations logo, else the theme's custom logo, else the site icon, else the site name).
+4. Optionally turn on **Brand the remaining wp-login.php screens** to restyle logout and whatever
+   screen has no page of its own yet (password reset, passkey setup, the expired-signup page) in
+   the dark "ink & brass" palette with a gold button and your logo (the invitations logo, else the
+   theme's custom logo, else the site icon, else the site name).
 
 `[riviantrackr_login theme="dark|light" redirect=""]` renders `wp_login_form()` in the plugin's card:
 passkey button on top, "or", username, password, "Keep me signed in", "Sign in", then "Lost your
@@ -95,10 +116,59 @@ message for `?login=failed`, `?login=empty`, `?loggedout=true`, `?checkemail=con
 else the `redirect` attribute, else the home page. Signed-in visitors see "You're signed in as …"
 with a Continue link.
 
-**Caching caveat:** the sign-in and join pages must not be served from a full-page cache. The form
-carries the current `redirect_to`, the messages depend on the query string, and the signed-in state
-depends on the visitor. Exclude both URLs in your cache plugin or CDN (most ignore requests with
-query strings, but the bare page must be excluded too), or the cached copy will show the wrong state.
+`[riviantrackr_password_reset theme="dark|light"]` renders the reset flow in the same card, as plain
+forms that post back to the page (no JavaScript needed):
+
+- **Reset your password:** username or email, "Send reset link". It calls `retrieve_password()`, so
+  the standard WordPress flow (and the `lostpassword_post`, `allow_password_reset` hooks) applies
+  and the email is the branded one described under [Emails](#emails). Whether or not an account
+  matches, the visitor sees "Check your inbox", like open signup: nothing reveals who is registered
+  (core's `invalidcombo` and `invalid_email` both read as sent). Empty input, an account with
+  reset disabled and a mail failure show an inline error. Reset emails are limited to 5 per hour
+  per IP (`RTPK_RESET_RATE_LIMIT`); the limit is applied inside `retrieve_password()` through the
+  `lostpassword_post` action, so it covers wp-login.php and other plugins' forms too.
+- **Choose a new password:** reached from the emailed link. Like wp-login.php, the key is moved from
+  the URL into a cookie scoped to the page before anything renders, so it never leaks through the
+  referrer. The form asks for the password twice (at least 8 characters, no backslash),
+  `check_password_reset_key()` verifies the key, `validate_password_reset` runs, then
+  `reset_password()` saves it and "Password updated" offers a **Sign in** button
+  (`wp_login_url()`, so it lands on your sign-in page). An expired or spent key shows "This reset
+  link has expired" above the request form.
+- Signed-in visitors are pointed at the account page (or `profile.php`) to change their password,
+  with a "Not you? Sign out" link.
+- Every outcome is a redirect back to the page with `?rtpk_reset=<code>`, so a refresh never
+  resubmits a form.
+
+`[riviantrackr_passkey_setup theme="dark|light"]` renders the one-tap setup screen in the same card:
+the pitch and three benefits, the embedded passkey manager with a single **Create a passkey**
+button, a done panel with **Continue to {site}** (the `redirect_to` query arg, else wp-admin for
+editors, else the account page, else home) and **Skip for now**. Signed-out visitors see a
+**Sign in** button whose `redirect_to` brings them back, and the sign-in page shows its "sign in
+once with your password" hint for that URL. `[riviantrackr_signup]` shows an "expired link" or
+"couldn't create your account" notice above the form when the landing page sends a visitor back
+with `?rtpk_signup=expired|failed`.
+
+### Emails
+
+With the pages above, the plain-text emails WordPress sends around sign-in would stand out, so
+`BrandedEmails` puts them in the invitation template (logo, palette and from address from
+**Users → Passkey invitations**, HTML with a plain-text fallback link):
+
+| Email | Hook used | What changes |
+|---|---|---|
+| Password reset | `retrieve_password_notification_email` | "Reset your {site} password", who asked, a **Choose a new password** button to the very link core built (so the router still catches it), the link lifetime and the requesting IP. |
+| New member welcome (`wp_new_user_notification`) | `wp_new_user_notification_email` | "Welcome to {site}" with the set-password link lifted from core's message. |
+| New member notice to the admin | `wp_new_user_notification_email_admin` | "New member on {site}" with username, email and a **View member** button. |
+| Email-change confirmation (account page) | `riviantrackr_passkeys_email_change_mail` | "Confirm your new {site} email address" with a **Confirm new email** button. |
+
+`add_filter( 'riviantrackr_passkeys_brand_core_emails', '__return_false' )` keeps WordPress's own
+text for all four. The subject and body copy are translatable strings, not settings.
+
+**Caching caveat:** the sign-in, reset, setup and join pages must not be served from a full-page
+cache. The forms carry the current `redirect_to` and a nonce, the messages depend on the query
+string, and the signed-in and reset states depend on the visitor. Exclude the URLs in your cache
+plugin or CDN (most ignore requests with query strings, but the bare pages must be excluded too),
+or the cached copy will show the wrong state.
 
 ## Member account page
 
@@ -110,11 +180,12 @@ no icon font):
 | Tab | What it shows |
 |---|---|
 | **Overview** | Avatar, display name, email, member since, counts of passkeys / reviews / saved tires / comments (each a link to its tab), quick links. |
-| **Profile** | Display name, first and last name, email, website, bio. Saved over REST with inline field errors. Changing the email does not apply immediately: the standard WordPress confirmation link is sent to the new address (same `_new_email` meta and `profile.php?newuseremail=…` link as the profile screen), the pending address is shown on the page and can be cancelled. |
-| **Security** | The passkey manager (add, rename, remove), a change-password form (current password required; this browser stays signed in, every other device is signed out) and **Sign out other devices** (`WP_Session_Tokens::destroy_others()`). |
+| **Profile** | Display name, first and last name, email, website, bio. Saved over REST with inline field errors. Changing the email does not apply immediately: a branded confirmation link is sent to the new address (same `_new_email` meta as the profile screen), the pending address is shown on the page and can be cancelled. The link lands on the account page (`?newuseremail=…`), which applies the change the way `user-edit.php` does and shows "Your email address has been updated" on this tab; signed-out visitors are sent to sign in and brought back. Without an account page the link goes to `profile.php` as in core. |
+| **Security** | The passkey manager (add, rename, remove, provider badge from the AAGUID), a change-password form (current password required; this browser stays signed in, every other device is signed out) with a **Forgot your current password? Email me a reset link** action, and **Sign out other devices** (`WP_Session_Tokens::destroy_others()`). Accounts created by open signup have a random password nobody has seen, so they get a **Set a password** card (emails the reset link) instead of the change form until a password is set; the flag is `riviantrackr_passkeys_no_password` user meta, cleared by the core `wp_set_password` action. |
 | **Reviews** | Only while the Rivian Tire Guide is active (helper methods are feature-detected; older builds are read through `wp_rtg_ratings` directly). The member's approved reviews (`RTG_Database::get_user_reviews()`) plus pending/rejected ones from `wp_rtg_ratings`, with tire name linked to the tire page, stars, title, excerpt, status badge, date, **Edit** (opens the guide's review page with the review loaded, `RTG_Tire_Review::url()`) and **Delete** (`RTG_Database::delete_user_rating()`). |
 | **Saved tires** | Only while the tire guide is active (2.14.0+ hearts; older builds are read through `wp_rtg_saved_tires`). `RTG_Database::get_saved_tires()` with name, size, image, today's price, the move since the save and the save date, a link to the guide's saved tires page, **View** and **Remove** (`RTG_Database::unsave_tire()`). The tab id and REST path stay `favorites`. |
 | **Comments** | The member's 20 most recent approved comments with post title links. |
+| **Your data** | **Request my data** files a core personal-data export request for the member and marks it confirmed (they are signed in, so core's confirmation email is skipped); you fulfil it under **Tools → Export Personal Data**. **Delete your account** asks the member to type their username: members without `edit_posts`, `delete_users` or `manage_options` are deleted on the spot (`wp_delete_user()`, so their passkeys go through `deleted_user`; comments and tire reviews stay on the site without a linked account) and signed out; editors, administrators, and everyone when **Let members delete their own account** is off, get a confirmed erasure request under **Tools → Erase Personal Data** instead. |
 
 A **Sign out** link sits in the header. Tabs are addressed by URL hash (`/account/#security`), so
 quick links and the invitation/setup flows can deep-link into a section.
@@ -136,6 +207,8 @@ quick links and the invitation/setup flows can deep-link into a section.
    - **Add an "Account" link to the main menu** (off by default) appends an Account item to the
      theme's first registered menu location for signed-in members. If you manage menus yourself,
      leave it off and add the page under Appearance → Menus.
+   - **Let members delete their own account** (on by default) controls whether the Your data tab
+     deletes immediately or files an erasure request for you to approve.
 3. **Exclude the page from full-page caching** (cache plugin or CDN). Everything on it depends on
    the signed-in user.
 
@@ -157,8 +230,8 @@ add_filter( 'riviantrackr_passkeys_account_tabs', function ( array $tabs, ?WP_Us
 ```
 
 Entries without an id, label or callable `render` are ignored. The default tab ids are
-`overview`, `profile`, `security`, `reviews`, `favorites` (saved tires; the last two only with the tire guide)
-and `comments`; remove or reorder them freely.
+`overview`, `profile`, `security`, `reviews`, `favorites` (saved tires; the last two only with the tire guide),
+`comments` and `data`; remove or reorder them freely.
 
 ## Inviting members
 
@@ -209,7 +282,8 @@ submits email (+ name)        ──►  POST signup/request
                                    ├ address already registered  → "you already have an account" email
                                    └ otherwise: pending row (SHA-256 of a 32-byte token) + branded email
 clicks "Confirm and set up      ──►  wp-login.php?action=passkey-signup&token=…
-my passkey"                        ├ token unknown / expired / used → friendly page with "send me a new link"
+my passkey"                        ├ token unknown / expired / used → join page with the "expired" notice
+                                   │  (or a friendly wp-login.php page while no join page is chosen)
                                    └ create user (role from settings, random password, username from
                                      the email's local part, de-duplicated), fire user_register,
                                      delete the row, sign in, redirect to passkey setup → continue URL
@@ -217,7 +291,11 @@ my passkey"                        ├ token unknown / expired / used → friend
 
 - **Nothing is created until the click.** Unverified requests live only in
   `wp_riviantrackr_pending_signups` (email, display name, hashed token, hashed IP, expiry) and are
-  purged as they expire. Pending count is shown on the settings screen.
+  purged on every signup request and by a daily WP-Cron event (`riviantrackr_passkeys_purge_signups`,
+  scheduled on activation, cleared on deactivation). Pending count is shown on the settings screen.
+- **New members have no password they know.** The account is created with a random 32-character
+  password and flagged (`riviantrackr_passkeys_no_password`), so the account page offers **Set a
+  password** (an emailed reset link) instead of a change form until one is chosen.
 - **No account enumeration.** The form always answers "check your inbox". If the address already
   has an account, the inbox owner gets a sign-in reminder instead of a signup link.
 - **Rate limits:** 5 requests per hour per IP (HTTP 429), 3 per hour per address (silently dropped).
@@ -278,6 +356,9 @@ Namespace `riviantrackr-passkeys/v1`. Logged-in routes require the standard REST
 | POST | `/account/profile` | user | `display_name`, `first_name`, `last_name`, `email`, `url`, `description`; field errors in `data.fields`; an email change returns `pendingEmail` |
 | POST | `/account/email/cancel` | user | drop a pending email change |
 | POST | `/account/password` | user | 5/min per user; `current`, `new`, `confirm`; re-issues this browser's cookie, signs out other devices |
+| POST | `/account/password/link` | user | 3/hour per user (plus the per-IP reset limit); emails the standard reset link ("Set a password" / "Forgot your current password?") |
+| POST | `/account/data/export` | user | files a confirmed personal-data export request; 409 when one is already open |
+| DELETE | `/account` | user | `confirm` = username; deletes the account (`deleted: true`, `redirect`) or files a confirmed erasure request (`deleted: false`) depending on role and the setting |
 | POST | `/account/sessions/others` | user | sign out every other browser/device |
 | DELETE | `/account/reviews/{tire_id}` | user | delete own tire review (tire guide active) |
 | DELETE | `/account/favorites/{tire_id}` | user | take a tire off the saved list (tire guide active) |
@@ -309,17 +390,45 @@ do_action( 'riviantrackr_passkeys_password_changed', WP_User $user );
 
 // Add, remove or reorder account page tabs (see "Member account page").
 add_filter( 'riviantrackr_passkeys_account_tabs', fn( array $tabs, ?WP_User $user ) => $tabs, 10, 2 );
+
+// Keep WordPress's plain-text password reset / welcome / email-change emails.
+add_filter( 'riviantrackr_passkeys_brand_core_emails', '__return_false' );
+
+// Change the branded email-change confirmation before it is sent (to, subject, message, headers).
+add_filter( 'riviantrackr_passkeys_email_change_mail', fn( array $mail, WP_User $user, string $new_email, string $link ) => $mail, 10, 4 );
+
+// Name more authenticators (AAGUID => label) for default passkey names and the provider badge.
+add_filter( 'riviantrackr_passkeys_authenticator_names', fn( array $names ) => $names + [ '12345678-1234-1234-1234-123456789abc' => 'Acme Key' ] );
+
+do_action( 'riviantrackr_passkeys_account_deleting', WP_User $user ); // just before a member deletes their own account
 ```
 
 ## Development
 
 ```bash
 composer install          # PHPUnit + the library source
-vendor/bin/phpunit        # PHPUnit incl. a software P-256 authenticator driving real verification
-npm install && npm test   # JS helper tests (node:test)
+vendor/bin/phpunit        # unit suite: WordPress stubs, a software P-256 authenticator driving real verification
+npm install && npm test   # JS tests (node:test + jsdom): core helpers, login, signup, manager and account scripts
 npm run build             # esbuild → assets/*.min.{js,css}
 phpcs --standard=.phpcs.xml
 ```
+
+The integration suite runs the plugin inside a real WordPress install with a real database through
+WordPress's own PHPUnit test library (`WP_UnitTestCase`): the REST ceremonies end to end, the
+wp-login.php routing against real pages and permalinks, the password reset flow from email to new
+password, the account routes (password link, export, deletion, email confirmation), open signup and
+the installer. It needs MySQL or MariaDB and PHPUnit 9 (WordPress's library does not run on 10), kept
+in its own `tests/integration/composer.json`:
+
+```bash
+bin/install-wp-tests.sh wordpress_test root '' 127.0.0.1 latest   # WordPress + test library (WP_TESTS_DIR, WP_CORE_DIR to relocate)
+composer install -d tests/integration                              # PHPUnit 9 + Yoast polyfills
+tests/integration/vendor/bin/phpunit -c phpunit.integration.xml
+```
+
+Where wordpress.org and its Subversion server are unreachable, `WP_FROM_GITHUB=true` makes the
+install script take core and the test library from a shallow clone of `WordPress/wordpress-develop`
+instead. CI runs the suite against the latest WordPress on PHP 8.2 and 8.4 with a MariaDB service.
 
 The bundled library lives in `lib/lbuchs-webauthn/` (copied from `vendor/lbuchs/webauthn/src`).
 To upgrade it: `composer update lbuchs/webauthn && cp -R vendor/lbuchs/webauthn/src/. lib/lbuchs-webauthn/`.

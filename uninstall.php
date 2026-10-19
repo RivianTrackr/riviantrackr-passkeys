@@ -2,8 +2,8 @@
 /**
  * Uninstall handler for RivianTrackr Passkeys.
  *
- * Removes the credentials and pending-signup tables, settings, transients and user handles
- * unless "Keep passkeys when the plugin is deleted" is enabled.
+ * Removes the credentials and pending-signup tables, settings, transients, the scheduled
+ * cleanup and the plugin's user meta (handles, invitations, password flag) unless "Keep passkeys when the plugin is deleted" is enabled.
  *
  * @package RivianTrackr_Passkeys
  */
@@ -15,6 +15,8 @@ if ( ! defined( 'ABSPATH' ) || ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 global $wpdb;
 
 $rtpk_options = get_option( 'riviantrackr_passkeys_options', [] );
+
+wp_clear_scheduled_hook( 'riviantrackr_passkeys_purge_signups' );
 
 // Challenges and rate-limit buckets are always safe to purge.
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
@@ -34,7 +36,15 @@ delete_option( 'riviantrackr_passkeys_signup_options' );
 delete_option( 'riviantrackr_passkeys_db_version' );
 
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->usermeta} WHERE meta_key = %s", 'riviantrackr_passkeys_user_handle' ) );
+$wpdb->query(
+	$wpdb->prepare(
+		"DELETE FROM {$wpdb->usermeta} WHERE meta_key IN ( %s, %s, %s, %s )",
+		'riviantrackr_passkeys_user_handle',
+		'riviantrackr_passkeys_invite',
+		'riviantrackr_passkeys_invited_at',
+		'riviantrackr_passkeys_no_password'
+	)
+);
 
 $rtpk_table = $wpdb->prefix . 'riviantrackr_passkeys';
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange

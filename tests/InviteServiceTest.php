@@ -69,6 +69,19 @@ final class InviteServiceTest extends TestCase {
 		$this->assertStringContainsString( 'redirect_to=', $this->invites->setup_url( 'https://riviantrackr.test/account/' ) );
 	}
 
+	public function test_setup_url_prefers_the_owners_setup_page(): void {
+		$this->assertStringContainsString( 'wp-login.php?action=passkey-setup', $this->invites->setup_url(), 'no page chosen' );
+
+		$GLOBALS['rtpk_test_posts'] = [ 14 => [ 'status' => 'publish', 'url' => 'https://riviantrackr.test/passkey/' ] ];
+		update_option( RTPK_OPTION_NAME, [ 'setup_page_id' => 14 ] );
+		$invites = new InviteService( new Settings(), new CredentialStore() );
+
+		$this->assertSame( 'https://riviantrackr.test/passkey/', $invites->setup_url() );
+		$this->assertSame( 'https://riviantrackr.test/passkey/?redirect_to=%2Faccount%2F', $invites->setup_url( '/account/' ) );
+		$this->assertStringContainsString( 'wp-login.php?action=passkey-setup', InviteService::wp_login_setup_url(), 'the token landing stays on wp-login.php' );
+		$this->assertStringContainsString( 'wp-login.php', $invites->invite_link( $this->user, 'abc' ), 'invitation links still carry the token to wp-login.php' );
+	}
+
 	public function test_email_fills_placeholders_escapes_html_and_includes_button(): void {
 		$link  = 'https://riviantrackr.test/wp-login.php?action=passkey-setup&uid=7&rtpk_invite=t';
 		$email = $this->invites->render_email(
