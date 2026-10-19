@@ -62,7 +62,8 @@ key once, then sign in with a single tap. Passwords keep working alongside.
 | `[riviantrackr_login theme="dark" redirect=""]` | Full sign-in form for your own login page: passkey button, username/password, "Lost your password?", "Create an account", failure and logout messages. See [Custom login pages](#custom-login-pages). |
 | `[riviantrackr_password_reset theme="dark"]` | Password reset in the same card: "Reset your password" (username or email, sends the standard WordPress reset email) and, from the emailed link, "Choose a new password". Plain forms, no JavaScript. See [Custom login pages](#custom-login-pages). |
 | `[riviantrackr_passkey_setup theme="dark"]` | The one-tap "Set up a passkey" screen in the same card: pitch, create button, done panel, skip link. Invitation links and new signups land here once signed in; signed-out visitors get a Sign in button that brings them back. See [Custom login pages](#custom-login-pages). |
-| `[riviantrackr_account theme="dark"]` | Tabbed member account page: Overview, Profile (photo, names, email, bio), Security, Reviews and Saved tires (tire guide), Comments, Your data. Dark by default, `theme="light"` available. Signed-out visitors get a sign-in link. See [Member account page](#member-account-page). |
+| `[riviantrackr_account theme="dark"]` | Tabbed member account page: Overview, Profile (photo, names, email, bio), Garage, Security, Reviews and Saved tires (tire guide), Comments, Your data. Dark by default, `theme="light"` available. Signed-out visitors get a sign-in link (and "Create a free account" when a join page is set). See [Member account page](#member-account-page). |
+| `[riviantrackr_garage_cta theme="dark"]` | Asks visitors to save their Rivian: signed out, "Save your Rivian" with **Create a free account** (join page) and **Sign in**; signed in with an empty garage, "Add your Rivian" linking to the Garage tab; nothing once the garage has a vehicle. See [My Garage](#my-garage). |
 | `[riviantrackr_signup theme="dark" redirect=""]` | Verify-first signup form (email + optional name). Dark by default, `theme="light"` available. Requires **Allow signups** under Settings → Passkeys. Signed-in visitors see a "Continue" note instead. |
 
 ## Custom login pages
@@ -179,8 +180,9 @@ no icon font):
 
 | Tab | What it shows |
 |---|---|
-| **Overview** | Avatar, display name, email, member since, counts of passkeys / reviews / saved tires / comments (each a link to its tab), quick links. |
+| **Overview** | Avatar, display name, email, member since, counts of passkeys / vehicles / reviews / saved tires / comments (each a link to its tab), quick links. While the garage is empty an **Add your Rivian** card sits above the counts. |
 | **Profile** | **Your photo**: upload a JPG, PNG, GIF or WebP (2 MB by default, `riviantrackr_passkeys_avatar_max_bytes` filter); it is cropped to a centred square of at most 512px, stored in the media library as a private attachment owned by the member, and served everywhere WordPress asks for that member's avatar (header, comments, author boxes, wp-admin) through `pre_get_avatar_data`. **Remove photo** deletes the attachment and goes back to Gravatar; deleting the account deletes the photo with the member's other posts. Then display name, first and last name, email, website, bio. Saved over REST with inline field errors. Changing the email does not apply immediately: a branded confirmation link is sent to the new address (same `_new_email` meta as the profile screen), the pending address is shown on the page and can be cancelled. The link lands on the account page (`?newuseremail=…`), which applies the change the way `user-edit.php` does and shows "Your email address has been updated" on this tab; signed-out visitors are sent to sign in and brought back. Without an account page the link goes to `profile.php` as in core. |
+| **Garage** | The member's Rivians: model, model year, generation (set from the year, can be changed), an optional nickname and up to four wheel sets each (a wheel from the Tire Guide with one of its sizes, or any wheel with the tire size typed in, plus a label like "Winter"). Up to five vehicles; one is the default. Add, edit, remove and **Make default** over REST with inline field errors. An empty garage opens the form straight away. See [My Garage](#my-garage). |
 | **Security** | The passkey manager (add, rename, remove, provider badge from the AAGUID), a change-password form (current password required; this browser stays signed in, every other device is signed out) with a **Forgot your current password? Email me a reset link** action, and **Sign out other devices** (`WP_Session_Tokens::destroy_others()`). Accounts created by open signup have a random password nobody has seen, so they get a **Set a password** card (emails the reset link) instead of the change form until a password is set; the flag is `riviantrackr_passkeys_no_password` user meta, cleared by the core `wp_set_password` action. |
 | **Reviews** | Only while the Rivian Tire Guide is active (helper methods are feature-detected; older builds are read through `wp_rtg_ratings` directly). The member's approved reviews (`RTG_Database::get_user_reviews()`) plus pending/rejected ones from `wp_rtg_ratings`, with tire name linked to the tire page, stars, title, excerpt, status badge, date, **Edit** (opens the guide's review page with the review loaded, `RTG_Tire_Review::url()`) and **Delete** (`RTG_Database::delete_user_rating()`). |
 | **Saved tires** | Only while the tire guide is active (2.14.0+ hearts; older builds are read through `wp_rtg_saved_tires`). `RTG_Database::get_saved_tires()` with name, size, image, today's price, the move since the save and the save date, a link to the guide's saved tires page, **View** and **Remove** (`RTG_Database::unsave_tire()`). The tab id and REST path stay `favorites`. |
@@ -230,8 +232,49 @@ add_filter( 'riviantrackr_passkeys_account_tabs', function ( array $tabs, ?WP_Us
 ```
 
 Entries without an id, label or callable `render` are ignored. The default tab ids are
-`overview`, `profile`, `security`, `reviews`, `favorites` (saved tires; the last two only with the tire guide),
+`overview`, `profile`, `garage`, `security`, `reviews`, `favorites` (saved tires; the last two only with the tire guide),
 `comments` and `data`; remove or reorder them freely.
+
+## My Garage
+
+Members keep the Rivians they drive on their account so every RivianTrackr plugin can show what
+applies to them. The vocabulary is shared (`Vehicles`) and maps onto the slugs the other plugins
+already use:
+
+| Model | `label` (Tire Guide reviews and wheels) | `platform` (Software Updates) | `group` (Tire Guide filter) | Generations |
+|---|---|---|---|---|
+| `r1t` | R1T | `r1` | R1 | `gen1` 2022–2024, `gen2` 2025+ |
+| `r1s` | R1S | `r1` | R1 | `gen1` 2022–2024, `gen2` 2025+ |
+| `r2` | R2 | `r2` | R2 | `gen1` 2026+ |
+
+Years run from a model's first year to next year. Add R3 (or a generation) with the
+`riviantrackr_garage_models` filter; entries missing a label, platform, group or a sensible year
+range are dropped.
+
+The garage is one user meta entry (`riviantrackr_passkeys_garage`). Wheels picked from the Tire
+Guide are read fresh each time, so a renamed wheel follows the guide, and a size the guide drops
+falls back to the wheel's stock size. Typed sizes are normalized (`275/65R18`, `LT285/70R17`,
+`35x12.50R17`).
+
+**Reading it from another plugin** (no dependency on this one; `null` when it is not active):
+
+```php
+$garage = apply_filters( 'riviantrackr_garage', null, get_current_user_id() );
+// [ 'vehicles' => [ … ], 'default_id' => 'a1b2c3d4', 'default' => [ … ] | null ]
+// Each vehicle: id, model, model_label, year, generation, generation_label, nickname,
+// label ("2025 R1S"), platform, group, wheels [ wheel_id, name, size, label, third_party ],
+// sizes (every tire size it wears), is_default.
+```
+
+**In the browser**, every front-end page gets `window.riviantrackrGarage` in the head (script
+handle `riviantrackr-garage`, so list it as a dependency): `signedIn`, `vehicles`, `defaultId`,
+`garageUrl` (the Garage tab), `joinUrl`, `signInUrl` and `maxVehicles`. Visitors who are signed
+out all get the same data, so cached pages stay correct. The account page fires a
+`riviantrackr:garage` event on `document` (the new garage as `detail`) after every change.
+`add_filter( 'riviantrackr_passkeys_garage_script', '__return_false' )` stops printing it.
+
+The garage is included in personal-data exports and removed by erasure requests and account
+deletion.
 
 ## Inviting members
 
@@ -364,6 +407,11 @@ Namespace `riviantrackr-passkeys/v1`. Logged-in routes require the standard REST
 | POST | `/account/sessions/others` | user | sign out every other browser/device |
 | DELETE | `/account/reviews/{tire_id}` | user | delete own tire review (tire guide active) |
 | DELETE | `/account/favorites/{tire_id}` | user | take a tire off the saved list (tire guide active) |
+| GET | `/account/garage` | user | the member's garage |
+| POST | `/account/garage/vehicles` | user | 30/min per user; `model`, `year`, `generation` (optional, from the year), `nickname`, `wheels[]` (`wheel_id`, `size`, `name`, `label`), `make_default`; field errors in `data.fields` (`wheels.1.size`); 409 when the garage holds five |
+| POST | `/account/garage/vehicles/{id}` | user | edit a vehicle (same fields) |
+| DELETE | `/account/garage/vehicles/{id}` | user | remove a vehicle; the next one becomes the default |
+| POST | `/account/garage/default` | user | `id`; make a vehicle the default |
 
 ## Hooks
 
@@ -407,6 +455,12 @@ do_action( 'riviantrackr_passkeys_avatar_updated', WP_User $user, int $attachmen
 
 // Allow bigger avatar uploads (bytes; never below 100 KB).
 add_filter( 'riviantrackr_passkeys_avatar_max_bytes', fn() => 5 * 1024 * 1024 );
+
+// The garage (see My Garage).
+$garage = apply_filters( 'riviantrackr_garage', null, $user_id );
+add_filter( 'riviantrackr_garage_models', fn( array $models ) => $models + [ 'r3' => [ 'label' => 'R3', 'platform' => 'r3', 'group' => 'R3', 'generations' => [ 'gen1' => [ 2027, 0 ] ] ] ] );
+do_action( 'riviantrackr_garage_updated', int $user_id, array $garage ); // a vehicle was added, edited, removed or made the default
+add_filter( 'riviantrackr_passkeys_garage_script', '__return_false' ); // stop printing window.riviantrackrGarage
 ```
 
 ## Development

@@ -140,6 +140,14 @@ $GLOBALS['rtpk_test_users'] = [];
 $GLOBALS['rtpk_test_mail']  = [];
 
 function get_user_by( $field, $value ) {
+	if ( 'email' === $field ) {
+		foreach ( $GLOBALS['rtpk_test_users'] as $user ) {
+			if ( $user->user_email === $value ) {
+				return $user;
+			}
+		}
+		return false;
+	}
 	return $GLOBALS['rtpk_test_users'][ (int) $value ] ?? false;
 }
 function wp_mail( $to, $subject, $message, $headers = [] ) {

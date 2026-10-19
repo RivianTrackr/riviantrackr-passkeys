@@ -24,10 +24,10 @@ final class AccountPageTest extends TestCase {
 	}
 
 	public function test_default_tabs_depend_on_what_the_tire_guide_offers(): void {
-		$this->assertSame( [ 'overview', 'profile', 'security', 'reviews', 'favorites', 'comments', 'data' ], AccountPage::default_tab_ids( true, true ) );
-		$this->assertSame( [ 'overview', 'profile', 'security', 'reviews', 'comments', 'data' ], AccountPage::default_tab_ids( true, false ), 'an older tire guide without favourites' );
-		$this->assertSame( [ 'overview', 'profile', 'security', 'favorites', 'comments', 'data' ], AccountPage::default_tab_ids( false, true ) );
-		$this->assertSame( [ 'overview', 'profile', 'security', 'comments', 'data' ], AccountPage::default_tab_ids( false, false ) );
+		$this->assertSame( [ 'overview', 'profile', 'garage', 'security', 'reviews', 'favorites', 'comments', 'data' ], AccountPage::default_tab_ids( true, true ) );
+		$this->assertSame( [ 'overview', 'profile', 'garage', 'security', 'reviews', 'comments', 'data' ], AccountPage::default_tab_ids( true, false ), 'an older tire guide without favourites' );
+		$this->assertSame( [ 'overview', 'profile', 'garage', 'security', 'favorites', 'comments', 'data' ], AccountPage::default_tab_ids( false, true ) );
+		$this->assertSame( [ 'overview', 'profile', 'garage', 'security', 'comments', 'data' ], AccountPage::default_tab_ids( false, false ), 'the garage does not need the tire guide' );
 	}
 
 	public function test_tabs_are_built_from_the_defaults(): void {
@@ -60,7 +60,7 @@ final class AccountPageTest extends TestCase {
 		};
 
 		$tabs = $this->page->tabs( false, false );
-		$this->assertSame( [ 'overview', 'orders', 'profile', 'security', 'data' ], array_keys( $tabs ), 'id is slugified, comments removed, orders inserted' );
+		$this->assertSame( [ 'overview', 'orders', 'profile', 'garage', 'security', 'data' ], array_keys( $tabs ), 'id is slugified, comments removed, orders inserted' );
 		$this->assertSame( '', $tabs['orders']['icon'] );
 		$this->assertSame( '<p>orders</p>', call_user_func( $tabs['orders']['render'] ) );
 	}

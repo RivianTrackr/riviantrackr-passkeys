@@ -41,6 +41,8 @@
             <property name="prefixes" type="array">
                 <element value="rtpk"/>
                 <element value="riviantrackr_passkeys"/>
+                <!-- The garage hooks are shared with the other RivianTrackr plugins. -->
+                <element value="riviantrackr_garage"/>
                 <element value="RivianTrackr\Passkeys"/>
             </property>
         </properties>

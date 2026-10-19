@@ -10,7 +10,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * [riviantrackr_account]: a tabbed "My Account" page for members.
  *
- * Tabs: Overview, Profile (photo, names, email, bio), Security (passkeys, password, sessions),
+ * Tabs: Overview, Profile (photo, names, email, bio), Garage (the member's
+ * Rivians and their wheels), Security (passkeys, password, sessions),
  * Reviews and Saved tires (when the Rivian Tire Guide is active), Comments.
  * Other plugins add or reorder tabs through the
  * `riviantrackr_passkeys_account_tabs` filter.
@@ -95,7 +96,7 @@ final class AccountPage {
 	 * @return string[]
 	 */
 	public static function default_tab_ids( bool $reviews, bool $favorites ): array {
-		$ids = [ 'overview', 'profile', 'security' ];
+		$ids = [ 'overview', 'profile', 'garage', 'security' ];
 		if ( $reviews ) {
 			$ids[] = 'reviews';
 		}
@@ -152,6 +153,7 @@ final class AccountPage {
 		$labels    = [
 			'overview'  => __( 'Overview', 'riviantrackr-passkeys' ),
 			'profile'   => __( 'Profile', 'riviantrackr-passkeys' ),
+			'garage'    => __( 'Garage', 'riviantrackr-passkeys' ),
 			'security'  => __( 'Security', 'riviantrackr-passkeys' ),
 			'reviews'   => __( 'Reviews', 'riviantrackr-passkeys' ),
 			'favorites' => __( 'Saved tires', 'riviantrackr-passkeys' ),
@@ -161,6 +163,7 @@ final class AccountPage {
 		$icons     = [
 			'overview'  => 'home',
 			'profile'   => 'user',
+			'garage'    => 'car',
 			'security'  => 'shield',
 			'reviews'   => 'star',
 			'favorites' => 'heart',
@@ -219,6 +222,7 @@ final class AccountPage {
 						'maxBytes' => Avatars::max_bytes(),
 						'types'    => array_keys( Avatars::TYPES ),
 					],
+					'garage'  => $this->garage_config(),
 					'i18n'    => [
 						'saving'               => __( 'Saving…', 'riviantrackr-passkeys' ),
 						'working'              => __( 'Working…', 'riviantrackr-passkeys' ),
@@ -237,6 +241,30 @@ final class AccountPage {
 						'noFavorites'          => __( 'No saved tires yet. Tap the heart on a tire in the guide to keep it here.', 'riviantrackr-passkeys' ),
 						/* translators: %s: email address */
 						'pendingEmail'         => __( 'A confirmation link was sent to %s. Your email changes once you click it.', 'riviantrackr-passkeys' ),
+						'garageDefault'        => __( 'Default', 'riviantrackr-passkeys' ),
+						'garageMakeDefault'    => __( 'Make default', 'riviantrackr-passkeys' ),
+						'garageEdit'           => __( 'Edit', 'riviantrackr-passkeys' ),
+						'garageRemove'         => __( 'Remove', 'riviantrackr-passkeys' ),
+						'garageConfirmRemove'  => __( 'Remove this vehicle from your garage?', 'riviantrackr-passkeys' ),
+						'garageAddTitle'       => __( 'Add a vehicle', 'riviantrackr-passkeys' ),
+						'garageEditTitle'      => __( 'Edit vehicle', 'riviantrackr-passkeys' ),
+						'garageNoWheels'       => __( 'No wheels added yet.', 'riviantrackr-passkeys' ),
+						'garageChooseYear'     => __( 'Choose a year', 'riviantrackr-passkeys' ),
+						'garageYearFirst'      => __( 'Pick the year first', 'riviantrackr-passkeys' ),
+						'garageChooseWheel'    => __( 'Choose a wheel', 'riviantrackr-passkeys' ),
+						'garageOtherWheel'     => __( 'Another wheel (type the tire size)', 'riviantrackr-passkeys' ),
+						'garageRivianWheels'   => __( 'Rivian wheels', 'riviantrackr-passkeys' ),
+						'garageAftermarket'    => __( 'Aftermarket', 'riviantrackr-passkeys' ),
+						'garageWheel'          => __( 'Wheel', 'riviantrackr-passkeys' ),
+						'garageTireSize'       => __( 'Tire size', 'riviantrackr-passkeys' ),
+						'garageTireSizeHint'   => __( 'e.g. 275/65R18', 'riviantrackr-passkeys' ),
+						'garageWheelName'      => __( 'Wheel name (optional)', 'riviantrackr-passkeys' ),
+						'garageWheelNameHint'  => __( 'e.g. Method 703, 18 in', 'riviantrackr-passkeys' ),
+						'garageWheelLabel'     => __( 'Label (optional)', 'riviantrackr-passkeys' ),
+						'garageWheelLabelHint' => __( 'Summer, Winter, Off-road', 'riviantrackr-passkeys' ),
+						'garageRemoveWheel'    => __( 'Remove this wheel set', 'riviantrackr-passkeys' ),
+						/* translators: %d: first model year of an ongoing generation */
+						'garageYearsOpen'      => __( '%d+', 'riviantrackr-passkeys' ),
 					],
 				]
 			);
@@ -262,6 +290,7 @@ final class AccountPage {
 				. self::icon( 'user' )
 				. '<p>' . esc_html__( 'Sign in to see your account.', 'riviantrackr-passkeys' ) . '</p>'
 				. '<a class="rtpk-btn rtpk-btn--primary" href="' . esc_url( $login ) . '">' . esc_html__( 'Sign in', 'riviantrackr-passkeys' ) . '</a>'
+				. self::join_line( $this->settings->register_page_url() )
 				. '</div></div>';
 		}
 
@@ -324,6 +353,42 @@ final class AccountPage {
 		return (string) ob_get_clean();
 	}
 
+	/**
+	 * "New here? Create a free account" under the signed-out Sign in
+	 * button, or '' without a join page. Pure.
+	 */
+	public static function join_line( string $join_url ): string {
+		if ( '' === $join_url ) {
+			return '';
+		}
+		return '<p class="rtpk-account__join">' . esc_html__( 'New here?', 'riviantrackr-passkeys' ) . ' <a href="' . esc_url( $join_url ) . '">' . esc_html__( 'Create a free account', 'riviantrackr-passkeys' ) . '</a> ' . esc_html__( 'to save your Rivian and see what fits it.', 'riviantrackr-passkeys' ) . '</p>';
+	}
+
+	/**
+	 * What the page script needs for the Garage tab: the member's garage,
+	 * the models, years and generations to pick from, and the Tire Guide's
+	 * wheels.
+	 *
+	 * @return array<string,mixed>
+	 */
+	private function garage_config(): array {
+		$user_id = get_current_user_id();
+		$wheels  = TireGuide::wheels();
+		$garage  = $user_id > 0 ? Garage::for_user( $user_id, $wheels ) : [
+			'vehicles'   => [],
+			'default_id' => '',
+		];
+		return [
+			'vehicles'  => $garage['vehicles'],
+			'defaultId' => $garage['default_id'],
+			'models'    => Vehicles::catalog(),
+			'wheels'    => $wheels,
+			'max'       => Garage::MAX_VEHICLES,
+			'maxWheels' => Garage::MAX_WHEELS,
+			'icon'      => self::icon( 'car' ),
+		];
+	}
+
 	private function account_url(): string {
 		$url = $this->settings->account_page_url();
 		if ( '' === $url ) {
@@ -342,6 +407,8 @@ final class AccountPage {
 		$tabs      = (array) ( $context['tabs'] ?? [] );
 		$reviews   = in_array( 'reviews', $tabs, true );
 		$favorites = in_array( 'favorites', $tabs, true );
+		$garage    = in_array( 'garage', $tabs, true );
+		$vehicles  = $garage ? count( Garage::stored( $user->ID )['vehicles'] ) : 0;
 		$name      = '' !== $user->display_name ? $user->display_name : $user->user_login;
 		$since     = $user->user_registered ? date_i18n( (string) get_option( 'date_format' ), strtotime( (string) $user->user_registered ) ) : '';
 		$comments  = (int) get_comments(
@@ -360,6 +427,14 @@ final class AccountPage {
 				'label' => __( 'Passkeys', 'riviantrackr-passkeys' ),
 			],
 		];
+		if ( $garage ) {
+			$stats[] = [
+				'tab'   => 'garage',
+				'icon'  => 'car',
+				'value' => $vehicles,
+				'label' => _n( 'Vehicle', 'Vehicles', $vehicles, 'riviantrackr-passkeys' ),
+			];
+		}
 		if ( $reviews ) {
 			$stats[] = [
 				'tab'   => 'reviews',
@@ -385,6 +460,7 @@ final class AccountPage {
 
 		$links = [
 			'profile'  => [ __( 'Edit your profile', 'riviantrackr-passkeys' ), __( 'Name, email, website and bio.', 'riviantrackr-passkeys' ) ],
+			'garage'   => [ __( 'Your garage', 'riviantrackr-passkeys' ), __( 'The Rivians you drive and the wheels they wear.', 'riviantrackr-passkeys' ) ],
 			'security' => [ __( 'Passkeys and password', 'riviantrackr-passkeys' ), __( 'Add a passkey, change your password, sign out other devices.', 'riviantrackr-passkeys' ) ],
 		];
 		if ( $reviews ) {
@@ -415,6 +491,17 @@ final class AccountPage {
 				<?php endif; ?>
 			</div>
 		</div>
+
+		<?php if ( $garage && 0 === $vehicles ) : ?>
+			<div class="rtpk-account__block rtpk-account__card rtpk-account__card--row rtpk-garage__nudge" data-rtpk-garage-nudge>
+				<span class="rtpk-garage__nudge-icon" aria-hidden="true"><?php echo self::icon( 'car' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static SVG. ?></span>
+				<div>
+					<h4 class="rtpk-account__subtitle"><?php esc_html_e( 'Add your Rivian', 'riviantrackr-passkeys' ); ?></h4>
+					<p class="rtpk-account__desc"><?php esc_html_e( 'Tell us what you drive and which wheels it wears, and we will show the tires, software updates and news that apply to it.', 'riviantrackr-passkeys' ); ?></p>
+				</div>
+				<a class="rtpk-btn rtpk-btn--primary" href="#garage" data-rtpk-goto="garage"><?php esc_html_e( 'Add a vehicle', 'riviantrackr-passkeys' ); ?></a>
+			</div>
+		<?php endif; ?>
 
 		<div class="rtpk-account__stats">
 			<?php foreach ( $stats as $stat ) : ?>
@@ -554,6 +641,105 @@ final class AccountPage {
 				<span class="rtpk-account__inline-msg" data-rtpk-form-msg role="status" aria-live="polite"></span>
 			</div>
 		</form>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	// ---- garage ----------------------------------------------------------
+
+	/**
+	 * The Garage tab. The vehicle list and the wheel rows are drawn by the
+	 * page script from the garage it is given, and redrawn after each save.
+	 *
+	 * @param \WP_User            $user    The member.
+	 * @param array<string,mixed> $context light, account_url, tabs.
+	 */
+	public function render_garage( \WP_User $user, array $context ): string { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- Tab renderer signature.
+		$models = Vehicles::catalog();
+
+		ob_start();
+		?>
+		<h3 class="rtpk-account__title"><?php esc_html_e( 'Your garage', 'riviantrackr-passkeys' ); ?></h3>
+		<p class="rtpk-account__desc"><?php esc_html_e( 'The Rivians you drive and the wheels they wear. We use them to show the tires, software updates and news that apply to you, starting with your default vehicle.', 'riviantrackr-passkeys' ); ?></p>
+
+		<div class="rtpk-garage" data-rtpk-garage>
+			<ul class="rtpk-account__list rtpk-garage__list" data-rtpk-garage-list></ul>
+			<p class="rtpk-account__empty" data-rtpk-garage-empty hidden><?php esc_html_e( 'No vehicles yet. Add the Rivian you drive to get started.', 'riviantrackr-passkeys' ); ?></p>
+
+			<div class="rtpk-account__actions rtpk-garage__add">
+				<button type="button" class="rtpk-btn rtpk-btn--primary" data-rtpk-garage-add><?php esc_html_e( 'Add a vehicle', 'riviantrackr-passkeys' ); ?></button>
+				<span class="rtpk-account__help" data-rtpk-garage-full hidden>
+					<?php
+					printf(
+						/* translators: %d: number of vehicles */
+						esc_html__( 'Your garage holds up to %d vehicles. Remove one to add another.', 'riviantrackr-passkeys' ),
+						(int) Garage::MAX_VEHICLES
+					);
+					?>
+				</span>
+			</div>
+
+			<form class="rtpk-account__form rtpk-account__card rtpk-garage__form" data-rtpk-garage-form novalidate hidden>
+				<h4 class="rtpk-account__subtitle" data-rtpk-garage-form-title><?php esc_html_e( 'Add a vehicle', 'riviantrackr-passkeys' ); ?></h4>
+				<div class="rtpk-account__grid">
+					<div class="rtpk-account__field" data-rtpk-field="model">
+						<label class="rtpk-account__label" for="rtpk-garage-model"><?php esc_html_e( 'Model', 'riviantrackr-passkeys' ); ?></label>
+						<select class="rtpk-account__input" id="rtpk-garage-model" name="model" required>
+							<option value=""><?php esc_html_e( 'Choose a model', 'riviantrackr-passkeys' ); ?></option>
+							<?php foreach ( $models as $slug => $model ) : ?>
+								<option value="<?php echo esc_attr( $slug ); ?>"><?php echo esc_html( $model['label'] ); ?></option>
+							<?php endforeach; ?>
+						</select>
+						<p class="rtpk-account__error" data-rtpk-error hidden></p>
+					</div>
+					<div class="rtpk-account__field" data-rtpk-field="year">
+						<label class="rtpk-account__label" for="rtpk-garage-year"><?php esc_html_e( 'Model year', 'riviantrackr-passkeys' ); ?></label>
+						<select class="rtpk-account__input" id="rtpk-garage-year" name="year" required disabled>
+							<option value=""><?php esc_html_e( 'Choose a year', 'riviantrackr-passkeys' ); ?></option>
+						</select>
+						<p class="rtpk-account__error" data-rtpk-error hidden></p>
+					</div>
+					<div class="rtpk-account__field" data-rtpk-field="generation">
+						<label class="rtpk-account__label" for="rtpk-garage-generation"><?php esc_html_e( 'Generation', 'riviantrackr-passkeys' ); ?></label>
+						<select class="rtpk-account__input" id="rtpk-garage-generation" name="generation" required disabled></select>
+						<p class="rtpk-account__help"><?php esc_html_e( 'Set from the model year. Change it if yours differs.', 'riviantrackr-passkeys' ); ?></p>
+						<p class="rtpk-account__error" data-rtpk-error hidden></p>
+					</div>
+					<div class="rtpk-account__field" data-rtpk-field="nickname">
+						<label class="rtpk-account__label" for="rtpk-garage-nickname"><?php esc_html_e( 'Nickname (optional)', 'riviantrackr-passkeys' ); ?></label>
+						<input class="rtpk-account__input" type="text" id="rtpk-garage-nickname" name="nickname" maxlength="<?php echo (int) Garage::NAME_MAX; ?>" autocomplete="off" placeholder="<?php esc_attr_e( 'e.g. Big Blue', 'riviantrackr-passkeys' ); ?>">
+						<p class="rtpk-account__error" data-rtpk-error hidden></p>
+					</div>
+				</div>
+
+				<fieldset class="rtpk-garage__wheels">
+					<legend class="rtpk-account__label"><?php esc_html_e( 'Wheels', 'riviantrackr-passkeys' ); ?></legend>
+					<p class="rtpk-account__help">
+						<?php
+						printf(
+							/* translators: %d: number of wheel sets */
+							esc_html__( 'Add each set you run, like summer and winter (up to %d). Pick a Rivian wheel, or choose another wheel and type the tire size.', 'riviantrackr-passkeys' ),
+							(int) Garage::MAX_WHEELS
+						);
+						?>
+					</p>
+					<div class="rtpk-garage__wheel-rows" data-rtpk-garage-wheels></div>
+					<div data-rtpk-field="wheels"><p class="rtpk-account__error" data-rtpk-error hidden></p></div>
+					<button type="button" class="rtpk-btn rtpk-btn--secondary rtpk-btn--sm" data-rtpk-garage-add-wheel><?php esc_html_e( 'Add a wheel set', 'riviantrackr-passkeys' ); ?></button>
+				</fieldset>
+
+				<label class="rtpk-garage__check">
+					<input type="checkbox" name="make_default" data-rtpk-garage-default>
+					<span><?php esc_html_e( 'Make this my default vehicle', 'riviantrackr-passkeys' ); ?></span>
+				</label>
+
+				<div class="rtpk-account__actions">
+					<button type="submit" class="rtpk-btn rtpk-btn--primary"><?php esc_html_e( 'Save vehicle', 'riviantrackr-passkeys' ); ?></button>
+					<button type="button" class="rtpk-btn rtpk-btn--ghost" data-rtpk-garage-cancel><?php esc_html_e( 'Cancel', 'riviantrackr-passkeys' ); ?></button>
+					<span class="rtpk-account__inline-msg" data-rtpk-form-msg role="status" aria-live="polite"></span>
+				</div>
+			</form>
+		</div>
 		<?php
 		return (string) ob_get_clean();
 	}
@@ -933,6 +1119,7 @@ final class AccountPage {
 			'folder'  => '<path d="M3.5 6.5A1.5 1.5 0 0 1 5 5h4l2 2h8a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z"/><path d="M12 11v5"/><path d="m9.5 13.5 2.5 2.5 2.5-2.5"/>',
 			'logout'  => '<path d="M10 4H5v16h5"/><path d="M14 8l4 4-4 4"/><path d="M18 12H9"/>',
 			'chevron' => '<path d="m9 6 6 6-6 6"/>',
+			'car'     => '<path d="M5 16.5V12l1.8-4.6A2 2 0 0 1 8.7 6h6.6a2 2 0 0 1 1.9 1.4L19 12v4.5"/><path d="M3.5 16.5h17"/><path d="M5 12h14"/><path d="M6.5 16.5V19M17.5 16.5V19"/><circle cx="8" cy="14.2" r=".7" fill="currentColor"/><circle cx="16" cy="14.2" r=".7" fill="currentColor"/>',
 			'tire'    => '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3"/><path d="M12 3.5v5M12 15.5v5M3.5 12h5M15.5 12h5"/>',
 			'dot'     => '<circle cx="12" cy="12" r="3" fill="currentColor"/>',
 		];
