@@ -4,7 +4,7 @@ Tags: passkeys, webauthn, fido2, passwordless, login, security
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.1
-Stable tag: 1.5.0
+Stable tag: 1.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -19,7 +19,7 @@ Adds passkey (WebAuthn / FIDO2) sign-in to WordPress.
 * Members add, rename and remove passkeys from their profile or via the [riviantrackr_passkeys] shortcode
 * Settings screen for relying party, user verification policy, allowed origins and timeout
 * Invite members without a passkey by email: personal one-tap setup link, batch sending by role, per-user and bulk actions on the Users list
-* A front-end member account page via [riviantrackr_account]: profile, email changes confirmed on the page, password changes (or "Set a password" for accounts created by signup), passkeys, sign out other devices, tire reviews and saved tires (with the Rivian Tire Guide), comments, a copy of their data and account deletion; members land there after signing in instead of the dashboard
+* A front-end member account page via [riviantrackr_account]: profile photo, names and bio, email changes confirmed on the page, password changes (or "Set a password" for accounts created by signup), passkeys, sign out other devices, tire reviews and saved tires (with the Rivian Tire Guide), comments, a copy of their data and account deletion; members land there after signing in instead of the dashboard
 * Your own sign-in, password reset and passkey setup pages via [riviantrackr_login], [riviantrackr_password_reset] and [riviantrackr_passkey_setup], with wp-login.php's login, registration, reset and setup screens redirected there, WordPress's sign-in emails (password reset, welcome, email change) in your branded template, and the remaining wp-login.php screens restyled in your colours with your logo
 * Spam-resistant open signup via [riviantrackr_signup]: no account until the emailed link is clicked; honeypot, timing check, rate limits, disposable-domain blocklist, optional Cloudflare Turnstile
 * Single-use challenges, strict origin checks, signature-counter clone detection, rate limiting
@@ -55,6 +55,9 @@ Yes. The account page's "Your data" tab files a confirmed export request for you
 Yes. Set the relying party ID to the parent domain and list each subdomain origin under "Additional allowed origins". Existing passkeys must be re-registered after changing the RP ID.
 
 == Changelog ==
+
+= 1.6.0 =
+* Profile photos: members upload a JPG, PNG, GIF or WebP on the account page's Profile tab (up to 2 MB, cropped to a centred square of at most 512px, stored in the media library as a private attachment they own) and it shows wherever WordPress displays their avatar; "Remove photo" goes back to Gravatar, and deleting the account deletes the photo.
 
 = 1.5.0 =
 * Passkey setup page: [riviantrackr_passkey_setup] puts the one-tap setup screen in the sign-in card. Pick it under Settings → Passkeys → Pages and invitation links and new signups land there; expired signup links land on the join page with a notice.

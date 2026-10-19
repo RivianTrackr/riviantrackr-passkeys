@@ -1,8 +1,8 @@
 /*!
  * RivianTrackr Passkeys — member account page.
- * Tab switching (URL hash), profile save, password change or reset link,
- * sign out other devices, delete review / remove favourite, data export
- * and account deletion.
+ * Tab switching (URL hash), avatar upload, profile save, password change
+ * or reset link, sign out other devices, delete review / remove favourite,
+ * data export and account deletion.
  */
 (function (window, document) {
 	'use strict';
@@ -152,6 +152,89 @@
 					passwordForm.reset();
 				});
 			});
+		}
+
+		/* -------------------------------------------------------- avatar */
+
+		var avatarCard = root.querySelector('[data-rtpk-avatar]');
+		if (avatarCard) {
+			var avatarInput = avatarCard.querySelector('[data-rtpk-avatar-input]');
+			var avatarRemove = avatarCard.querySelector('[data-rtpk-avatar-remove]');
+			var avatarMsg = avatarCard.querySelector('[data-rtpk-avatar-msg]');
+			var avatarPick = avatarCard.querySelector('[data-rtpk-avatar-pick]');
+			var limits = cfg.avatar || {};
+
+			var applyAvatar = function (result) {
+				if (result.url) {
+					toArray(root.querySelectorAll('img.rtpk-account__avatar')).forEach(function (img) {
+						img.src = result.url;
+						img.removeAttribute('srcset');
+					});
+				}
+				avatarCard.setAttribute('data-custom', result.custom ? '1' : '0');
+				if (avatarRemove) {
+					avatarRemove.hidden = !result.custom;
+				}
+				var label = avatarPick ? avatarPick.querySelector('span') : null;
+				if (label) {
+					label.textContent = result.custom ? (i18n.changePhoto || 'Change photo') : (i18n.uploadPhoto || 'Upload a photo');
+				}
+			};
+
+			if (avatarInput) {
+				avatarInput.addEventListener('change', function () {
+					var file = avatarInput.files && avatarInput.files[0];
+					if (!file) {
+						return;
+					}
+					if (limits.maxBytes && file.size > limits.maxBytes) {
+						setInline(avatarMsg, i18n.avatarTooLarge || 'That photo is too large.', 'error');
+						avatarInput.value = '';
+						return;
+					}
+					if (limits.types && limits.types.length && file.type && limits.types.indexOf(file.type) === -1) {
+						setInline(avatarMsg, i18n.avatarType || 'Use a JPG, PNG, GIF or WebP image.', 'error');
+						avatarInput.value = '';
+						return;
+					}
+					var body = new window.FormData();
+					body.append('avatar', file, file.name);
+					avatarCard.classList.add('is-busy');
+					setInline(avatarMsg, i18n.uploading || 'Uploading…', '');
+					upload('account/avatar', body)
+						.then(function (result) {
+							applyAvatar(result);
+							setInline(avatarMsg, result.message || '', 'success');
+						})
+						.catch(function (err) {
+							setInline(avatarMsg, describe(err), 'error');
+						})
+						.then(function () {
+							avatarCard.classList.remove('is-busy');
+							avatarInput.value = '';
+						});
+				});
+			}
+
+			if (avatarRemove) {
+				avatarRemove.addEventListener('click', function () {
+					if (!window.confirm(i18n.confirmRemovePhoto || 'Remove your photo?')) {
+						return;
+					}
+					setBusy(avatarRemove, true);
+					api('account/avatar', {}, 'DELETE')
+						.then(function (result) {
+							applyAvatar(result);
+							setInline(avatarMsg, result.message || '', 'success');
+						})
+						.catch(function (err) {
+							setInline(avatarMsg, describe(err), 'error');
+						})
+						.then(function () {
+							setBusy(avatarRemove, false);
+						});
+				});
+			}
 		}
 
 		/* ------------------------------------------- password reset link */
@@ -399,6 +482,36 @@
 
 	function api(path, body, method) {
 		return core.request(cfg.restUrl, path, body, cfg.nonce, method || 'POST');
+	}
+
+	/**
+	 * Multipart POST (file uploads); same error shape as core.request().
+	 */
+	function upload(path, formData) {
+		var url = String(cfg.restUrl).replace(/\/+$/, '') + '/' + String(path).replace(/^\/+/, '');
+		return window.fetch(url, {
+			method: 'POST',
+			credentials: 'same-origin',
+			headers: { 'Accept': 'application/json', 'X-WP-Nonce': cfg.nonce },
+			body: formData
+		}).then(function (res) {
+			return res.text().then(function (text) {
+				var data = null;
+				try {
+					data = text ? JSON.parse(text) : null;
+				} catch (e) {
+					data = null;
+				}
+				if (!res.ok) {
+					var err = new Error((data && data.message) || ('Request failed (' + res.status + ')'));
+					err.code = data && data.code;
+					err.status = res.status;
+					err.data = (data && data.data) || null;
+					throw err;
+				}
+				return data || {};
+			});
+		});
 	}
 
 	function describe(err) {

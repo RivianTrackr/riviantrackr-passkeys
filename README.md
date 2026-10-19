@@ -62,7 +62,7 @@ key once, then sign in with a single tap. Passwords keep working alongside.
 | `[riviantrackr_login theme="dark" redirect=""]` | Full sign-in form for your own login page: passkey button, username/password, "Lost your password?", "Create an account", failure and logout messages. See [Custom login pages](#custom-login-pages). |
 | `[riviantrackr_password_reset theme="dark"]` | Password reset in the same card: "Reset your password" (username or email, sends the standard WordPress reset email) and, from the emailed link, "Choose a new password". Plain forms, no JavaScript. See [Custom login pages](#custom-login-pages). |
 | `[riviantrackr_passkey_setup theme="dark"]` | The one-tap "Set up a passkey" screen in the same card: pitch, create button, done panel, skip link. Invitation links and new signups land here once signed in; signed-out visitors get a Sign in button that brings them back. See [Custom login pages](#custom-login-pages). |
-| `[riviantrackr_account theme="dark"]` | Tabbed member account page: Overview, Profile, Security, Reviews and Saved tires (tire guide), Comments, Your data. Dark by default, `theme="light"` available. Signed-out visitors get a sign-in link. See [Member account page](#member-account-page). |
+| `[riviantrackr_account theme="dark"]` | Tabbed member account page: Overview, Profile (photo, names, email, bio), Security, Reviews and Saved tires (tire guide), Comments, Your data. Dark by default, `theme="light"` available. Signed-out visitors get a sign-in link. See [Member account page](#member-account-page). |
 | `[riviantrackr_signup theme="dark" redirect=""]` | Verify-first signup form (email + optional name). Dark by default, `theme="light"` available. Requires **Allow signups** under Settings → Passkeys. Signed-in visitors see a "Continue" note instead. |
 
 ## Custom login pages
@@ -180,7 +180,7 @@ no icon font):
 | Tab | What it shows |
 |---|---|
 | **Overview** | Avatar, display name, email, member since, counts of passkeys / reviews / saved tires / comments (each a link to its tab), quick links. |
-| **Profile** | Display name, first and last name, email, website, bio. Saved over REST with inline field errors. Changing the email does not apply immediately: a branded confirmation link is sent to the new address (same `_new_email` meta as the profile screen), the pending address is shown on the page and can be cancelled. The link lands on the account page (`?newuseremail=…`), which applies the change the way `user-edit.php` does and shows "Your email address has been updated" on this tab; signed-out visitors are sent to sign in and brought back. Without an account page the link goes to `profile.php` as in core. |
+| **Profile** | **Your photo**: upload a JPG, PNG, GIF or WebP (2 MB by default, `riviantrackr_passkeys_avatar_max_bytes` filter); it is cropped to a centred square of at most 512px, stored in the media library as a private attachment owned by the member, and served everywhere WordPress asks for that member's avatar (header, comments, author boxes, wp-admin) through `pre_get_avatar_data`. **Remove photo** deletes the attachment and goes back to Gravatar; deleting the account deletes the photo with the member's other posts. Then display name, first and last name, email, website, bio. Saved over REST with inline field errors. Changing the email does not apply immediately: a branded confirmation link is sent to the new address (same `_new_email` meta as the profile screen), the pending address is shown on the page and can be cancelled. The link lands on the account page (`?newuseremail=…`), which applies the change the way `user-edit.php` does and shows "Your email address has been updated" on this tab; signed-out visitors are sent to sign in and brought back. Without an account page the link goes to `profile.php` as in core. |
 | **Security** | The passkey manager (add, rename, remove, provider badge from the AAGUID), a change-password form (current password required; this browser stays signed in, every other device is signed out) with a **Forgot your current password? Email me a reset link** action, and **Sign out other devices** (`WP_Session_Tokens::destroy_others()`). Accounts created by open signup have a random password nobody has seen, so they get a **Set a password** card (emails the reset link) instead of the change form until a password is set; the flag is `riviantrackr_passkeys_no_password` user meta, cleared by the core `wp_set_password` action. |
 | **Reviews** | Only while the Rivian Tire Guide is active (helper methods are feature-detected; older builds are read through `wp_rtg_ratings` directly). The member's approved reviews (`RTG_Database::get_user_reviews()`) plus pending/rejected ones from `wp_rtg_ratings`, with tire name linked to the tire page, stars, title, excerpt, status badge, date, **Edit** (opens the guide's review page with the review loaded, `RTG_Tire_Review::url()`) and **Delete** (`RTG_Database::delete_user_rating()`). |
 | **Saved tires** | Only while the tire guide is active (2.14.0+ hearts; older builds are read through `wp_rtg_saved_tires`). `RTG_Database::get_saved_tires()` with name, size, image, today's price, the move since the save and the save date, a link to the guide's saved tires page, **View** and **Remove** (`RTG_Database::unsave_tire()`). The tab id and REST path stay `favorites`. |
@@ -357,6 +357,8 @@ Namespace `riviantrackr-passkeys/v1`. Logged-in routes require the standard REST
 | POST | `/account/email/cancel` | user | drop a pending email change |
 | POST | `/account/password` | user | 5/min per user; `current`, `new`, `confirm`; re-issues this browser's cookie, signs out other devices |
 | POST | `/account/password/link` | user | 3/hour per user (plus the per-IP reset limit); emails the standard reset link ("Set a password" / "Forgot your current password?") |
+| POST | `/account/avatar` | user | multipart field `avatar`; 10/hour per user; type, size and dimensions checked server-side; returns `url` |
+| DELETE | `/account/avatar` | user | remove the photo (back to Gravatar); returns the Gravatar `url` |
 | POST | `/account/data/export` | user | files a confirmed personal-data export request; 409 when one is already open |
 | DELETE | `/account` | user | `confirm` = username; deletes the account (`deleted: true`, `redirect`) or files a confirmed erasure request (`deleted: false`) depending on role and the setting |
 | POST | `/account/sessions/others` | user | sign out every other browser/device |
@@ -401,6 +403,10 @@ add_filter( 'riviantrackr_passkeys_email_change_mail', fn( array $mail, WP_User 
 add_filter( 'riviantrackr_passkeys_authenticator_names', fn( array $names ) => $names + [ '12345678-1234-1234-1234-123456789abc' => 'Acme Key' ] );
 
 do_action( 'riviantrackr_passkeys_account_deleting', WP_User $user ); // just before a member deletes their own account
+do_action( 'riviantrackr_passkeys_avatar_updated', WP_User $user, int $attachment_id ); // a member uploaded a new photo
+
+// Allow bigger avatar uploads (bytes; never below 100 KB).
+add_filter( 'riviantrackr_passkeys_avatar_max_bytes', fn() => 5 * 1024 * 1024 );
 ```
 
 ## Development

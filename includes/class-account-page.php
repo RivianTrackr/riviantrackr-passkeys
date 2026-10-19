@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * [riviantrackr_account]: a tabbed "My Account" page for members.
  *
- * Tabs: Overview, Profile, Security (passkeys, password, sessions),
+ * Tabs: Overview, Profile (photo, names, email, bio), Security (passkeys, password, sessions),
  * Reviews and Saved tires (when the Rivian Tire Guide is active), Comments.
  * Other plugins add or reorder tabs through the
  * `riviantrackr_passkeys_account_tabs` filter.
@@ -215,6 +215,10 @@ final class AccountPage {
 					'restUrl' => esc_url_raw( rest_url( RTPK_REST_NAMESPACE ) ),
 					'nonce'   => wp_create_nonce( 'wp_rest' ),
 					'light'   => $light,
+					'avatar'  => [
+						'maxBytes' => Avatars::max_bytes(),
+						'types'    => array_keys( Avatars::TYPES ),
+					],
 					'i18n'    => [
 						'saving'               => __( 'Saving…', 'riviantrackr-passkeys' ),
 						'working'              => __( 'Working…', 'riviantrackr-passkeys' ),
@@ -223,6 +227,12 @@ final class AccountPage {
 						'confirmRemoveFav'     => __( 'Remove this tire from your saved tires?', 'riviantrackr-passkeys' ),
 						'confirmSignOutOthers' => __( 'Sign out of every other browser and device? This one stays signed in.', 'riviantrackr-passkeys' ),
 						'confirmDeleteAccount' => __( 'Delete your account? This cannot be undone.', 'riviantrackr-passkeys' ),
+						'uploading'            => __( 'Uploading…', 'riviantrackr-passkeys' ),
+						'changePhoto'          => __( 'Change photo', 'riviantrackr-passkeys' ),
+						'uploadPhoto'          => __( 'Upload a photo', 'riviantrackr-passkeys' ),
+						'confirmRemovePhoto'   => __( 'Remove your photo and show your Gravatar instead?', 'riviantrackr-passkeys' ),
+						'avatarTooLarge'       => __( 'That photo is too large.', 'riviantrackr-passkeys' ),
+						'avatarType'           => __( 'Use a JPG, PNG, GIF or WebP image.', 'riviantrackr-passkeys' ),
 						'noReviews'            => __( 'You have not reviewed any tires yet.', 'riviantrackr-passkeys' ),
 						'noFavorites'          => __( 'No saved tires yet. Tap the heart on a tire in the guide to keep it here.', 'riviantrackr-passkeys' ),
 						/* translators: %s: email address */
@@ -466,6 +476,44 @@ final class AccountPage {
 		<?php if ( null !== $notice ) : ?>
 			<div class="rtpk-account__notice is-<?php echo esc_attr( $notice['type'] ); ?>" role="<?php echo 'error' === $notice['type'] ? 'alert' : 'status'; ?>"><span><?php echo esc_html( $notice['text'] ); ?></span></div>
 		<?php endif; ?>
+
+		<?php $custom = Avatars::attachment_id( $user->ID ) > 0; ?>
+		<div class="rtpk-account__block rtpk-account__card rtpk-account__avatar-card" data-rtpk-avatar data-custom="<?php echo $custom ? '1' : '0'; ?>">
+			<?php echo get_avatar( $user->ID, 96, '', '' !== $user->display_name ? $user->display_name : $user->user_login, [ 'class' => 'rtpk-account__avatar rtpk-account__avatar--lg' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- get_avatar() escapes. ?>
+			<div class="rtpk-account__avatar-text">
+				<h4 class="rtpk-account__subtitle"><?php esc_html_e( 'Your photo', 'riviantrackr-passkeys' ); ?></h4>
+				<p class="rtpk-account__desc" data-rtpk-avatar-desc>
+					<?php
+					if ( $custom ) {
+						esc_html_e( 'Shown next to your comments and reviews. Upload a new one to replace it, or remove it to go back to your Gravatar.', 'riviantrackr-passkeys' );
+					} else {
+						printf(
+							/* translators: %s: email address */
+							esc_html__( 'We currently show the Gravatar for %s. Upload a photo to use instead. Square photos look best; we crop to the middle.', 'riviantrackr-passkeys' ),
+							'<strong>' . esc_html( $user->user_email ) . '</strong>'
+						);
+					}
+					?>
+				</p>
+				<p class="rtpk-account__help">
+					<?php
+					printf(
+						/* translators: %s: size such as "2 MB" */
+						esc_html__( 'JPG, PNG, GIF or WebP, up to %s.', 'riviantrackr-passkeys' ),
+						esc_html( size_format( Avatars::max_bytes() ) )
+					);
+					?>
+				</p>
+				<div class="rtpk-account__actions rtpk-account__avatar-actions">
+					<label class="rtpk-btn rtpk-btn--secondary rtpk-account__upload" data-rtpk-avatar-pick>
+						<input type="file" name="avatar" accept="image/jpeg,image/png,image/gif,image/webp" data-rtpk-avatar-input>
+						<span><?php echo $custom ? esc_html__( 'Change photo', 'riviantrackr-passkeys' ) : esc_html__( 'Upload a photo', 'riviantrackr-passkeys' ); ?></span>
+					</label>
+					<button type="button" class="rtpk-btn rtpk-btn--ghost" data-rtpk-avatar-remove <?php echo $custom ? '' : 'hidden'; ?>><?php esc_html_e( 'Remove photo', 'riviantrackr-passkeys' ); ?></button>
+					<span class="rtpk-account__inline-msg" data-rtpk-avatar-msg role="status" aria-live="polite"></span>
+				</div>
+			</div>
+		</div>
 
 		<div class="rtpk-account__notice is-info" data-rtpk-pending-email <?php echo '' === $pending ? 'hidden' : ''; ?>>
 			<span data-rtpk-pending-text>
