@@ -21,6 +21,7 @@ final class TireGuideTest extends TestCase {
 
 	protected function setUp(): void {
 		rtpk_test_reset();
+		TireGuide::forget_tables();
 		$test            = $this;
 		$GLOBALS['wpdb'] = new class( $test ) extends RTPK_Fake_Wpdb {
 			public array $queries = [];
@@ -40,6 +41,12 @@ final class TireGuideTest extends TestCase {
 			}
 			public function get_results( $query, $output = null ) {
 				$this->queries[] = $query;
+				if ( str_contains( $query, 'rtg_wheels' ) ) {
+					return [
+						[ 'id' => '3', 'name' => '22" Sport Dark', 'stock_size' => '275/50R22', 'alt_sizes' => '', 'vehicles' => 'R1T, R1S', 'source' => 'oem', 'sort_order' => '1' ],
+						[ 'id' => '9', 'name' => 'Method 703 18"', 'stock_size' => '35X12.50R18', 'alt_sizes' => '', 'vehicles' => 'R1T', 'source' => 'third_party', 'sort_order' => '2' ],
+					];
+				}
 				if ( str_contains( $query, 'rtg_saved_tires' ) ) {
 					return [
 						[ 'tire_id' => 'tire001', 'slug' => 'pirelli-scorpion', 'brand' => 'Pirelli', 'model' => 'Scorpion', 'size' => '275/65R20', 'image' => '', 'price' => 289.0, 'saved_at' => '2026-10-03 09:00:00', 'price_at_save' => 301.0 ],
@@ -54,6 +61,17 @@ final class TireGuideTest extends TestCase {
 	/** @return string[] */
 	public function tables(): array {
 		return $this->tables;
+	}
+
+	public function test_wheels_fall_back_to_the_wheels_table(): void {
+		$this->tables = [ 'rtg_wheels' ];
+
+		$wheels = TireGuide::wheels();
+		$this->assertSame( [ 3, 9 ], array_column( $wheels, 'id' ) );
+		$this->assertSame( [ '275/50R22' ], $wheels[0]['sizes'] );
+		$this->assertSame( [ '35x12.50R18' ], $wheels[1]['sizes'] );
+		$this->assertTrue( $wheels[1]['third_party'] );
+		$this->assertStringContainsString( 'ORDER BY sort_order ASC', implode( "\n", $GLOBALS['wpdb']->queries ), 'in the guide\'s order' );
 	}
 
 	public function test_missing_helpers_fall_back_to_the_tables(): void {

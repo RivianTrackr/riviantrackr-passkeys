@@ -38,6 +38,7 @@ final class Plugin {
 	private AccountRedirect $account_redirect;
 	private BrandedEmails $emails;
 	private Avatars $avatars;
+	private Garage $garage;
 
 	public static function instance(): Plugin {
 		if ( null === self::$instance ) {
@@ -70,6 +71,7 @@ final class Plugin {
 		$this->account_redirect = new AccountRedirect( $this->settings );
 		$this->emails           = new BrandedEmails( $this->invites );
 		$this->avatars          = new Avatars();
+		$this->garage           = new Garage( $this->settings );
 		$this->admin            = new Admin( $this->settings, $this->store, $this->signup );
 	}
 
@@ -98,6 +100,7 @@ final class Plugin {
 		$this->account_redirect->register_hooks();
 		$this->emails->register_hooks();
 		$this->avatars->register_hooks();
+		$this->garage->register_hooks();
 
 		if ( is_admin() ) {
 			$this->admin->register_hooks();

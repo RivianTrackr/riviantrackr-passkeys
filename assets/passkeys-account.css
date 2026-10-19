@@ -1021,3 +1021,194 @@ a.rtpk-account__item-name:hover {
 		justify-content: center;
 	}
 }
+
+/* Selects share the input look, with a drawn chevron */
+.rtpk-account select.rtpk-account__input {
+	padding-right: 38px;
+	background-image:
+		linear-gradient(45deg, transparent 50%, var(--rtpk-text-secondary) 50%),
+		linear-gradient(135deg, var(--rtpk-text-secondary) 50%, transparent 50%);
+	background-position:
+		calc(100% - 20px) 50%,
+		calc(100% - 15px) 50%;
+	background-size: 5px 5px;
+	background-repeat: no-repeat;
+	cursor: pointer;
+}
+
+.rtpk-account select.rtpk-account__input:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* Signed out: "New here? Create a free account" */
+.rtpk-account__signed-out .rtpk-account__join {
+	font-size: 13px;
+	color: var(--rtpk-text-muted);
+}
+
+/* Garage */
+.rtpk-garage__nudge {
+	border-color: color-mix(in srgb, var(--rtpk-accent) 40%, var(--rtpk-border));
+	background: color-mix(in srgb, var(--rtpk-accent) 8%, var(--rtpk-bg-deep));
+	margin-bottom: 20px;
+}
+
+.rtpk-garage__nudge {
+	flex-wrap: wrap;
+}
+
+.rtpk-garage__nudge > div {
+	flex: 1 1 240px;
+}
+
+.rtpk-garage__nudge-icon,
+.rtpk-garage__nudge-icon svg {
+	flex-shrink: 0;
+	width: 32px;
+	height: 32px;
+	color: var(--rtpk-accent);
+}
+
+.rtpk-garage__add {
+	margin-top: 16px;
+}
+
+/* Three actions need room: they drop under the vehicle when the column is narrow. */
+.rtpk-garage__item {
+	flex-wrap: wrap;
+}
+
+.rtpk-garage__item .rtpk-account__item-body {
+	flex: 1 1 220px;
+}
+
+.rtpk-garage__item .rtpk-account__item-actions {
+	flex-wrap: wrap;
+	margin-left: auto;
+}
+
+.rtpk-garage__chips {
+	list-style: none;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 8px 0 0;
+	padding: 0;
+}
+
+.rtpk-garage__chip {
+	display: inline-block;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	margin: 0;
+	padding: 4px 10px;
+	border: 1px solid var(--rtpk-border);
+	border-radius: 20px;
+	background: var(--rtpk-bg);
+	font-size: 12px;
+	font-weight: 500;
+	font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+	color: var(--rtpk-text-secondary);
+}
+
+.rtpk-garage__chip strong {
+	margin-right: 6px;
+	font-family: var(--rtpk-font);
+	font-weight: 600;
+	color: var(--rtpk-text);
+}
+
+.rtpk-garage__chip.is-aftermarket {
+	border-color: color-mix(in srgb, #a78bfa 40%, var(--rtpk-border));
+}
+
+.rtpk-garage__form {
+	margin-top: 16px;
+}
+
+.rtpk-garage__form .rtpk-account__subtitle {
+	margin-bottom: 16px;
+}
+
+.rtpk-garage__wheels {
+	margin: 20px 0 0;
+	padding: 0;
+	border: 0;
+	min-width: 0;
+}
+
+.rtpk-garage__wheels legend {
+	padding: 0;
+}
+
+.rtpk-garage__wheels > .rtpk-account__help {
+	margin: 0 0 12px;
+}
+
+.rtpk-garage__wheel-rows {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	margin-bottom: 12px;
+}
+
+.rtpk-garage__wheel {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px 16px;
+	padding: 16px;
+	border: 1px solid var(--rtpk-border);
+	border-radius: 10px;
+	background: var(--rtpk-bg-deep);
+}
+
+.rtpk-garage__wheel [data-rtpk-wheel-size-input] {
+	font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+	text-transform: uppercase;
+}
+
+.rtpk-garage__remove-wheel {
+	grid-column: 1 / -1;
+	justify-self: start;
+	font-size: 13px;
+	color: var(--rtpk-text-secondary);
+}
+
+.rtpk-garage__remove-wheel:hover {
+	color: var(--rtpk-error);
+}
+
+.rtpk-garage__check {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 40px;
+	margin-top: 16px;
+	font-size: 14px;
+	cursor: pointer;
+}
+
+.rtpk-garage__check input {
+	width: 18px;
+	height: 18px;
+	margin: 0;
+	accent-color: var(--rtpk-accent);
+}
+
+.rtpk-garage__check input:disabled + span {
+	color: var(--rtpk-text-secondary);
+}
+
+@media (max-width: 600px) {
+	.rtpk-garage__wheel {
+		grid-template-columns: minmax(0, 1fr);
+		padding: 12px;
+	}
+
+	.rtpk-garage__nudge {
+		align-items: flex-start;
+	}
+}

@@ -22,6 +22,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  *   POST   account/sessions/others      sign out every other browser
  *   DELETE account/reviews/{tire_id}    delete the member's tire review (tire guide)
  *   DELETE account/favorites/{tire_id}  take a tire off the member's saved list (tire guide)
+ *   GET    account/garage               the member's garage
+ *   POST   account/garage/vehicles      add a vehicle (model, year, generation, nickname, wheels, make_default)
+ *   POST   account/garage/vehicles/{id} edit a vehicle (same fields)
+ *   DELETE account/garage/vehicles/{id} remove a vehicle
+ *   POST   account/garage/default       make a vehicle the default (id)
  */
 final class AccountRest {
 
@@ -149,6 +154,55 @@ final class AccountRest {
 				'methods'             => 'DELETE',
 				'callback'            => [ $this, 'remove_favorite' ],
 				'permission_callback' => $auth,
+			]
+		);
+		register_rest_route(
+			$ns,
+			'/account/garage',
+			[
+				'methods'             => 'GET',
+				'callback'            => [ $this, 'get_garage' ],
+				'permission_callback' => $auth,
+			]
+		);
+		register_rest_route(
+			$ns,
+			'/account/garage/vehicles',
+			[
+				'methods'             => 'POST',
+				'callback'            => [ $this, 'add_vehicle' ],
+				'permission_callback' => $auth,
+			]
+		);
+		register_rest_route(
+			$ns,
+			'/account/garage/vehicles/(?P<id>[a-f0-9]{8})',
+			[
+				[
+					'methods'             => 'POST',
+					'callback'            => [ $this, 'update_vehicle' ],
+					'permission_callback' => $auth,
+				],
+				[
+					'methods'             => 'DELETE',
+					'callback'            => [ $this, 'remove_vehicle' ],
+					'permission_callback' => $auth,
+				],
+			]
+		);
+		register_rest_route(
+			$ns,
+			'/account/garage/default',
+			[
+				'methods'             => 'POST',
+				'callback'            => [ $this, 'set_default_vehicle' ],
+				'permission_callback' => $auth,
+				'args'                => [
+					'id' => [
+						'type'     => 'string',
+						'required' => true,
+					],
+				],
 			]
 		);
 	}
@@ -492,6 +546,141 @@ final class AccountRest {
 			[
 				'success' => true,
 				'message' => __( 'Removed from your saved tires.', 'riviantrackr-passkeys' ),
+			]
+		);
+	}
+
+	// ---- garage ----------------------------------------------------------
+
+	/**
+	 * GET account/garage.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function get_garage() {
+		return rest_ensure_response(
+			[
+				'success' => true,
+				'garage'  => Garage::for_user( get_current_user_id() ),
+			]
+		);
+	}
+
+	/**
+	 * POST account/garage/vehicles.
+	 *
+	 * @param \WP_REST_Request $request model, year, generation, nickname, wheels, make_default.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function add_vehicle( \WP_REST_Request $request ) {
+		$user_id = get_current_user_id();
+		$checked = $this->check_vehicle( $request, $user_id );
+		if ( is_wp_error( $checked ) ) {
+			return $checked;
+		}
+		$id = Garage::add( $user_id, $checked, (bool) $request->get_param( 'make_default' ) );
+		if ( is_wp_error( $id ) ) {
+			return new \WP_Error( $id->get_error_code(), $id->get_error_message(), [ 'status' => 409 ] );
+		}
+		return $this->garage_response( $user_id, __( 'Added to your garage.', 'riviantrackr-passkeys' ), $id );
+	}
+
+	/**
+	 * POST account/garage/vehicles/{id}.
+	 *
+	 * @param \WP_REST_Request $request id, model, year, generation, nickname, wheels, make_default.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function update_vehicle( \WP_REST_Request $request ) {
+		$user_id = get_current_user_id();
+		$checked = $this->check_vehicle( $request, $user_id );
+		if ( is_wp_error( $checked ) ) {
+			return $checked;
+		}
+		$id = (string) $request->get_param( 'id' );
+		if ( ! Garage::update( $user_id, $id, $checked, (bool) $request->get_param( 'make_default' ) ) ) {
+			return new \WP_Error( 'rtpk_not_found', __( 'That vehicle is not in your garage.', 'riviantrackr-passkeys' ), [ 'status' => 404 ] );
+		}
+		return $this->garage_response( $user_id, __( 'Vehicle saved.', 'riviantrackr-passkeys' ), $id );
+	}
+
+	/**
+	 * DELETE account/garage/vehicles/{id}.
+	 *
+	 * @param \WP_REST_Request $request id.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function remove_vehicle( \WP_REST_Request $request ) {
+		$user_id = get_current_user_id();
+		if ( $this->limiter->is_limited( 'account-garage', (string) $user_id, 30 ) ) {
+			return $this->garage_limited();
+		}
+		if ( ! Garage::remove( $user_id, (string) $request->get_param( 'id' ) ) ) {
+			return new \WP_Error( 'rtpk_not_found', __( 'That vehicle is not in your garage.', 'riviantrackr-passkeys' ), [ 'status' => 404 ] );
+		}
+		return $this->garage_response( $user_id, __( 'Removed from your garage.', 'riviantrackr-passkeys' ) );
+	}
+
+	/**
+	 * POST account/garage/default.
+	 *
+	 * @param \WP_REST_Request $request id.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function set_default_vehicle( \WP_REST_Request $request ) {
+		$user_id = get_current_user_id();
+		if ( $this->limiter->is_limited( 'account-garage', (string) $user_id, 30 ) ) {
+			return $this->garage_limited();
+		}
+		$id = (string) $request->get_param( 'id' );
+		if ( ! Garage::set_default( $user_id, $id ) ) {
+			return new \WP_Error( 'rtpk_not_found', __( 'That vehicle is not in your garage.', 'riviantrackr-passkeys' ), [ 'status' => 404 ] );
+		}
+		return $this->garage_response( $user_id, __( 'Default vehicle updated.', 'riviantrackr-passkeys' ), $id );
+	}
+
+	/**
+	 * Rate limit and validate the garage form.
+	 *
+	 * @return array<string,mixed>|\WP_Error The vehicle to store.
+	 */
+	private function check_vehicle( \WP_REST_Request $request, int $user_id ) {
+		if ( $this->limiter->is_limited( 'account-garage', (string) $user_id, 30 ) ) {
+			return $this->garage_limited();
+		}
+		$input = [];
+		foreach ( [ 'model', 'year', 'generation', 'nickname', 'wheels' ] as $key ) {
+			$input[ $key ] = $request->get_param( $key );
+		}
+		$input['wheels'] = is_array( $input['wheels'] ) ? $input['wheels'] : [];
+		$checked         = Garage::validate_vehicle( $input, Vehicles::models(), TireGuide::wheels() );
+		if ( [] !== $checked['errors'] ) {
+			return new \WP_Error(
+				'rtpk_invalid_vehicle',
+				__( 'Please fix the highlighted fields.', 'riviantrackr-passkeys' ),
+				[
+					'status' => 400,
+					'fields' => $checked['errors'],
+				]
+			);
+		}
+		return $checked['data'];
+	}
+
+	private function garage_limited(): \WP_Error {
+		return new \WP_Error( 'rtpk_rate_limited', __( 'Too many changes. Please wait a minute and try again.', 'riviantrackr-passkeys' ), [ 'status' => 429 ] );
+	}
+
+	/**
+	 * @return \WP_REST_Response
+	 */
+	private function garage_response( int $user_id, string $message, string $id = '' ) {
+		return rest_ensure_response(
+			[
+				'success' => true,
+				'message' => $message,
+				'id'      => $id,
+				'garage'  => Garage::for_user( $user_id ),
 			]
 		);
 	}

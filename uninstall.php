@@ -4,7 +4,7 @@
  *
  * Removes the credentials and pending-signup tables, settings, transients, the scheduled
  * cleanup and the plugin's user meta (handles, invitations, password flag, avatar
- * pointer; uploaded photos stay in the media library) unless "Keep passkeys when the plugin is deleted" is enabled.
+ * pointer, garage; uploaded photos stay in the media library) unless "Keep passkeys when the plugin is deleted" is enabled.
  *
  * @package RivianTrackr_Passkeys
  */
@@ -39,12 +39,13 @@ delete_option( 'riviantrackr_passkeys_db_version' );
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 $wpdb->query(
 	$wpdb->prepare(
-		"DELETE FROM {$wpdb->usermeta} WHERE meta_key IN ( %s, %s, %s, %s, %s )",
+		"DELETE FROM {$wpdb->usermeta} WHERE meta_key IN ( %s, %s, %s, %s, %s, %s )",
 		'riviantrackr_passkeys_user_handle',
 		'riviantrackr_passkeys_invite',
 		'riviantrackr_passkeys_invited_at',
 		'riviantrackr_passkeys_no_password',
-		'riviantrackr_passkeys_avatar'
+		'riviantrackr_passkeys_avatar',
+		'riviantrackr_passkeys_garage'
 	)
 );
 

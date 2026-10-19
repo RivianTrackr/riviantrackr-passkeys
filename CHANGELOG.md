@@ -7,8 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-19
+
+### Added
+- **My Garage.** Members keep the Rivians they drive on their account so the other RivianTrackr plugins can show what applies to them. New `Vehicles` class holds the shared vocabulary: models `r1t`, `r1s`, `r2` with their label (`R1T`, `R1S`, `R2`, as the Tire Guide's reviews and wheels write them), Software Updates platform (`r1`, `r2`, whose `gen1`/`gen2` slugs are reused as-is), Tire Guide filter group (`R1`, `R2`) and generations by model year (R1 `gen1` 2022–2024 and `gen2` 2025+, R2 `gen1` 2026+), extendable through `riviantrackr_garage_models` (R3 once it ships; malformed entries are dropped). Pickers offer years from a model's first to next year. New `Garage` class stores up to five vehicles in `riviantrackr_passkeys_garage` user meta: model, model year, generation (taken from the year when not chosen), an optional nickname and up to four wheel sets, each a Tire Guide wheel with one of its sizes or any wheel with the tire size typed in (metric, LT, Z-rated and flotation sizes, normalized), plus a label like "Winter". One vehicle is the default: the first one, or whichever is picked; removing it hands the default to the next. `Garage::for_user()` describes each vehicle with every plugin's vocabulary, its wheel sets and every tire size it wears; wheels from the guide are read fresh, so renames follow and a dropped size falls back to stock.
+- **Garage tab** on the account page, after Profile: the list of vehicles (nickname or year and model, generation, a chip per wheel set with aftermarket ones outlined in violet, a Default badge, **Make default**, **Edit**, **Remove**) and a form with model, model year, generation (set from the year, changeable), nickname and wheel rows (factory wheels, then aftermarket, then "Another wheel" with tire size and name fields; up to four). An empty garage opens the form straight away. Field errors land on the right row (`wheels.1.size`). The Overview shows a Vehicles count, a "Your garage" quick link and, while the garage is empty, an **Add your Rivian** card. Selects on the account page get a drawn chevron.
+- **Reading the garage from other plugins.** `apply_filters( 'riviantrackr_garage', null, $user_id )` returns the garage (or `null` when this plugin is inactive, an empty garage when signed out); `riviantrackr_garage_updated` fires after every change. Every front-end page gets `window.riviantrackrGarage` in the head (script handle `riviantrackr-garage`): `signedIn`, `vehicles`, `defaultId`, `garageUrl`, `joinUrl`, `signInUrl`, `maxVehicles`; the same for every visitor who is signed out, so cached pages stay correct. `riviantrackr_passkeys_garage_script` turns it off. The account page updates it and fires `riviantrackr:garage` on `document` after each change.
+- **`[riviantrackr_garage_cta theme="dark|light"]`**: "Save your Rivian" with **Create a free account** (the join page, or core registration when open) and **Sign in** for visitors who are signed out; "Add your Rivian" linking to the Garage tab for members with an empty garage; nothing once a vehicle is saved. New `assets/passkeys-garage.css`, loaded only where the card renders. The signed-out account page adds "New here? Create a free account" when a join page is set.
+- REST routes `GET account/garage`, `POST account/garage/vehicles`, `POST|DELETE account/garage/vehicles/{id}` and `POST account/garage/default` (writes 30/min per user; 409 when the garage is full).
+- `TireGuide::wheels()` reads the guide's wheels (`RTG_Database::get_all_wheels()`, or `wp_rtg_wheels` on builds without it) as id, name, sizes (stock first), vehicles and whether it is aftermarket.
+- Personal-data exporter and eraser for the garage, so "Request my data" includes it and erasure requests remove it.
+
+### Changed
+- The default tab list is `overview`, `profile`, `garage`, `security`, … The tabs filter contract is unchanged.
+- Uninstall also removes the garage meta.
+- `TireGuide` keeps its table checks in a static property with `forget_tables()`, so tests can look again.
+- `.phpcs.xml` accepts the shared `riviantrackr_garage` hook prefix.
+
 ### Fixed
 - The Profile tab's photo card sat flush against the Display name field; it now has the same gap as the other cards.
+
+### Tests
+- `VehiclesTest`: the built-in models and their slugs, generation by year, year ranges (open and retired), labels, the models filter and what it drops, the picker catalog. `GarageTest`: wheel normalization, validation (generation from the year or kept, model and year limits, nickname, guide wheels with stock or alternate sizes, typed sizes, blank rows, per-row errors, aftermarket wheels for another model, the four-set cap), tire sizes, add/update/remove/default, the five-vehicle cap, the updated action, tidying stored data, fresh guide wheels and fallbacks, the filter, the page data, the call-to-action states, privacy export and erase. `TireGuideTest`: wheels from the table fallback. `AccountPageTest`: the garage tab id. `GarageIntegrationTest` (real WordPress): sign-in required, add/edit/default/remove through REST, field errors, the filter, the printed script, the exporter and account deletion. JS (`garage.test.mjs`): the empty garage opens the form, years and generations follow model and year, wheel options follow the model, size picks and typed sizes, saving posts every wheel set and redraws (nudge, count, page-wide garage, event), server errors per row, the wheel row cap, editing, make default, remove, a full garage.
 
 ## [1.6.0] - 2026-10-19
 

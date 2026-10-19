@@ -4,7 +4,7 @@ Tags: passkeys, webauthn, fido2, passwordless, login, security
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.1
-Stable tag: 1.6.0
+Stable tag: 1.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,6 +55,11 @@ Yes. The account page's "Your data" tab files a confirmed export request for you
 Yes. Set the relying party ID to the parent domain and list each subdomain origin under "Additional allowed origins". Existing passkeys must be re-registered after changing the RP ID.
 
 == Changelog ==
+
+= 1.7.0 =
+* My Garage: members add the Rivians they drive on a new Garage tab of the account page (model, model year, generation, nickname and up to four wheel sets each, from the Tire Guide's wheels or with the tire size typed in) and pick a default. Other RivianTrackr plugins read it through the riviantrackr_garage filter and window.riviantrackrGarage.
+* [riviantrackr_garage_cta] asks visitors who are signed out to create an account and save their Rivian, and members with an empty garage to add one.
+* The garage is included in personal-data exports and removed by erasure requests, account deletion and uninstall.
 
 = 1.6.0 =
 * Profile photos: members upload a JPG, PNG, GIF or WebP on the account page's Profile tab (up to 2 MB, cropped to a centred square of at most 512px, stored in the media library as a private attachment they own) and it shows wherever WordPress displays their avatar; "Remove photo" goes back to Gravatar, and deleting the account deletes the photo.

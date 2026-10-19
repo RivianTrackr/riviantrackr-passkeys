@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Read-only bridge to the Rivian Tire Guide plugin for the member's reviews
- * and saved tires.
+ * and saved tires, and the guide's wheels for the garage.
  *
  * Saved tires are the guide's heart (tire guide 2.14.0+, `wp_rtg_saved_tires`).
  * The plugin's earlier "favorites" list (`wp_rtg_favorites`) was retired by
@@ -18,11 +18,14 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Every RTG_Database helper is feature-detected: older builds of the tire
  * guide lack some of them, so each call falls back to the plugin's own
- * tables (wp_rtg_ratings, wp_rtg_saved_tires, wp_rtg_tires) when the helper
- * is missing, and to "unsupported" when the table is missing too. Every
- * method is a no-op when the tire guide is not active.
+ * tables (wp_rtg_ratings, wp_rtg_saved_tires, wp_rtg_tires, wp_rtg_wheels)
+ * when the helper is missing, and to "unsupported" when the table is missing
+ * too. Every method is a no-op when the tire guide is not active.
  */
 final class TireGuide {
+
+	/** @var array<string,bool> Which of the guide's tables exist, checked once per request. */
+	private static array $tables = [];
 
 	public static function is_active(): bool {
 		return class_exists( 'RTG_Database' );
@@ -307,6 +310,67 @@ final class TireGuide {
 		return home_url( '/' . ( '' !== $slug ? $slug : 'saved-tires' ) . '/' );
 	}
 
+	/**
+	 * The guide's wheels for the garage's wheel picker, in the guide's order:
+	 * `RTG_Database::get_all_wheels()`, or `wp_rtg_wheels` read directly on a
+	 * build without it. Empty when the guide is not active.
+	 *
+	 * @return array<int,array{id:int,name:string,sizes:string[],vehicles:string[],third_party:bool}>
+	 */
+	public static function wheels(): array {
+		if ( ! self::is_active() ) {
+			return [];
+		}
+		$rows = [];
+		if ( self::has( 'get_all_wheels' ) ) {
+			$rows = (array) \RTG_Database::get_all_wheels();
+		} elseif ( self::table_exists( 'rtg_wheels' ) ) {
+			global $wpdb;
+			$table = $wpdb->prefix . 'rtg_wheels';
+			$rows  = (array) $wpdb->get_results( "SELECT * FROM {$table} ORDER BY sort_order ASC, id ASC", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Table name from $wpdb->prefix, no input.
+		}
+		return self::normalize_wheels( $rows );
+	}
+
+	/**
+	 * Wheel rows as the garage uses them: the stock size first, then the
+	 * alternates, de-duplicated; the vehicles the guide lists (`R1T`, `R1S`,
+	 * `R2`); and whether it is an aftermarket setup (the guide's own reading
+	 * of `source`). Rows without a name or a size are dropped. Pure.
+	 *
+	 * @param array<int,mixed> $rows Wheel rows.
+	 * @return array<int,array{id:int,name:string,sizes:string[],vehicles:string[],third_party:bool}>
+	 */
+	public static function normalize_wheels( array $rows ): array {
+		$out = [];
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$id    = (int) ( $row['id'] ?? 0 );
+			$name  = trim( (string) ( $row['name'] ?? '' ) );
+			$sizes = [];
+			foreach ( explode( ',', (string) ( $row['stock_size'] ?? '' ) . ',' . (string) ( $row['alt_sizes'] ?? '' ) ) as $size ) {
+				$size = Garage::normalize_size( $size );
+				if ( '' !== $size && ! in_array( $size, $sizes, true ) ) {
+					$sizes[] = $size;
+				}
+			}
+			if ( $id <= 0 || '' === $name || [] === $sizes ) {
+				continue;
+			}
+			$source = strtolower( trim( (string) ( $row['source'] ?? '' ) ) );
+			$out[]  = [
+				'id'          => $id,
+				'name'        => $name,
+				'sizes'       => $sizes,
+				'vehicles'    => array_values( array_filter( array_map( 'trim', explode( ',', strtoupper( (string) ( $row['vehicles'] ?? '' ) ) ) ) ) ),
+				'third_party' => in_array( $source, [ 'third_party', 'aftermarket', '3rd_party', 'third-party' ], true ),
+			];
+		}
+		return $out;
+	}
+
 	// ---- internals -------------------------------------------------------
 
 	/**
@@ -320,14 +384,20 @@ final class TireGuide {
 	 * Whether one of the tire guide's tables exists (checked once per request).
 	 */
 	private static function table_exists( string $suffix ): bool {
-		static $cache = [];
-		if ( ! array_key_exists( $suffix, $cache ) ) {
+		if ( ! array_key_exists( $suffix, self::$tables ) ) {
 			global $wpdb;
-			$table            = $wpdb->prefix . $suffix;
-			$found            = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) );
-			$cache[ $suffix ] = is_string( $found ) && strtolower( $found ) === strtolower( $table );
+			$table                   = $wpdb->prefix . $suffix;
+			$found                   = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) );
+			self::$tables[ $suffix ] = is_string( $found ) && strtolower( $found ) === strtolower( $table );
 		}
-		return $cache[ $suffix ];
+		return self::$tables[ $suffix ];
+	}
+
+	/**
+	 * Forget which tables were found, so the next call looks again (tests).
+	 */
+	public static function forget_tables(): void {
+		self::$tables = [];
 	}
 
 	/**
