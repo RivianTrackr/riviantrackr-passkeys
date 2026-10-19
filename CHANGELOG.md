@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The Profile tab's photo card sat flush against the Display name field; it now has the same gap as the other cards.
+
 ## [1.6.0] - 2026-10-19
 
 ### Added

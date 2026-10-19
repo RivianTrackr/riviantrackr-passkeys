@@ -953,11 +953,13 @@ a.rtpk-account__item-name:hover {
 	cursor: not-allowed;
 }
 
-/* Profile: avatar card */
+/* Profile: avatar card (the profile form follows it, so the block-to-block
+   gap above does not apply; give it its own) */
 .rtpk-account__avatar-card {
 	display: flex;
 	align-items: flex-start;
 	gap: 20px;
+	margin-bottom: 20px;
 }
 
 .rtpk-account__avatar-card .rtpk-account__avatar--lg {
