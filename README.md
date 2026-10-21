@@ -318,7 +318,9 @@ Visitor                                  Plugin
 ───────                                  ──────
 submits email (+ name)        ──►  POST signup/request
                                    ├ honeypot filled?            → fake success, nothing stored
-                                   ├ form token < 3 s old / forged → error
+                                   ├ form token < 3 s old → "too quick"; forged / > 12 h → "expired"
+                                   │  (the form swaps in a fresh token from GET signup/token on load,
+                                   │   so a page served from a full-page cache still works)
                                    ├ Turnstile (if keys set)     → siteverify
                                    ├ disposable / blocked domain → error
                                    ├ riviantrackr_passkeys_signup_allowed filter
@@ -392,7 +394,8 @@ Namespace `riviantrackr-passkeys/v1`. Logged-in routes require the standard REST
 | POST | `/register/verify` | user | `challengeId`, `credential`, optional `name` |
 | POST | `/login/options` | public | 30/min per IP |
 | POST | `/login/verify` | public | 10/min per IP; `challengeId`, `credential`, `redirectTo`, `remember` |
-| POST | `/signup/request` | public | 5/hour per IP; `email`, `name`, `website` (honeypot), `ts`, `sig`, `turnstile` |
+| GET | `/signup/token` | public | fresh `ts`/`sig` form token, `Cache-Control: no-store`; the form fetches it on load so cached join pages keep working |
+| POST | `/signup/request` | public | 5/hour per IP; `email`, `name`, `website` (honeypot), `ts`, `sig`, `turnstile`; `rtpk_signup_form` when sent too soon, `rtpk_signup_form_expired` when the token is forged or over 12 hours old |
 | GET | `/credentials` | user | own list, or `?user_id=` with `edit_user` capability |
 | POST | `/credentials/{id}` | user | rename (own only) |
 | DELETE | `/credentials/{id}` | user | own, or `edit_user` capability |

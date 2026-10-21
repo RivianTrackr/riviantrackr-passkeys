@@ -29,6 +29,10 @@
 			return;
 		}
 
+		// A full-page cache can serve this form with a days-old token, so
+		// fetch a fresh one now. On failure the rendered token stays.
+		var fresh = refreshToken();
+
 		form.addEventListener('submit', function (event) {
 			event.preventDefault();
 			send();
@@ -64,14 +68,28 @@
 			setBusy(true);
 			showMsg(msg, i18n.sending, 'info');
 
-			core.request(cfg.restUrl, 'signup/request', {
-				email: email,
-				name: field('name') || '',
-				website: field('website') || '',
-				ts: field('ts') || '',
-				sig: field('sig') || '',
-				turnstile: turnstile
-			})
+			function post() {
+				return core.request(cfg.restUrl, 'signup/request', {
+					email: email,
+					name: field('name') || '',
+					website: field('website') || '',
+					ts: field('ts') || '',
+					sig: field('sig') || '',
+					turnstile: turnstile
+				});
+			}
+
+			fresh
+				.then(post)
+				.catch(function (err) {
+					// The tab outlived its token. The server checks the token
+					// before Turnstile, so the same Turnstile answer still works.
+					if (!err || err.code !== 'rtpk_signup_form_expired') {
+						throw err;
+					}
+					fresh = refreshToken();
+					return fresh.then(post);
+				})
 				.then(function (result) {
 					showMsg(msg, '', '');
 					if (sentText) {
@@ -96,6 +114,26 @@
 		function field(name) {
 			var input = form.querySelector('[name="' + name + '"]');
 			return input ? input.value : null;
+		}
+
+		function setField(name, value) {
+			var input = form.querySelector('[name="' + name + '"]');
+			if (input && value !== undefined && value !== null && value !== '') {
+				input.value = String(value);
+			}
+		}
+
+		function refreshToken() {
+			return core.request(cfg.restUrl, 'signup/token', null, null, 'GET')
+				.then(function (token) {
+					if (token && token.ts && token.sig) {
+						setField('ts', token.ts);
+						setField('sig', token.sig);
+					}
+				})
+				.catch(function () {
+					/* keep the rendered token */
+				});
 		}
 
 		function setBusy(busy) {

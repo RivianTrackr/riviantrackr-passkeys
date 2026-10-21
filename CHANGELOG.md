@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-10-21
+
+### Fixed
+- **Signups failed on cached join pages with "That was quick…".** The form's signed timestamp (`ts`/`sig`) was only ever printed into the page HTML, so a full-page cache (Cloudflare APO here, serving `/register/` with an age of about 64 hours) handed every visitor a token past the 12-hour `FORM_TOKEN_MAX_AGE`, and reloading served the same stale copy. New public route `GET signup/token` returns a fresh token with `Cache-Control: no-store`; `passkeys-signup.js` fetches it on load and waits for it before posting, keeping the rendered token if the call fails. A submit that still comes back expired (a tab left open past 12 hours) fetches another token and retries once with the same Turnstile answer, which the server has not spent yet because it checks the form token first.
+- **The error now says what happened.** `SignupService::form_token_problem()` reports `invalid`, `early` or `stale` (`verify_form_token()` wraps it). Too soon keeps `rtpk_signup_form` with "That was quick. Please wait a moment and try again."; forged, missing or stale tokens return `rtpk_signup_form_expired` with "This page has expired. Please reload it and try again."
+
+### Tests
+- `SignupServiceTest`: the new error codes and messages, `form_token_problem()` for each case. `SignupFlowIntegrationTest`: the token route (fresh, signed, `no-store`, 403 while signups are off) and a three-day-old token reported as expired. JS (`signup.test.mjs`): the fresh token replaces the rendered one, an expired token is refreshed and retried once with the same Turnstile answer, a second expiry shows the message instead of looping, a too-quick submit is not retried.
+
 ## [1.7.0] - 2026-10-19
 
 ### Added

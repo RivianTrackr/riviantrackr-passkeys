@@ -67,6 +67,34 @@ final class SignupFlowIntegrationTest extends IntegrationTestCase {
 		return $m[1];
 	}
 
+	public function test_the_token_route_hands_out_a_fresh_uncached_token(): void {
+		$response = $this->rest( 'GET', 'signup/token' );
+		$this->assertSame( 200, $response->get_status() );
+		$data = $response->get_data();
+		$this->assertEqualsWithDelta( time(), $data['ts'], 5 );
+		$this->assertSame( 'early', $this->plugin()->signup()->form_token_problem( (string) $data['ts'], $data['sig'] ), 'signed by us and still subject to the minimum time' );
+		$this->assertStringContainsString( 'no-store', $response->get_headers()['Cache-Control'] );
+
+		update_option( SignupService::OPTION, [ 'enabled' => false ] );
+		$this->plugin()->signup()->flush();
+		$this->assertSame( 403, $this->rest( 'GET', 'signup/token' )->get_status() );
+	}
+
+	public function test_a_token_from_a_cached_page_is_reported_as_expired(): void {
+		$ts       = time() - 3 * DAY_IN_SECONDS;
+		$response = $this->rest(
+			'POST',
+			'signup/request',
+			[
+				'email' => 'new.member@example.org',
+				'ts'    => (string) $ts,
+				'sig'   => (string) wp_hash( 'rtpk-signup|' . $ts ),
+			]
+		);
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame( 'rtpk_signup_form_expired', $response->get_data()['code'] );
+	}
+
 	public function test_no_user_exists_until_the_link_is_clicked(): void {
 		$this->request_signup();
 		$this->assertFalse( get_user_by( 'email', 'new.member@example.org' ) );
