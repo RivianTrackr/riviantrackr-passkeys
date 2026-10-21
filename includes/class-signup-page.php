@@ -66,6 +66,33 @@ final class SignupPage {
 				],
 			]
 		);
+		register_rest_route(
+			RTPK_REST_NAMESPACE,
+			'/signup/token',
+			[
+				'methods'             => 'GET',
+				'callback'            => [ $this, 'rest_token' ],
+				'permission_callback' => '__return_true',
+			]
+		);
+	}
+
+	/**
+	 * GET signup/token
+	 *
+	 * A fresh form token. The form markup carries one too, but a full-page
+	 * cache (Cloudflare APO, WP Rocket…) can serve that markup for days,
+	 * past FORM_TOKEN_MAX_AGE, so the script swaps in one from here.
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function rest_token() {
+		if ( ! $this->signup->enabled() ) {
+			return new \WP_Error( 'rtpk_signup_disabled', __( 'Signups are closed right now.', 'riviantrackr-passkeys' ), [ 'status' => 403 ] );
+		}
+		$response = rest_ensure_response( $this->signup->form_token() );
+		$response->header( 'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private' );
+		return $response;
 	}
 
 	/**

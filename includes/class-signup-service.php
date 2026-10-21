@@ -180,14 +180,26 @@ final class SignupService {
 	 * ago and not so long ago that the page is stale.
 	 */
 	public function verify_form_token( string $ts, string $sig ): bool {
+		return null === $this->form_token_problem( $ts, $sig );
+	}
+
+	/**
+	 * What is wrong with a form token, if anything: 'invalid' (missing or
+	 * not signed by us), 'early' (submitted too soon) or 'stale' (older
+	 * than FORM_TOKEN_MAX_AGE, e.g. a page served from a full-page cache).
+	 */
+	public function form_token_problem( string $ts, string $sig ): ?string {
 		if ( ! preg_match( '/^\d{1,12}$/', $ts ) || '' === $sig ) {
-			return false;
+			return 'invalid';
 		}
 		if ( ! hash_equals( $this->sign_timestamp( (int) $ts ), $sig ) ) {
-			return false;
+			return 'invalid';
 		}
 		$age = time() - (int) $ts;
-		return $age >= RTPK_SIGNUP_MIN_SECONDS && $age <= self::FORM_TOKEN_MAX_AGE;
+		if ( $age < RTPK_SIGNUP_MIN_SECONDS ) {
+			return 'early';
+		}
+		return $age > self::FORM_TOKEN_MAX_AGE ? 'stale' : null;
 	}
 
 	private function sign_timestamp( int $ts ): string {
@@ -223,8 +235,12 @@ final class SignupService {
 			return $success;
 		}
 
-		if ( ! $this->verify_form_token( (string) ( $input['ts'] ?? '' ), (string) ( $input['sig'] ?? '' ) ) ) {
-			return new \WP_Error( 'rtpk_signup_form', __( 'That was quick. Please wait a moment and try again, or reload the page if it has been open for a while.', 'riviantrackr-passkeys' ), [ 'status' => 400 ] );
+		$problem = $this->form_token_problem( (string) ( $input['ts'] ?? '' ), (string) ( $input['sig'] ?? '' ) );
+		if ( 'early' === $problem ) {
+			return new \WP_Error( 'rtpk_signup_form', __( 'That was quick. Please wait a moment and try again.', 'riviantrackr-passkeys' ), [ 'status' => 400 ] );
+		}
+		if ( null !== $problem ) {
+			return new \WP_Error( 'rtpk_signup_form_expired', __( 'This page has expired. Please reload it and try again.', 'riviantrackr-passkeys' ), [ 'status' => 400 ] );
 		}
 
 		$email = sanitize_email( trim( (string) ( $input['email'] ?? '' ) ) );

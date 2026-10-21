@@ -4,7 +4,7 @@ Tags: passkeys, webauthn, fido2, passwordless, login, security
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.1
-Stable tag: 1.7.0
+Stable tag: 1.7.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,6 +55,10 @@ Yes. The account page's "Your data" tab files a confirmed export request for you
 Yes. Set the relying party ID to the parent domain and list each subdomain origin under "Additional allowed origins". Existing passkeys must be re-registered after changing the RP ID.
 
 == Changelog ==
+
+= 1.7.1 =
+* Fix: signing up from a join page served by a full-page cache (Cloudflare APO, WP Rocket and the like) failed with "That was quick…" once the cached copy was over 12 hours old. The form now fetches a fresh token when it loads.
+* The signup form tells "too quick" apart from "this page has expired".
 
 = 1.7.0 =
 * My Garage: members add the Rivians they drive on a new Garage tab of the account page (model, model year, generation, nickname and up to four wheel sets each, from the Tire Guide's wheels or with the tire size typed in) and pick a default. Other RivianTrackr plugins read it through the riviantrackr_garage filter and window.riviantrackrGarage.

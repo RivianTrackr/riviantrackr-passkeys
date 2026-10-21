@@ -195,20 +195,28 @@ final class SignupServiceTest extends TestCase {
 
 		$forged_ts = (string) ( time() - 100 );
 		$forged    = $this->signup->handle_request( $this->valid_input( [ 'ts' => $forged_ts, 'sig' => 'deadbeef' ] ), '203.0.113.9' );
-		$this->assertSame( 'rtpk_signup_form', $forged->get_error_code(), 'bad signature' );
+		$this->assertSame( 'rtpk_signup_form_expired', $forged->get_error_code(), 'bad signature' );
 
 		$old_ts = (string) ( time() - 2 * DAY_IN_SECONDS );
 		$stale  = $this->signup->handle_request( $this->valid_input( [ 'ts' => $old_ts, 'sig' => wp_hash( 'rtpk-signup|' . $old_ts ) ] ), '203.0.113.9' );
-		$this->assertSame( 'rtpk_signup_form', $stale->get_error_code(), 'stale page' );
+		$this->assertSame( 'rtpk_signup_form_expired', $stale->get_error_code(), 'stale page, e.g. served from a page cache' );
+		$this->assertStringContainsString( 'reload', $stale->get_error_message() );
+		$this->assertStringNotContainsString( 'quick', $stale->get_error_message(), 'a cached page is not told it was too quick' );
 
 		$missing = $this->signup->handle_request( $this->valid_input( [ 'ts' => '', 'sig' => '' ] ), '203.0.113.9' );
-		$this->assertSame( 'rtpk_signup_form', $missing->get_error_code() );
+		$this->assertSame( 'rtpk_signup_form_expired', $missing->get_error_code() );
 
 		$this->assertSame( [], $this->store->rows );
 
 		$token = $this->signup->form_token();
 		$this->assertFalse( $this->signup->verify_form_token( (string) $token['ts'], $token['sig'] ), 'fresh token is too young' );
 		$this->assertTrue( $this->signup->verify_form_token( (string) ( $token['ts'] - 5 ), wp_hash( 'rtpk-signup|' . ( $token['ts'] - 5 ) ) ) );
+
+		$this->assertSame( 'early', $this->signup->form_token_problem( (string) $token['ts'], $token['sig'] ) );
+		$this->assertSame( 'stale', $this->signup->form_token_problem( $old_ts, wp_hash( 'rtpk-signup|' . $old_ts ) ) );
+		$this->assertSame( 'invalid', $this->signup->form_token_problem( $forged_ts, 'deadbeef' ) );
+		$this->assertSame( 'invalid', $this->signup->form_token_problem( 'abc', 'x' ) );
+		$this->assertNull( $this->signup->form_token_problem( (string) ( $token['ts'] - 5 ), wp_hash( 'rtpk-signup|' . ( $token['ts'] - 5 ) ) ) );
 	}
 
 	public function test_invalid_email_is_rejected(): void {
