@@ -92,7 +92,8 @@ export function page(html, scripts, opts = {}) {
 		win.PublicKeyCredential.isConditionalMediationAvailable = () => Promise.resolve(!!opts.conditional);
 	}
 
-	const location = { assigned: [], assign(href) { this.assigned.push(href); }, hash: new URL(url).hash, href: url, replace(href) { this.assigned.push(href); } };
+	const parsed = new URL(url);
+	const location = { assigned: [], assign(href) { this.assigned.push(href); }, hash: parsed.hash, search: parsed.search, origin: parsed.origin, href: url, replace(href) { this.assigned.push(href); } };
 	const windowProxy = new Proxy(win, {
 		get(target, key) {
 			if (key === 'location') {

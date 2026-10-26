@@ -39,27 +39,31 @@ final class SignupPage {
 				'callback'            => [ $this, 'rest_request' ],
 				'permission_callback' => '__return_true',
 				'args'                => [
-					'email'     => [
+					'email'       => [
 						'type'     => 'string',
 						'required' => true,
 					],
-					'name'      => [
+					'name'        => [
 						'type'     => 'string',
 						'required' => false,
 					],
-					'website'   => [
+					'website'     => [
 						'type'     => 'string',
 						'required' => false,
 					],
-					'ts'        => [
+					'ts'          => [
 						'type'     => 'string',
 						'required' => false,
 					],
-					'sig'       => [
+					'sig'         => [
 						'type'     => 'string',
 						'required' => false,
 					],
-					'turnstile' => [
+					'turnstile'   => [
+						'type'     => 'string',
+						'required' => false,
+					],
+					'redirect_to' => [
 						'type'     => 'string',
 						'required' => false,
 					],
@@ -103,7 +107,7 @@ final class SignupPage {
 	 */
 	public function rest_request( \WP_REST_Request $request ) {
 		$input = [];
-		foreach ( [ 'email', 'name', 'website', 'ts', 'sig', 'turnstile' ] as $key ) {
+		foreach ( [ 'email', 'name', 'website', 'ts', 'sig', 'turnstile', 'redirect_to' ] as $key ) {
 			$input[ $key ] = (string) ( $request->get_param( $key ) ?? '' );
 		}
 		$result = $this->signup->handle_request( $input, Helpers::client_ip() );
@@ -187,7 +191,15 @@ final class SignupPage {
 
 		if ( is_user_logged_in() ) {
 			$user = wp_get_current_user();
-			$to   = '' !== $atts['redirect'] ? esc_url_raw( (string) $atts['redirect'] ) : $this->signup->continue_url();
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Display only.
+			$requested = isset( $_GET['redirect_to'] ) ? SignupService::return_url( esc_url_raw( wp_unslash( (string) $_GET['redirect_to'] ) ) ) : '';
+			if ( '' !== $requested ) {
+				$to = $requested;
+			} elseif ( '' !== $atts['redirect'] ) {
+				$to = esc_url_raw( (string) $atts['redirect'] );
+			} else {
+				$to = $this->signup->continue_url();
+			}
 			return '<div class="rtpk-signup' . ( $light ? ' is-light' : '' ) . '"><p class="rtpk-signup__note">'
 				. sprintf(
 					/* translators: 1: display name, 2: continue URL */
@@ -382,7 +394,7 @@ final class SignupPage {
 
 		if ( is_wp_error( $user ) ) {
 			if ( 'rtpk_signup_exists' === $user->get_error_code() ) {
-				wp_safe_redirect( add_query_arg( 'rtpk_signup', 'exists', wp_login_url( $this->invites->setup_url( $this->signup->continue_url() ) ) ) );
+				wp_safe_redirect( add_query_arg( 'rtpk_signup', 'exists', wp_login_url( $this->invites->setup_url( $this->signup->continue_url_for( $row ) ) ) ) );
 				exit;
 			}
 			if ( '' !== $join ) {
@@ -410,7 +422,8 @@ final class SignupPage {
 		 */
 		do_action( 'riviantrackr_passkeys_signup_login', $user );
 
-		wp_safe_redirect( $this->invites->setup_url( $this->signup->continue_url() ) );
+		// Back to the page they joined from (a post's comments, say) once the passkey is set up.
+		wp_safe_redirect( $this->invites->setup_url( $this->signup->continue_url_for( $row ) ) );
 		exit;
 	}
 

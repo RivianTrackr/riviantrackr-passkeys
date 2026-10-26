@@ -412,4 +412,35 @@ final class SignupServiceTest extends TestCase {
 		$this->signup->flush();
 		$this->assertSame( 'https://riviantrackr.test/welcome/', $this->signup->continue_url() );
 	}
+
+	// ---- return address -------------------------------------------------
+
+	public function test_request_remembers_where_the_visitor_came_from(): void {
+		$back = 'https://riviantrackr.test/news/epa-range/#respond';
+		$this->signup->handle_request( $this->valid_input( [ 'redirect_to' => $back ] ), '203.0.113.9' );
+
+		$row = reset( $this->store->rows );
+		$this->assertSame( $back, $row['redirect_to'] );
+		$this->assertSame( $back, $this->signup->continue_url_for( $row ), 'they land back on the post after passkey setup' );
+		$this->assertStringNotContainsString( 'epa-range', end( $GLOBALS['rtpk_test_mail'] )['message'], 'the address stays on the server, not in the email' );
+	}
+
+	public function test_off_site_or_oversized_return_addresses_are_dropped(): void {
+		foreach ( [ 'https://evil.test/', '//evil.test/', 'javascript:alert(1)', 'https://riviantrackr.test/' . str_repeat( 'a', 2001 ) ] as $bad ) {
+			$this->assertSame( '', SignupService::return_url( $bad ), $bad );
+		}
+		$this->assertSame( 'https://riviantrackr.test/news/', SignupService::return_url( ' https://riviantrackr.test/news/ ' ) );
+
+		$this->signup->handle_request( $this->valid_input( [ 'redirect_to' => 'https://evil.test/' ] ), '203.0.113.9' );
+		$row = reset( $this->store->rows );
+		$this->assertSame( '', $row['redirect_to'] );
+		$this->assertSame( 'https://riviantrackr.test/', $this->signup->continue_url_for( $row ), 'the continue setting decides instead' );
+	}
+
+	public function test_continue_url_for_checks_the_stored_address_again(): void {
+		update_option( SignupService::OPTION, [ 'enabled' => true, 'continue_url' => 'https://riviantrackr.test/welcome/' ] );
+		$this->signup->flush();
+		$this->assertSame( 'https://riviantrackr.test/welcome/', $this->signup->continue_url_for( [ 'redirect_to' => 'https://evil.test/' ] ) );
+		$this->assertSame( 'https://riviantrackr.test/welcome/', $this->signup->continue_url_for( [] ), 'rows from before the column existed' );
+	}
 }

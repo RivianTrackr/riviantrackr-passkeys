@@ -17,6 +17,7 @@ function markup({ turnstile = false } = {}) {
 				${turnstile ? '<div data-rtpk-turnstile><input type="hidden" name="cf-turnstile-response" value=""></div>' : ''}
 				<button type="submit" data-rtpk-signup-submit>Send</button>
 				<p data-rtpk-signup-msg hidden></p>
+				<p class="rtpk-signup__alt">Already a member? <a href="https://example.test/sign-in/">Sign in</a></p>
 			</form>
 			<div data-rtpk-signup-sent hidden>
 				<p data-rtpk-signup-sent-text></p>
@@ -64,7 +65,7 @@ test('a successful request posts every field and swaps the form for the sent pan
 	await flush();
 
 	assert.equal(posts(fetch).length, 1);
-	assert.deepEqual(posts(fetch)[0].body, { email: 'jose@example.com', name: 'Jose', website: '', ts: '1700000000', sig: 'sig123', turnstile: '' }, 'the rendered token when no fresh one comes back');
+	assert.deepEqual(posts(fetch)[0].body, { email: 'jose@example.com', name: 'Jose', website: '', ts: '1700000000', sig: 'sig123', turnstile: '', redirect_to: '' }, 'the rendered token when no fresh one comes back');
 	assert.equal(document.querySelector('[data-rtpk-signup-form]').hidden, true);
 	const sent = document.querySelector('[data-rtpk-signup-sent]');
 	assert.equal(sent.hidden, false);
@@ -155,4 +156,38 @@ test('a too-quick submit is not retried', async () => {
 
 	assert.equal(posts(fetch).length, 1);
 	assert.equal(document.querySelector('[data-rtpk-signup-msg]').textContent, 'That was quick.');
+});
+
+test('a redirect_to on the join page rides along with the request and the sign-in link', async () => {
+	const back = 'https://example.test/news/epa-range/#respond';
+	const fetch = mockFetch({ 'POST signup/request': { message: 'Check your inbox.' } });
+	const { document } = page(markup(), ['passkeys-signup'], {
+		fetch,
+		url: 'https://example.test/join/?redirect_to=' + encodeURIComponent(back),
+		globals: { rtpkSignup: { restUrl: REST, i18n } },
+	});
+
+	const signIn = new URL(document.querySelector('.rtpk-signup__alt a').getAttribute('href'));
+	assert.equal(signIn.pathname, '/sign-in/');
+	assert.equal(signIn.searchParams.get('redirect_to'), back, 'members who sign in instead come back too');
+
+	document.querySelector('[name="email"]').value = 'jose@example.com';
+	submit(document);
+	await flush();
+	assert.equal(posts(fetch)[0].body.redirect_to, back);
+});
+
+test('a redirect_to pointing at another site is dropped', async () => {
+	const fetch = mockFetch({ 'POST signup/request': { message: 'Check your inbox.' } });
+	const { document } = page(markup(), ['passkeys-signup'], {
+		fetch,
+		url: 'https://example.test/join/?redirect_to=' + encodeURIComponent('https://evil.test/'),
+		globals: { rtpkSignup: { restUrl: REST, i18n } },
+	});
+
+	assert.equal(document.querySelector('.rtpk-signup__alt a').getAttribute('href'), 'https://example.test/sign-in/');
+	document.querySelector('[name="email"]').value = 'jose@example.com';
+	submit(document);
+	await flush();
+	assert.equal(posts(fetch)[0].body.redirect_to, '');
 });

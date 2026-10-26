@@ -40,6 +40,7 @@ final class Settings {
 			'hide_admin_bar'    => true,
 			'account_menu_item' => false,
 			'self_delete'       => true,
+			'comment_prompt'    => true,
 		];
 	}
 
@@ -183,6 +184,14 @@ final class Settings {
 	}
 
 	/**
+	 * Ask signed-out commenters to sign in or create an account, at the top
+	 * of the comment form.
+	 */
+	public function prompts_commenters(): bool {
+		return ! empty( $this->get( 'comment_prompt' ) );
+	}
+
+	/**
 	 * Whether wp-login.php's login/register/reset screens should be sent to
 	 * the custom pages. Cheap enough to call at plugins_loaded: no permalink
 	 * lookup, just the stored toggle and page IDs.
@@ -290,6 +299,7 @@ final class Settings {
 		$out['hide_admin_bar']    = ! empty( $input['hide_admin_bar'] );
 		$out['account_menu_item'] = ! empty( $input['account_menu_item'] );
 		$out['self_delete']       = ! empty( $input['self_delete'] );
+		$out['comment_prompt']    = ! empty( $input['comment_prompt'] );
 
 		if ( $out['redirect_wp_login'] && 0 === $out['login_page_id'] && 0 === $out['reset_page_id'] && function_exists( 'add_settings_error' ) ) {
 			add_settings_error(

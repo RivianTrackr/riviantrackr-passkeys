@@ -22,23 +22,26 @@ class PendingSignupStore {
 	}
 
 	/**
-	 * @param array{token_hash:string,email:string,display_name:string,ip_hash:string,expires_at:string} $data Row data.
+	 * @param array{token_hash:string,email:string,display_name:string,ip_hash:string,expires_at:string,redirect_to?:string} $data Row data.
 	 * @return int Inserted row ID, or 0 on failure.
 	 */
 	public function insert( array $data ): int {
 		global $wpdb;
-		$ok = $wpdb->insert(
-			$this->table,
-			[
-				'token_hash'   => (string) $data['token_hash'],
-				'email'        => (string) $data['email'],
-				'display_name' => (string) ( $data['display_name'] ?? '' ),
-				'ip_hash'      => (string) ( $data['ip_hash'] ?? '' ),
-				'created_at'   => Helpers::now(),
-				'expires_at'   => (string) $data['expires_at'],
-			],
-			[ '%s', '%s', '%s', '%s', '%s', '%s' ]
-		);
+		$row = [
+			'token_hash'   => (string) $data['token_hash'],
+			'email'        => (string) $data['email'],
+			'display_name' => (string) ( $data['display_name'] ?? '' ),
+			'ip_hash'      => (string) ( $data['ip_hash'] ?? '' ),
+			'created_at'   => Helpers::now(),
+			'expires_at'   => (string) $data['expires_at'],
+		];
+		// The column arrives with DB version 3; until an admin page load
+		// upgrades the table, the signup goes ahead without its return address.
+		$redirect = (string) ( $data['redirect_to'] ?? '' );
+		if ( '' !== $redirect && Installer::is_current() ) {
+			$row['redirect_to'] = $redirect;
+		}
+		$ok = $wpdb->insert( $this->table, $row, array_fill( 0, count( $row ), '%s' ) );
 		return $ok ? (int) $wpdb->insert_id : 0;
 	}
 
@@ -95,6 +98,7 @@ class PendingSignupStore {
 			'email'        => (string) $row['email'],
 			'display_name' => (string) $row['display_name'],
 			'ip_hash'      => (string) $row['ip_hash'],
+			'redirect_to'  => (string) ( $row['redirect_to'] ?? '' ),
 			'created_at'   => (string) $row['created_at'],
 			'expires_at'   => (string) $row['expires_at'],
 		];

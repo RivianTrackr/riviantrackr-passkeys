@@ -22,6 +22,7 @@ final class SignupService {
 
 	private const FORM_TOKEN_MAX_AGE = 12 * HOUR_IN_SECONDS;
 	private const NAME_MAX_LENGTH    = 60;
+	private const RETURN_MAX_LENGTH  = 2000;
 
 	/** @var array<string,mixed>|null */
 	private ?array $cache = null;
@@ -109,6 +110,30 @@ final class SignupService {
 		}
 		$account = $this->settings->account_page_url();
 		return '' !== $account ? $account : home_url( '/' );
+	}
+
+	/**
+	 * Where a new member lands after passkey setup: the page they were on
+	 * when they asked to join (a post's comment form, say), else the
+	 * "continue" setting.
+	 *
+	 * @param array<string,mixed> $row Pending signup (from validate_token()).
+	 */
+	public function continue_url_for( array $row ): string {
+		$return = self::return_url( (string) ( $row['redirect_to'] ?? '' ) );
+		return '' !== $return ? $return : $this->continue_url();
+	}
+
+	/**
+	 * A redirect_to sent with a signup request, kept only when it stays on
+	 * this site. Pure apart from wp_validate_redirect().
+	 */
+	public static function return_url( string $url ): string {
+		$url = trim( $url );
+		if ( '' === $url || strlen( $url ) > self::RETURN_MAX_LENGTH ) {
+			return '';
+		}
+		return (string) wp_validate_redirect( esc_url_raw( $url ), '' );
 	}
 
 	/**
@@ -213,7 +238,7 @@ final class SignupService {
 	 * success payload whether or not an email was actually sent, so the
 	 * response does not reveal which addresses have accounts.
 	 *
-	 * @param array<string,mixed> $input email, name, website (honeypot), ts, sig, turnstile.
+	 * @param array<string,mixed> $input email, name, website (honeypot), ts, sig, turnstile, redirect_to.
 	 * @param string              $ip    Client IP for rate limiting.
 	 * @return array{success:bool,message:string}|\WP_Error
 	 */
@@ -296,6 +321,7 @@ final class SignupService {
 				'email'        => $email,
 				'display_name' => $name,
 				'ip_hash'      => hash_hmac( 'sha256', $ip, (string) wp_salt() ),
+				'redirect_to'  => self::return_url( (string) ( $input['redirect_to'] ?? '' ) ),
 				'expires_at'   => gmdate( 'Y-m-d H:i:s', time() + $this->expiry_seconds() ),
 			]
 		);
