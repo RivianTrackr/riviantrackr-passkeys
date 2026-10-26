@@ -29,6 +29,12 @@
 	box-sizing: border-box;
 }
 
+/* Inside the form the theme spaces the rows itself (Blocksy's grid gap, or
+   the notes paragraph's own top margin), so a margin here doubles the gap. */
+.comment-form > .rtpk-comment-cta {
+	margin-bottom: 0;
+}
+
 .rtpk-comment-cta.is-light {
 	--rtpk-cta-bg: #ffffff;
 	--rtpk-cta-bg-deep: #f5f5f7;

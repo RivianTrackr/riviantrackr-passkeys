@@ -72,7 +72,7 @@ final class CommentPrompt {
 		} else {
 			$title = __( 'Join the conversation', 'riviantrackr-passkeys' );
 			$text  = $join
-				? __( 'Create a free account to comment under your own name and photo, skip the name and email fields, and sign in with Face ID, Touch ID or Windows Hello instead of a password.', 'riviantrackr-passkeys' )
+				? __( 'Comment under your own name and photo, skip the fields below, and sign in with Face ID or Touch ID instead of a password.', 'riviantrackr-passkeys' )
 				: __( 'Sign in to comment under your own name and photo and skip the name and email fields.', 'riviantrackr-passkeys' );
 		}
 

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-10-26
+
+### Fixed
+- **Double gap under the comment form card.** Blocksy lays out `#commentform` as a grid with a 1.5em row gap, so the card's own 20px bottom margin stacked on top of it and left about twice the space below the card as above it. `.comment-form > .rtpk-comment-cta` now has no bottom margin: the grid gap spaces it on themes like Blocksy, and the notes paragraph's top margin does on classic ones. The members-only card, which core prints outside the form, keeps its margin.
+
+### Changed
+- **Shorter card copy.** "Comment under your own name and photo, skip the fields below, and sign in with Face ID or Touch ID instead of a password." replaces the three-line description, so the card no longer outweighs the form it introduces.
+
+### Tests
+- `CommentPromptTest` checks the new description.
+
 ## [1.8.0] - 2026-10-26
 
 ### Added
