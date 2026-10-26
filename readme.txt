@@ -4,7 +4,7 @@ Tags: passkeys, webauthn, fido2, passwordless, login, security
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.1
-Stable tag: 1.8.0
+Stable tag: 1.8.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -59,6 +59,9 @@ Yes, and it does by default. Signed-out visitors see a "Join the conversation" c
 Yes. Set the relying party ID to the parent domain and list each subdomain origin under "Additional allowed origins". Existing passkeys must be re-registered after changing the RP ID.
 
 == Changelog ==
+
+= 1.8.1 =
+* The comment form card sits closer to the form below it on themes that space the form's rows themselves (Blocksy and others), and its description is shorter so it reads in two lines instead of three.
 
 = 1.8.0 =
 * The comment form asks signed-out visitors to join: a "Join the conversation" card at the top with Create a free account and Sign in, or in place of "You must be logged in to post a comment" when comments need an account. On by default, under Settings → Passkeys → Pages.

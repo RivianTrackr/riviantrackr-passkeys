@@ -32,7 +32,7 @@ final class CommentPromptTest extends TestCase {
 		$html = CommentPrompt::card( 'https://riviantrackr.test/sign-in/?redirect_to=x', 'https://riviantrackr.test/join/?redirect_to=x', false, false );
 
 		$this->assertStringContainsString( 'Join the conversation', $html );
-		$this->assertStringContainsString( 'Face ID', $html );
+		$this->assertStringContainsString( 'Comment under your own name and photo, skip the fields below, and sign in with Face ID or Touch ID instead of a password.', $html );
 		$this->assertStringContainsString( 'class="rtpk-comment-cta__btn is-primary" href="https://riviantrackr.test/join/?redirect_to=x">Create a free account</a>', $html );
 		$this->assertStringContainsString( 'class="rtpk-comment-cta__btn" href="https://riviantrackr.test/sign-in/?redirect_to=x">Sign in</a>', $html );
 		$this->assertLessThan( strpos( $html, 'Sign in</a>' ), strpos( $html, 'Create a free account' ), 'joining comes first' );
