@@ -39,6 +39,7 @@ final class Plugin {
 	private BrandedEmails $emails;
 	private Avatars $avatars;
 	private Garage $garage;
+	private CommentPrompt $comments;
 
 	public static function instance(): Plugin {
 		if ( null === self::$instance ) {
@@ -72,6 +73,7 @@ final class Plugin {
 		$this->emails           = new BrandedEmails( $this->invites );
 		$this->avatars          = new Avatars();
 		$this->garage           = new Garage( $this->settings );
+		$this->comments         = new CommentPrompt( $this->settings, $this->signup );
 		$this->admin            = new Admin( $this->settings, $this->store, $this->signup );
 	}
 
@@ -101,6 +103,7 @@ final class Plugin {
 		$this->emails->register_hooks();
 		$this->avatars->register_hooks();
 		$this->garage->register_hooks();
+		$this->comments->register_hooks();
 
 		if ( is_admin() ) {
 			$this->admin->register_hooks();

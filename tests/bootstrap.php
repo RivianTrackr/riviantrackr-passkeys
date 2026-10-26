@@ -216,6 +216,23 @@ function esc_url_raw( $url ) {
 function wp_parse_url( $url, $component = -1 ) {
 	return parse_url( (string) $url, $component );
 }
+function wp_validate_redirect( $location, $fallback = '' ) {
+	$location = trim( (string) $location );
+	if ( str_starts_with( $location, '//' ) ) {
+		return $fallback;
+	}
+	$parts = parse_url( $location );
+	if ( false === $parts ) {
+		return $fallback;
+	}
+	if ( isset( $parts['scheme'] ) && ! in_array( $parts['scheme'], [ 'http', 'https' ], true ) ) {
+		return $fallback;
+	}
+	if ( isset( $parts['host'] ) && 'riviantrackr.test' !== $parts['host'] ) {
+		return $fallback;
+	}
+	return $location;
+}
 function wp_json_encode( $data, $flags = 0 ) {
 	return json_encode( $data, $flags );
 }

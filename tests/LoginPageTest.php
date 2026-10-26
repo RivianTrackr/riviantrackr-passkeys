@@ -105,4 +105,14 @@ final class LoginPageTest extends TestCase {
 		$this->assertStringContainsString( 'text-indent:0', $text );
 		$this->assertStringNotContainsString( 'url(', $text );
 	}
+
+	public function test_join_link_brings_new_members_back_where_they_were_headed(): void {
+		$join = 'https://riviantrackr.test/join/';
+		$post = 'https://riviantrackr.test/news/epa-range/#respond';
+
+		$this->assertSame( $join . '?redirect_to=' . rawurlencode( $post ), LoginPage::join_link( $join, $post ) );
+		$this->assertSame( $join, LoginPage::join_link( $join, '' ), 'nowhere in particular' );
+		$this->assertSame( $join, LoginPage::join_link( $join, 'https://riviantrackr.test/wp-login.php?action=passkey-setup' ), 'signup ends at passkey setup anyway' );
+		$this->assertSame( $join, LoginPage::join_link( $join, 'https://riviantrackr.test/passkey/', 'https://riviantrackr.test/passkey/' ), 'the setup page too' );
+	}
 }

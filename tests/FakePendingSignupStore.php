@@ -24,6 +24,7 @@ final class FakePendingSignupStore extends PendingSignupStore {
 			'email'        => (string) $data['email'],
 			'display_name' => (string) ( $data['display_name'] ?? '' ),
 			'ip_hash'      => (string) ( $data['ip_hash'] ?? '' ),
+			'redirect_to'  => (string) ( $data['redirect_to'] ?? '' ),
 			'created_at'   => gmdate( 'Y-m-d H:i:s' ),
 			'expires_at'   => (string) $data['expires_at'],
 		];

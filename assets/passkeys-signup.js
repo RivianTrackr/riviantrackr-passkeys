@@ -33,6 +33,14 @@
 		// fetch a fresh one now. On failure the rendered token stays.
 		var fresh = refreshToken();
 
+		// Where the visitor came from (a post's comment form, say). Read from
+		// the address bar rather than the markup, which a cache may have
+		// rendered for someone else. The server checks it again.
+		var returnTo = returnAddress();
+		if (returnTo) {
+			carryToSignIn(root.querySelector('.rtpk-signup__alt a'), returnTo);
+		}
+
 		form.addEventListener('submit', function (event) {
 			event.preventDefault();
 			send();
@@ -75,7 +83,8 @@
 					website: field('website') || '',
 					ts: field('ts') || '',
 					sig: field('sig') || '',
-					turnstile: turnstile
+					turnstile: turnstile,
+					redirect_to: returnTo
 				});
 			}
 
@@ -140,6 +149,40 @@
 			submit.disabled = !!busy;
 			submit.classList.toggle('is-busy', !!busy);
 			submit.setAttribute('aria-busy', busy ? 'true' : 'false');
+		}
+	}
+
+	/**
+	 * ?redirect_to on this page when it stays on this site, else ''.
+	 */
+	function returnAddress() {
+		var value;
+		try {
+			value = new URLSearchParams(window.location.search).get('redirect_to') || '';
+			if (!value || new URL(value, window.location.href).origin !== window.location.origin) {
+				return '';
+			}
+		} catch (e) {
+			return '';
+		}
+		return value;
+	}
+
+	/**
+	 * "Already a member? Sign in" brings them back to the same place.
+	 */
+	function carryToSignIn(link, returnTo) {
+		if (!link) {
+			return;
+		}
+		try {
+			var url = new URL(link.getAttribute('href'), window.location.href);
+			if (!url.searchParams.has('redirect_to')) {
+				url.searchParams.set('redirect_to', returnTo);
+				link.setAttribute('href', url.toString());
+			}
+		} catch (e) {
+			/* leave the link alone */
 		}
 	}
 

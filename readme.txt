@@ -4,7 +4,7 @@ Tags: passkeys, webauthn, fido2, passwordless, login, security
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.1
-Stable tag: 1.7.1
+Stable tag: 1.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -22,6 +22,7 @@ Adds passkey (WebAuthn / FIDO2) sign-in to WordPress.
 * A front-end member account page via [riviantrackr_account]: profile photo, names and bio, email changes confirmed on the page, password changes (or "Set a password" for accounts created by signup), passkeys, sign out other devices, tire reviews and saved tires (with the Rivian Tire Guide), comments, a copy of their data and account deletion; members land there after signing in instead of the dashboard
 * Your own sign-in, password reset and passkey setup pages via [riviantrackr_login], [riviantrackr_password_reset] and [riviantrackr_passkey_setup], with wp-login.php's login, registration, reset and setup screens redirected there, WordPress's sign-in emails (password reset, welcome, email change) in your branded template, and the remaining wp-login.php screens restyled in your colours with your logo
 * Spam-resistant open signup via [riviantrackr_signup]: no account until the emailed link is clicked; honeypot, timing check, rate limits, disposable-domain blocklist, optional Cloudflare Turnstile
+* A "Join the conversation" card on the WordPress comment form asks signed-out visitors to create an account or sign in, and brings them back to the comments afterwards
 * Single-use challenges, strict origin checks, signature-counter clone detection, rate limiting
 * No external dependencies at runtime
 
@@ -51,10 +52,17 @@ Yes. Put [riviantrackr_account] on a page, choose it under Settings → Passkeys
 = Can members download their data or delete their account themselves? =
 Yes. The account page's "Your data" tab files a confirmed export request for you to fulfil under Tools → Export Personal Data, and lets members without editing rights delete their account immediately after typing their username (passkeys go with it; comments and reviews stay without a linked account). Editors and administrators, or everyone when you turn "Let members delete their own account" off, get an erasure request under Tools → Erase Personal Data instead.
 
+= Can the comment form ask visitors to sign up? =
+Yes, and it does by default. Signed-out visitors see a "Join the conversation" card at the top of the comment form with Create a free account (while signups are allowed and a join page is set) and Sign in. When Settings → Discussion requires an account to comment, the card replaces "You must be logged in to post a comment". Both buttons bring the visitor back to the post's comment form, new members by way of passkey setup. Turn it off under Settings → Passkeys → Pages.
+
 = Can passkeys work across subdomains? =
 Yes. Set the relying party ID to the parent domain and list each subdomain origin under "Additional allowed origins". Existing passkeys must be re-registered after changing the RP ID.
 
 == Changelog ==
+
+= 1.8.0 =
+* The comment form asks signed-out visitors to join: a "Join the conversation" card at the top with Create a free account and Sign in, or in place of "You must be logged in to post a comment" when comments need an account. On by default, under Settings → Passkeys → Pages.
+* Signing up from a post brings the new member back to it: the join page remembers where the visitor came from, and after the emailed link and passkey setup they land back on that post's comments. The same goes for "Create an account" on the sign-in page and "Sign in" on the join page.
 
 = 1.7.1 =
 * Fix: signing up from a join page served by a full-page cache (Cloudflare APO, WP Rocket and the like) failed with "That was quick…" once the cached copy was over 12 hours old. The form now fetches a fresh token when it loads.

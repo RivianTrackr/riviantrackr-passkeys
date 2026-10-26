@@ -37,9 +37,18 @@ final class Installer {
 		wp_clear_scheduled_hook( self::PURGE_EVENT );
 	}
 
+	/**
+	 * Whether the tables match this version of the plugin. maybe_upgrade()
+	 * runs on admin_init, so for a while after an update the front end can
+	 * be ahead of the database.
+	 */
+	public static function is_current(): bool {
+		return (string) get_option( self::DB_VERSION_OPTION, '' ) === RTPK_DB_VERSION;
+	}
+
 	public static function maybe_upgrade(): void {
 		self::schedule_purge();
-		if ( (string) get_option( self::DB_VERSION_OPTION, '' ) === RTPK_DB_VERSION ) {
+		if ( self::is_current() ) {
 			return;
 		}
 		self::create_table();
@@ -92,6 +101,7 @@ final class Installer {
 			email varchar(191) NOT NULL,
 			display_name varchar(100) NOT NULL DEFAULT '',
 			ip_hash char(64) NOT NULL DEFAULT '',
+			redirect_to varchar(2000) NOT NULL DEFAULT '',
 			created_at datetime NOT NULL,
 			expires_at datetime NOT NULL,
 			PRIMARY KEY  (id),

@@ -76,7 +76,7 @@ final class LoginPage {
 			return $this->signed_in_markup( wp_get_current_user(), $redirect, $light );
 		}
 
-		return $this->form_markup( $redirect, self::notices( $query, $requested, $this->settings->setup_page_url() ), $light );
+		return $this->form_markup( $redirect, self::notices( $query, $requested, $this->settings->setup_page_url() ), $light, $requested );
 	}
 
 	/**
@@ -150,11 +150,29 @@ final class LoginPage {
 	}
 
 	/**
-	 * @param string                                    $redirect Where to go after signing in.
-	 * @param array<int,array{type:string,text:string}> $notices  Hints to show above the form.
-	 * @param bool                                      $light    Light theme.
+	 * The join page link under the form. A visitor sent here from somewhere
+	 * (a post's comment form, say) who creates an account instead is brought
+	 * back there too, unless that somewhere is passkey setup, which signup
+	 * leads to anyway. Pure.
+	 *
+	 * @param string $join_page  Join page URL.
+	 * @param string $requested  Validated ?redirect_to, or ''.
+	 * @param string $setup_page Passkey setup page URL, or ''.
 	 */
-	private function form_markup( string $redirect, array $notices, bool $light ): string {
+	public static function join_link( string $join_page, string $requested, string $setup_page = '' ): string {
+		if ( '' === $requested || SetupPage::leads_to_setup( $requested, $setup_page ) ) {
+			return $join_page;
+		}
+		return add_query_arg( 'redirect_to', rawurlencode( $requested ), $join_page );
+	}
+
+	/**
+	 * @param string                                    $redirect  Where to go after signing in.
+	 * @param array<int,array{type:string,text:string}> $notices   Hints to show above the form.
+	 * @param bool                                      $light     Light theme.
+	 * @param string                                    $requested Validated ?redirect_to, or ''.
+	 */
+	private function form_markup( string $redirect, array $notices, bool $light, string $requested = '' ): string {
 		$form = wp_login_form(
 			[
 				'echo'           => false,
@@ -175,7 +193,7 @@ final class LoginPage {
 
 		$join_url = '';
 		if ( $this->signup->enabled() && '' !== $this->settings->register_page_url() ) {
-			$join_url = $this->settings->register_page_url();
+			$join_url = self::join_link( $this->settings->register_page_url(), $requested, $this->settings->setup_page_url() );
 		} elseif ( get_option( 'users_can_register' ) ) {
 			$join_url = wp_registration_url();
 		}

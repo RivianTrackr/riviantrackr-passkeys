@@ -27,6 +27,9 @@ key once, then sign in with a single tap. Passwords keep working alongside.
   password reset and passkey setup screens redirected there, the emails WordPress sends around
   sign-in (password reset, welcome, email change) in the same branded template, and whatever is
   left on wp-login.php reskinned in the site's colours with your logo.
+- **Comment form sign-ups** — a "Join the conversation" card on the WordPress comment form asks
+  signed-out visitors to create an account or sign in, and brings them back to the comments
+  afterwards, through passkey setup for new members. See [Comment form](#comment-form).
 - **Hardened by default** — single-use challenges, strict exact-origin matching, signature-counter
   clone detection, per-IP and per-user rate limits, opaque 32-byte user handles, a 10-passkey cap
   per account.
@@ -308,6 +311,35 @@ Hooks: `riviantrackr_passkeys_invite_email` filters the `to/subject/message/head
 sending; `riviantrackr_passkeys_invite_sent` and `riviantrackr_passkeys_invite_login` actions fire
 after a send and after a magic-link sign-in.
 
+## Comment form
+
+On by default (**Settings → Passkeys → Pages → Invite commenters to sign in or join**). Works
+with any theme that prints its comment form with core's `comment_form()`.
+
+- **Anyone may comment:** signed-out visitors see a "Join the conversation" card at the top of the
+  form (`comment_form_top`) above the name and email fields.
+- **Comments need an account** (Settings → Discussion → "Users must be registered and logged in to
+  comment"): the card ("Sign in to comment") replaces core's "You must be logged in to post a
+  comment" line.
+- **Create a free account** links to the join page with `redirect_to` set to the post's
+  `#respond` anchor while open signup is on and a join page is set. With "Anyone can register" on
+  instead, it links to core registration (which cannot carry a return address). With neither, it
+  is left out and **Sign in** becomes the gold button.
+- **Sign in** is `wp_login_url()` with the same return address, so it reaches your sign-in page
+  when the login redirect is on.
+- Signed-in members see the plain form. The stylesheet (`rtpk-comments`) loads in the head of
+  singular posts with open comments, for signed-out visitors only.
+- Full-page caches are fine: cached copies are only served to signed-out visitors, who are the
+  ones meant to see the card.
+
+```php
+// Hide it on a post (or change the markup).
+add_filter( 'riviantrackr_passkeys_comment_prompt', fn( string $html, int $post_id, bool $required ) => 42 === $post_id ? '' : $html, 10, 3 );
+
+// Light colours for a light theme.
+add_filter( 'riviantrackr_passkeys_comment_prompt_theme', fn() => 'light' );
+```
+
 ## Open signup (verify-first)
 
 Turn it on under **Settings → Passkeys → Open signup** and put `[riviantrackr_signup]` on a page.
@@ -331,11 +363,19 @@ my passkey"                        ├ token unknown / expired / used → join p
                                    │  (or a friendly wp-login.php page while no join page is chosen)
                                    └ create user (role from settings, random password, username from
                                      the email's local part, de-duplicated), fire user_register,
-                                     delete the row, sign in, redirect to passkey setup → continue URL
+                                     delete the row, sign in, redirect to passkey setup → the page
+                                     the visitor joined from, else the continue URL
 ```
 
+- **Back to where they started.** When the join page is opened with `?redirect_to=` (the comment
+  form card does this, and so does "Create an account" on the sign-in page), the form sends it
+  along, the plugin keeps it on the pending row when it stays on this site, and passkey setup
+  continues there instead of the continue URL. The script reads it from the address bar, so a
+  cached copy of the join page cannot hand one visitor's return address to another. "Already a
+  member? Sign in" carries it too.
+
 - **Nothing is created until the click.** Unverified requests live only in
-  `wp_riviantrackr_pending_signups` (email, display name, hashed token, hashed IP, expiry) and are
+  `wp_riviantrackr_pending_signups` (email, display name, hashed token, hashed IP, return address, expiry) and are
   purged on every signup request and by a daily WP-Cron event (`riviantrackr_passkeys_purge_signups`,
   scheduled on activation, cleared on deactivation). Pending count is shown on the settings screen.
 - **New members have no password they know.** The account is created with a random 32-character
@@ -395,7 +435,7 @@ Namespace `riviantrackr-passkeys/v1`. Logged-in routes require the standard REST
 | POST | `/login/options` | public | 30/min per IP |
 | POST | `/login/verify` | public | 10/min per IP; `challengeId`, `credential`, `redirectTo`, `remember` |
 | GET | `/signup/token` | public | fresh `ts`/`sig` form token, `Cache-Control: no-store`; the form fetches it on load so cached join pages keep working |
-| POST | `/signup/request` | public | 5/hour per IP; `email`, `name`, `website` (honeypot), `ts`, `sig`, `turnstile`; `rtpk_signup_form` when sent too soon, `rtpk_signup_form_expired` when the token is forged or over 12 hours old |
+| POST | `/signup/request` | public | 5/hour per IP; `email`, `name`, `website` (honeypot), `ts`, `sig`, `turnstile`, `redirect_to` (kept when on this site); `rtpk_signup_form` when sent too soon, `rtpk_signup_form_expired` when the token is forged or over 12 hours old |
 | GET | `/credentials` | user | own list, or `?user_id=` with `edit_user` capability |
 | POST | `/credentials/{id}` | user | rename (own only) |
 | DELETE | `/credentials/{id}` | user | own, or `edit_user` capability |
@@ -424,6 +464,10 @@ add_filter( 'riviantrackr_passkeys_pre_login', fn( $allowed, WP_User $user, arra
 
 // Accept additional origins (normalised "scheme://host[:port]").
 add_filter( 'riviantrackr_passkeys_allowed_origins', fn( array $origins ) => $origins );
+
+// The comment form card (see "Comment form"): change or hide it, or switch it to light colours.
+add_filter( 'riviantrackr_passkeys_comment_prompt', fn( string $html, int $post_id, bool $required ) => $html, 10, 3 );
+add_filter( 'riviantrackr_passkeys_comment_prompt_theme', fn( string $theme, int $post_id ) => $theme, 10, 2 );
 
 // Deny a signup request (return false or WP_Error). Runs before anything is stored or sent.
 add_filter( 'riviantrackr_passkeys_signup_allowed', fn( $allowed, string $email, array $input ) => $allowed, 10, 3 );

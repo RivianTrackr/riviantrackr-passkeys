@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 use RivianTrackr\Passkeys\AccountService;
+use RivianTrackr\Passkeys\Installer;
 use RivianTrackr\Passkeys\SignupPage;
 use RivianTrackr\Passkeys\SignupService;
 
@@ -44,18 +45,24 @@ final class SignupFlowIntegrationTest extends IntegrationTestCase {
 		];
 	}
 
-	private function request_signup( string $email = 'new.member@example.org' ): string {
+	/**
+	 * @param array<string,string> $extra More request fields.
+	 */
+	private function request_signup( string $email = 'new.member@example.org', array $extra = [] ): string {
 		$token    = $this->aged_form_token();
 		$response = $this->rest(
 			'POST',
 			'signup/request',
-			[
-				'email'   => $email,
-				'name'    => 'New Member',
-				'website' => '',
-				'ts'      => (string) $token['ts'],
-				'sig'     => $token['sig'],
-			]
+			array_merge(
+				[
+					'email'   => $email,
+					'name'    => 'New Member',
+					'website' => '',
+					'ts'      => (string) $token['ts'],
+					'sig'     => $token['sig'],
+				],
+				$extra
+			)
 		);
 		$this->assertSame( 200, $response->get_status(), wp_json_encode( $response->get_data() ) );
 		$this->assertTrue( $response->get_data()['success'] );
@@ -122,6 +129,37 @@ final class SignupFlowIntegrationTest extends IntegrationTestCase {
 		wp_set_current_user( 0 );
 		$location = $this->expect_redirect( fn() => $this->landing->handle() );
 		$this->assertSame( add_query_arg( 'rtpk_signup', 'expired', get_permalink( $this->join_page ) ), $location );
+	}
+
+	public function test_a_member_who_joined_from_a_post_lands_back_on_it_after_setup(): void {
+		$post  = self::factory()->post->create();
+		$back  = get_permalink( $post ) . '#respond';
+		$token = $this->request_signup( 'new.member@example.org', [ 'redirect_to' => $back ] );
+
+		global $wpdb;
+		$stored = $wpdb->get_var( $wpdb->prepare( 'SELECT redirect_to FROM ' . Installer::pending_signups_table() . ' WHERE email = %s', 'new.member@example.org' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery
+		$this->assertSame( $back, $stored, 'kept on the pending row, not in the email' );
+		$this->assertStringNotContainsString( 'redirect_to', $this->last_mail()->body );
+
+		$_GET     = [
+			'action' => SignupService::ACTION,
+			'token'  => $token,
+		];
+		$_REQUEST = $_GET;
+		$location = $this->expect_redirect( fn() => $this->landing->handle() );
+
+		$this->assertSame( add_query_arg( 'redirect_to', rawurlencode( $back ), get_permalink( $this->setup_page ) ), $location, 'passkey setup first, then the post' );
+	}
+
+	public function test_an_off_site_return_address_is_ignored(): void {
+		$token    = $this->request_signup( 'new.member@example.org', [ 'redirect_to' => 'https://evil.example/' ] );
+		$_GET     = [
+			'action' => SignupService::ACTION,
+			'token'  => $token,
+		];
+		$_REQUEST = $_GET;
+		$location = $this->expect_redirect( fn() => $this->landing->handle() );
+		$this->assertStringNotContainsString( 'evil.example', $location );
 	}
 
 	public function test_a_bad_token_lands_on_the_join_page_with_the_expired_notice(): void {

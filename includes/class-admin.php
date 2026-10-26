@@ -303,6 +303,17 @@ final class Admin {
 						</div>
 						<div class="rtpk-field-row rtpk-field-row--toggle">
 							<div>
+								<span class="rtpk-field-label"><?php esc_html_e( 'Invite commenters to sign in or join', 'riviantrackr-passkeys' ); ?></span>
+								<p class="rtpk-field-description"><?php esc_html_e( 'Signed-out visitors see a “Join the conversation” card at the top of the comment form with Create a free account (while signups are allowed and a join page is set) and Sign in. When Settings → Discussion requires an account to comment, the card replaces “You must be logged in to post a comment”. Either way the visitor comes back to the post’s comment form afterwards, through passkey setup for new members.', 'riviantrackr-passkeys' ); ?></p>
+							</div>
+							<label class="rtpk-toggle">
+								<input type="checkbox" name="<?php echo esc_attr( $name ); ?>[comment_prompt]" value="1" <?php checked( ! empty( $o['comment_prompt'] ) ); ?>>
+								<span class="rtpk-toggle__track"><span class="rtpk-toggle__thumb"></span></span>
+								<span class="screen-reader-text"><?php esc_html_e( 'Show the sign-in card on comment forms', 'riviantrackr-passkeys' ); ?></span>
+							</label>
+						</div>
+						<div class="rtpk-field-row rtpk-field-row--toggle">
+							<div>
 								<span class="rtpk-field-label"><?php esc_html_e( 'Let members delete their own account', 'riviantrackr-passkeys' ); ?></span>
 								<p class="rtpk-field-description"><?php esc_html_e( 'The account page’s “Your data” tab removes the account immediately for members without editing rights (after they type their username). Off, or for editors and administrators, it files a standard erasure request under Tools → Erase Personal Data for you to approve instead. Data export requests always go to Tools → Export Personal Data.', 'riviantrackr-passkeys' ); ?></p>
 							</div>
