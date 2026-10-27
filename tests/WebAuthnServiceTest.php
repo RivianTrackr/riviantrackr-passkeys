@@ -188,6 +188,7 @@ final class WebAuthnServiceTest extends TestCase {
 		$result = $this->service->verify_login( $client_data, $auth_data, $signature, $pem, $built['challenge'], 0 );
 		$this->assertSame( 1, $result['sign_count'] );
 		$this->assertFalse( $result['backed_up'] );
+		$this->assertTrue( $result['user_verified'], 'the device confirmed the person' );
 
 		// A second login with a higher counter succeeds.
 		$built = $this->service->login_options();
@@ -249,6 +250,15 @@ final class WebAuthnServiceTest extends TestCase {
 		$this->expectException( WebAuthnException::class );
 		$this->expectExceptionCode( WebAuthnException::INVALID_RELYING_PARTY );
 		$this->service->verify_login( $client_data, $auth_data, $signature, $pem, $built['challenge'], 0 );
+	}
+
+	public function test_login_reports_a_tap_without_user_verification(): void {
+		[ $auth, $pem ] = $this->registered_authenticator();
+		$built          = $this->service->login_options();
+		[ $client_data, $auth_data, $signature ] = $auth->assert( $built['challenge'], self::ORIGIN, FakeAuthenticator::FLAG_UP );
+
+		$result = $this->service->verify_login( $client_data, $auth_data, $signature, $pem, $built['challenge'], 0 );
+		$this->assertFalse( $result['user_verified'], 'presence only, as from a security key without a PIN' );
 	}
 
 	public function test_login_requires_user_presence(): void {

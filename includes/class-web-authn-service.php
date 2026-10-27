@@ -131,9 +131,10 @@ final class WebAuthnService {
 	}
 
 	/**
-	 * Verify an assertion.
+	 * Verify an assertion. user_verified is the authenticator's UV flag: the
+	 * device confirmed the person (biometric or PIN), not just a tap.
 	 *
-	 * @return array{sign_count:int,backed_up:bool}
+	 * @return array{sign_count:int,backed_up:bool,user_verified:bool}
 	 * @throws WebAuthnException When the response fails verification.
 	 */
 	public function verify_login(
@@ -161,8 +162,9 @@ final class WebAuthnService {
 		$auth_data = new \lbuchs\WebAuthn\Attestation\AuthenticatorData( $authenticator_data );
 
 		return [
-			'sign_count' => (int) $auth_data->getSignCount(),
-			'backed_up'  => (bool) $auth_data->getIsBackup(),
+			'sign_count'    => (int) $auth_data->getSignCount(),
+			'backed_up'     => (bool) $auth_data->getIsBackup(),
+			'user_verified' => (bool) $auth_data->getUserVerified(),
 		];
 	}
 

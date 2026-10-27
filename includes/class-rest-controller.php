@@ -391,8 +391,8 @@ final class RestController {
 		wp_set_current_user( $user->ID );
 		wp_set_auth_cookie( $user->ID, $remember, is_ssl() );
 
-		/** This action is documented in wp-includes/user.php */
-		do_action( 'wp_login', $user->user_login, $user ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core hook.
+		// A passkey the device verified is already two factors: two-factor plugins' wp_login prompts are skipped.
+		SecondFactor::fire_wp_login( $user, (bool) ( $result['user_verified'] ?? false ), $row );
 
 		$this->store->touch( (int) $row['id'], (int) $result['sign_count'], (bool) $result['backed_up'] );
 

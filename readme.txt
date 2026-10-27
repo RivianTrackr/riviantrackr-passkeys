@@ -4,7 +4,7 @@ Tags: passkeys, webauthn, fido2, passwordless, login, security
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.1
-Stable tag: 1.8.3
+Stable tag: 1.8.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,10 +55,16 @@ Yes. The account page's "Your data" tab files a confirmed export request for you
 = Can the comment form ask visitors to sign up? =
 Yes, and it does by default. Signed-out visitors see a "Join the conversation" card at the top of the comment form with Create a free account (while signups are allowed and a join page is set) and Sign in. When Settings → Discussion requires an account to comment, the card replaces "You must be logged in to post a comment". Both buttons bring the visitor back to the post's comment form, new members by way of passkey setup. Turn it off under Settings → Passkeys → Pages.
 
+= Does it work with two-factor plugins? =
+Yes. A passkey sign-in where the device confirmed it was you (Face ID, Touch ID, Windows Hello or a security key PIN) already counts as two factors, so Really Simple Security's two-factor prompt is skipped for it. Password sign-ins still get the code prompt, and so does a passkey without that confirmation. Other two-factor plugins can be added with the riviantrackr_passkeys_two_factor_login_hooks filter.
+
 = Can passkeys work across subdomains? =
 Yes. Set the relying party ID to the parent domain and list each subdomain origin under "Additional allowed origins". Existing passkeys must be re-registered after changing the RP ID.
 
 == Changelog ==
+
+= 1.8.4 =
+* Staff accounts that use two-factor in Really Simple Security can now sign in with a passkey. A passkey where the device confirmed it was you counts as the second factor, so there is no code prompt after it. Password sign-ins still ask for the code.
 
 = 1.8.3 =
 * Fix: when another plugin stopped a passkey sign-in partway (a two-factor prompt from a security plugin, for example), the button sent the visitor on as if they were signed in and they landed on a signed-out page. It now says sign-in didn't finish and lets them try again.
