@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.2] - 2026-10-27
+
+### Fixed
+- **Emailed password reset links landed on the cached request form.** The link (`/password-reset/?key=…&login=…`) stores the key in a cookie and redirects to the bare page, so the key stays out of the address bar. The cookie was named `rtpk-resetpass-<hash>`, and Cloudflare APO only bypasses its cache for cookies starting with `wp-`, `wordpress`, `comment_` or `woocommerce_`. So the redirect was answered from the edge with the cached "Reset your password" form, and every reset link on riviantrackr.com looked broken. Confirmed against the live site: the bare page with the old cookie was a cache `HIT`, and the same request with a `wp-` cookie went to the origin (`DYNAMIC`). `PasswordResetPage::cookie_name()` is now `wp-rtpk-resetpass-<hash>`, like core's own `wp-resetpass-<hash>`. A reset link opened before the update needs to be opened again.
+
+### Tests
+- `PasswordResetPageTest`: the new cookie name, and that it starts with `wp-` so page caches step aside.
+
 ## [1.8.1] - 2026-10-26
 
 ### Fixed
