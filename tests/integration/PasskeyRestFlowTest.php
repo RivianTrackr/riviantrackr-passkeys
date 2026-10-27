@@ -113,6 +113,7 @@ final class PasskeyRestFlowTest extends IntegrationTestCase {
 		$this->assertSame( 200, $verify->get_status(), wp_json_encode( $verify->get_data() ) );
 		$this->assertSame( $this->user_id, get_current_user_id(), 'the member is signed in' );
 		$this->assertSame( home_url( '/news/' ), $verify->get_data()['redirect'] );
+		$this->assertTrue( $verify->get_data()['success'], 'the script only redirects on success: true' );
 
 		$row = $this->plugin()->credentials()->find_for_user( $this->user_id )[0];
 		$this->assertNotNull( $row['last_used_at'], 'last use is recorded' );

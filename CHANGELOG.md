@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.3] - 2026-10-27
+
+### Fixed
+- **A passkey sign-in stopped by another plugin looked like a success.** A member reported signing in with a passkey, seeing "Signing you in…" and landing on a signed-out account page, on every device. The cause on riviantrackr.com is Really Simple Security's two-factor login: its `wp_login` handler (`Rsssl_Two_Factor::rsssl_wp_login()`, 9.8.4) sees that the member's role has two-factor available but not set up, destroys the session, clears the auth cookie and redirects to `wp-login.php?action=rsssl_onboarding`. `login/verify` fires `wp_login`, so the REST call was redirected to that HTML page, `rtpkCore.request()` read the non-JSON 200 as `{}`, and `passkeys-login.js` redirected to `redirectTo` without a session. The script now redirects only when the answer carries `success: true` (which `login/verify` always sends) and otherwise shows the new `unfinished` message ("Your passkey was accepted, but sign-in didn't finish…") and re-enables the button. The site fix itself is a Really Simple Security setting (two-factor off for the Subscriber role), since a passkey with user verification is already two factors.
+
+### Tests
+- JS (`login.test.mjs`): an HTML answer from `login/verify` and a JSON answer without `success` both show the message and do not redirect (both fail on 1.8.2). The happy-path mock now sends `success: true`. `PasskeyRestFlowTest` asserts `login/verify` returns `success: true`.
+
 ## [1.8.2] - 2026-10-27
 
 ### Fixed

@@ -138,6 +138,15 @@
 				});
 			})
 			.then(function (result) {
+				// Only our own JSON says the member is signed in. Another plugin
+				// that steps in on wp_login (a two-factor prompt, say) can end the
+				// session and answer with a page of its own, which arrives here as
+				// an empty result. Say so rather than redirect to a signed-out page.
+				if (!result || result.success !== true) {
+					var unfinished = new Error(i18n.unfinished || i18n.genericError);
+					unfinished.code = 'rtpk_unfinished';
+					throw unfinished;
+				}
 				showMsg(msg, i18n.signingIn, 'success');
 				window.location.assign(result.redirect || cfg.redirectTo || '/');
 			})

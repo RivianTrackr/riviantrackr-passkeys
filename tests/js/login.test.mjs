@@ -19,7 +19,7 @@ function markup({ redirect = '' } = {}) {
 		</form>`;
 }
 
-const i18n = { working: 'Working…', signingIn: 'Signing you in…', security: 'Needs HTTPS', genericError: 'Oops', cancelled: 'Cancelled' };
+const i18n = { working: 'Working…', signingIn: 'Signing you in…', security: 'Needs HTTPS', genericError: 'Oops', cancelled: 'Cancelled', unfinished: 'Sign-in did not finish' };
 
 test('the passkey block moves to the top of the form and is revealed', () => {
 	const { document } = page(markup(), ['passkeys-login'], { globals: { rtpkLogin: { restUrl: REST, i18n } } });
@@ -49,7 +49,7 @@ test('clicking the button runs options → get → verify and follows the redire
 	let getRequest = null;
 	const fetch = mockFetch({
 		'POST login/options': { challengeId: 'ch-1', publicKey: { challenge: 'AQID', rpId: 'example.test', allowCredentials: [] } },
-		'POST login/verify': (body) => ({ redirect: 'https://example.test/account/?from=' + body.challengeId }),
+		'POST login/verify': (body) => ({ success: true, redirect: 'https://example.test/account/?from=' + body.challengeId }),
 	});
 	const ctx = page(markup({ redirect: 'https://example.test/news/' }), ['passkeys-login'], {
 		fetch,
@@ -114,4 +114,44 @@ test('conditional UI marks the username field for autofill and starts a silent r
 	assert.equal(getRequest.mediation, 'conditional');
 	assert.equal(document.querySelector('[data-rtpk-login-btn]').disabled, false, 'the button stays usable during autofill');
 	assert.equal(document.querySelector('[data-rtpk-login-msg]').hidden, true, 'nothing is shown for a silent request');
+});
+
+test('a verify answer that is not our JSON shows an error instead of redirecting', async () => {
+	// A two-factor plugin on wp_login ends the session and redirects the REST call to its own
+	// page; fetch follows it and the HTML comes back as a 200 that is not JSON.
+	const base = mockFetch({ 'POST login/options': { challengeId: 'ch-1', publicKey: { challenge: 'AQID', rpId: 'example.test', allowCredentials: [] } } });
+	const fetch = (url, init) => (String(url).endsWith('login/verify')
+		? Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve('<!doctype html><title>Two-factor setup</title>') })
+		: base(url, init));
+	const ctx = page(markup(), ['passkeys-login'], {
+		fetch,
+		globals: { rtpkLogin: { restUrl: REST, redirectTo: 'https://example.test/account/', i18n } },
+		get: () => Promise.resolve(fakeCredential(ctx.window)),
+	});
+	const { document, location } = ctx;
+	document.querySelector('[data-rtpk-login-btn]').click();
+	await flush();
+
+	assert.deepEqual(location.assigned, [], 'no redirect to a page that would show them signed out');
+	const msg = document.querySelector('[data-rtpk-login-msg]');
+	assert.equal(msg.textContent, 'Sign-in did not finish');
+	assert.match(msg.className, /is-error/);
+	assert.equal(document.querySelector('[data-rtpk-login-btn]').disabled, false, 'they can try again');
+});
+
+test('a JSON answer without success is not taken as a sign-in either', async () => {
+	const fetch = mockFetch({
+		'POST login/options': { challengeId: 'ch-1', publicKey: { challenge: 'AQID', rpId: 'example.test', allowCredentials: [] } },
+		'POST login/verify': { redirect: 'https://example.test/account/' },
+	});
+	const ctx = page(markup(), ['passkeys-login'], {
+		fetch,
+		globals: { rtpkLogin: { restUrl: REST, i18n } },
+		get: () => Promise.resolve(fakeCredential(ctx.window)),
+	});
+	ctx.document.querySelector('[data-rtpk-login-btn]').click();
+	await flush();
+
+	assert.deepEqual(ctx.location.assigned, []);
+	assert.equal(ctx.document.querySelector('[data-rtpk-login-msg]').textContent, 'Sign-in did not finish');
 });

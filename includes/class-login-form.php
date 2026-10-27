@@ -72,6 +72,7 @@ final class LoginForm {
 				'cancelled'     => __( 'Sign-in was cancelled or timed out.', 'riviantrackr-passkeys' ),
 				'security'      => __( 'Passkeys need a secure (HTTPS) connection.', 'riviantrackr-passkeys' ),
 				'genericError'  => __( 'Something went wrong. Please try again.', 'riviantrackr-passkeys' ),
+				'unfinished'    => __( 'Your passkey was accepted, but sign-in didn’t finish. Please try again, and contact us if it keeps happening.', 'riviantrackr-passkeys' ),
 				'noCredentials' => __( 'No passkey was found for this site on your device.', 'riviantrackr-passkeys' ),
 			],
 		];
