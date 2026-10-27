@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.4] - 2026-10-27
+
+### Added
+- **A verified passkey counts as the second factor.** Really Simple Security's two-factor `wp_login` handler (`RSSSL\Security\WordPress\Two_Fa\Rsssl_Two_Factor::rsssl_wp_login`) ends the session and asks for a code from anyone whose role has two-factor, including after a passkey, so staff roles that enforce it could not sign in with a passkey at all (1.8.3 at least said so). New `SecondFactor` class: `login/verify` fires `wp_login` through `SecondFactor::fire_wp_login()`, which removes the known two-factor handlers while `wp_login` runs and adds them back at the same priority right after (in a `finally`), only when the authenticator set the UV flag (biometric or PIN). Every other `wp_login` handler still runs, password sign-ins are untouched, and a passkey with user presence only still gets the prompt. `WebAuthnService::verify_login()` now returns `user_verified`. Filters: `riviantrackr_passkeys_passkey_is_second_factor` (`$is_second_factor, $user, $row`; return `false` to keep the prompt after passkeys too) and `riviantrackr_passkeys_two_factor_login_hooks` (the callbacks to step around, for other two-factor plugins).
+
+### Tests
+- `WebAuthnServiceTest`: `user_verified` is true with UV and false for a presence-only assertion. `SecondFactorTest`: the Really Simple Security callback is named with its namespace. `PasskeyRestFlowTest` (real WordPress): a verified passkey skips a stand-in two-factor handler while other `wp_login` handlers run and the handler is registered again afterwards, a presence-only passkey still runs it, the filter can keep it on, and a fixture class with Really Simple Security's exact namespace, class and registration is stepped around and restored. The two skip tests fail without the change.
+
 ## [1.8.3] - 2026-10-27
 
 ### Fixed

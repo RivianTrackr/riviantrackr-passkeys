@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 use RivianTrackr\Passkeys\Helpers;
+use RivianTrackr\Passkeys\SecondFactor;
 
 /**
  * The real REST routes, the real database, a software authenticator:
@@ -172,5 +173,109 @@ final class PasskeyRestFlowTest extends IntegrationTestCase {
 		wp_set_current_user( $this->user_id );
 		$this->assertSame( 200, $this->rest( 'DELETE', 'credentials/' . $id )->get_status() );
 		$this->assertSame( 0, $this->plugin()->credentials()->count_for_user( $this->user_id ) );
+	}
+
+	// ---- two-factor plugins ------------------------------------------------
+
+	/**
+	 * Sign in through the REST routes with the given authenticator flags.
+	 */
+	private function passkey_sign_in( int $flags ): WP_REST_Response {
+		$data      = $this->rest( 'POST', 'login/options' )->get_data();
+		$challenge = Helpers::base64url_decode( $data['publicKey']['challenge'] );
+		[ $client_data, $auth_data, $signature ] = $this->auth->assert( $challenge, $this->origin, $flags );
+		return $this->rest(
+			'POST',
+			'login/verify',
+			[
+				'challengeId' => $data['challengeId'],
+				'redirectTo'  => home_url( '/news/' ),
+				'credential'  => [
+					'id'       => Helpers::base64url_encode( $this->auth->credential_id ),
+					'rawId'    => Helpers::base64url_encode( $this->auth->credential_id ),
+					'type'     => 'public-key',
+					'response' => [
+						'clientDataJSON'    => Helpers::base64url_encode( $client_data ),
+						'authenticatorData' => Helpers::base64url_encode( $auth_data ),
+						'signature'         => Helpers::base64url_encode( $signature ),
+						'userHandle'        => null,
+					],
+				],
+			]
+		);
+	}
+
+	/**
+	 * Stand in for a two-factor plugin's wp_login handler (Really Simple
+	 * Security's ends the session and redirects). Returns the call log.
+	 */
+	private function two_factor_plugin(): ArrayObject {
+		$calls    = new ArrayObject();
+		$callback = static function ( $login ) use ( $calls ): void {
+			$calls[] = $login;
+		};
+		add_action( 'wp_login', $callback, 10, 2 );
+		add_filter( SecondFactor::HOOKS_FILTER, static fn( array $hooks ) => array_merge( $hooks, [ $callback ] ) );
+		$calls['callback'] = $callback;
+		return $calls;
+	}
+
+	public function test_a_verified_passkey_counts_as_the_second_factor(): void {
+		$this->register_passkey();
+		wp_set_current_user( 0 );
+		$two_factor = $this->two_factor_plugin();
+		$others     = 0;
+		add_action( 'wp_login', static function () use ( &$others ): void {
+			++$others;
+		}, 20 );
+
+		$verify = $this->passkey_sign_in( FakeAuthenticator::FLAG_UP | FakeAuthenticator::FLAG_UV );
+
+		$this->assertSame( 200, $verify->get_status(), wp_json_encode( $verify->get_data() ) );
+		$this->assertTrue( $verify->get_data()['success'] );
+		$this->assertSame( $this->user_id, get_current_user_id() );
+		$this->assertCount( 1, $two_factor, 'the two-factor prompt did not run (only the callback is stored)' );
+		$this->assertSame( 1, $others, 'every other wp_login handler still runs' );
+		$this->assertSame( 10, has_action( 'wp_login', $two_factor['callback'] ), 'and the two-factor handler is put back for the next password sign-in' );
+	}
+
+	public function test_a_passkey_without_user_verification_still_gets_the_two_factor_prompt(): void {
+		$this->register_passkey();
+		wp_set_current_user( 0 );
+		$two_factor = $this->two_factor_plugin();
+
+		$this->passkey_sign_in( FakeAuthenticator::FLAG_UP );
+
+		$this->assertSame( [ 'jose' ], array_values( array_filter( $two_factor->getArrayCopy(), 'is_string' ) ), 'a bare tap is one factor' );
+	}
+
+	public function test_the_owner_can_require_two_factor_after_passkeys_too(): void {
+		$this->register_passkey();
+		wp_set_current_user( 0 );
+		$two_factor = $this->two_factor_plugin();
+		add_filter( SecondFactor::FILTER, '__return_false' );
+
+		$this->passkey_sign_in( FakeAuthenticator::FLAG_UP | FakeAuthenticator::FLAG_UV );
+
+		$this->assertContains( 'jose', $two_factor->getArrayCopy() );
+		remove_filter( SecondFactor::FILTER, '__return_false' );
+	}
+
+	public function test_really_simple_security_is_stepped_around_and_restored(): void {
+		require_once __DIR__ . '/fixtures/rsssl-two-factor.php';
+		$rsssl = \RSSSL\Security\WordPress\Two_Fa\Rsssl_Two_Factor::class;
+		$rsssl::register();
+		$this->register_passkey();
+		wp_set_current_user( 0 );
+
+		$this->passkey_sign_in( FakeAuthenticator::FLAG_UP | FakeAuthenticator::FLAG_UV );
+		$this->assertSame( [], $rsssl::$seen, 'Face ID or Touch ID: no code prompt' );
+		$this->assertSame( 10, has_action( 'wp_login', [ $rsssl, 'rsssl_wp_login' ] ), 'registered again afterwards' );
+
+		wp_set_current_user( 0 );
+		$this->passkey_sign_in( FakeAuthenticator::FLAG_UP );
+		$this->assertSame( [ 'jose' ], $rsssl::$seen, 'a bare tap still gets the prompt' );
+
+		$rsssl::unregister();
 	}
 }

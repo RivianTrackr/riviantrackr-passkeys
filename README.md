@@ -488,6 +488,10 @@ do_action( 'riviantrackr_passkeys_password_changed', WP_User $user );
 // Add, remove or reorder account page tabs (see "Member account page").
 add_filter( 'riviantrackr_passkeys_account_tabs', fn( array $tabs, ?WP_User $user ) => $tabs, 10, 2 );
 
+// Two-factor plugins: a passkey the device verified (biometric or PIN) skips their wp_login prompt.
+add_filter( 'riviantrackr_passkeys_passkey_is_second_factor', fn( bool $skip, WP_User $user, array $row ) => $skip, 10, 3 ); // false: prompt after passkeys too
+add_filter( 'riviantrackr_passkeys_two_factor_login_hooks', fn( array $hooks ) => $hooks ); // add another plugin's wp_login callback
+
 // Keep WordPress's plain-text password reset / welcome / email-change emails.
 add_filter( 'riviantrackr_passkeys_brand_core_emails', '__return_false' );
 
