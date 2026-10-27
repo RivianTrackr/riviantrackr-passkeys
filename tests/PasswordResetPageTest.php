@@ -152,6 +152,11 @@ final class PasswordResetPageTest extends TestCase {
 	// ---- cookie ----------------------------------------------------------
 
 	public function test_cookie_name_is_scoped_to_the_site(): void {
-		$this->assertSame( 'rtpk-resetpass-' . COOKIEHASH, PasswordResetPage::cookie_name() );
+		$this->assertSame( 'wp-rtpk-resetpass-' . COOKIEHASH, PasswordResetPage::cookie_name() );
+	}
+
+	public function test_cookie_name_makes_full_page_caches_step_aside(): void {
+		// Cloudflare APO and most page-cache plugins bypass on cookies starting with "wp-".
+		$this->assertStringStartsWith( 'wp-', PasswordResetPage::cookie_name() );
 	}
 }

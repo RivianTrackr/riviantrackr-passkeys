@@ -301,9 +301,15 @@ final class PasswordResetPage {
 
 	/**
 	 * Cookie holding "login:key" between the emailed link and the form post.
+	 *
+	 * The "wp-" prefix matters: full-page caches (Cloudflare APO, WP Rocket
+	 * and the like) skip the cache for requests carrying a cookie that starts
+	 * with "wp-", as core's own wp-resetpass cookie does. Without it the
+	 * redirect from the emailed link lands on the cached "Reset your
+	 * password" form instead of "Choose a new password".
 	 */
 	public static function cookie_name(): string {
-		return 'rtpk-resetpass-' . COOKIEHASH;
+		return 'wp-rtpk-resetpass-' . COOKIEHASH;
 	}
 
 	/**
