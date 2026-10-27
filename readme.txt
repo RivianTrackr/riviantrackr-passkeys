@@ -4,7 +4,7 @@ Tags: passkeys, webauthn, fido2, passwordless, login, security
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.1
-Stable tag: 1.8.2
+Stable tag: 1.8.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -59,6 +59,9 @@ Yes, and it does by default. Signed-out visitors see a "Join the conversation" c
 Yes. Set the relying party ID to the parent domain and list each subdomain origin under "Additional allowed origins". Existing passkeys must be re-registered after changing the RP ID.
 
 == Changelog ==
+
+= 1.8.3 =
+* Fix: when another plugin stopped a passkey sign-in partway (a two-factor prompt from a security plugin, for example), the button sent the visitor on as if they were signed in and they landed on a signed-out page. It now says sign-in didn't finish and lets them try again.
 
 = 1.8.2 =
 * Fix: on sites behind a full-page cache (Cloudflare APO and the like), the emailed password reset link showed "Reset your password" again instead of "Choose a new password". The reset page now skips the cache once the link is opened.
