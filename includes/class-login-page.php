@@ -201,6 +201,7 @@ final class LoginPage {
 		ob_start();
 		?>
 		<div class="rtpk-login-page<?php echo $light ? ' is-light' : ''; ?>" data-rtpk-login-page>
+			<h1 class="rtpk-sr-only"><?php esc_html_e( 'Sign in', 'riviantrackr-passkeys' ); ?></h1>
 			<?php foreach ( $notices as $notice ) : ?>
 				<div class="rtpk-login-page__notice is-<?php echo esc_attr( $notice['type'] ); ?>" role="<?php echo 'error' === $notice['type'] ? 'alert' : 'status'; ?>">
 					<?php echo esc_html( $notice['text'] ); ?>
@@ -227,6 +228,7 @@ final class LoginPage {
 		ob_start();
 		?>
 		<div class="rtpk-login-page<?php echo $light ? ' is-light' : ''; ?> is-signed-in" data-rtpk-login-page>
+			<h1 class="rtpk-sr-only"><?php esc_html_e( 'Sign in', 'riviantrackr-passkeys' ); ?></h1>
 			<div class="rtpk-login-page__signed-in">
 				<p class="rtpk-login-page__signed-in-text">
 					<?php

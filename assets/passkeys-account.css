@@ -9,7 +9,7 @@
 	--rtpk-bg-input: #3a3e45;
 	--rtpk-text: #ece9e4;
 	--rtpk-text-secondary: #a6a39c;
-	--rtpk-text-muted: #79766f;
+	--rtpk-text-muted: #8f8c85;
 	--rtpk-heading: #f6f4f0;
 	--rtpk-border: #3a3e45;
 	--rtpk-border-hover: #4e525a;
@@ -1110,7 +1110,7 @@ a.rtpk-account__item-name:hover {
 	background: var(--rtpk-bg);
 	font-size: 12px;
 	font-weight: 500;
-	font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+	font-family: ui-monospace, 'SF Mono', Menlo, Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
 	color: var(--rtpk-text-secondary);
 }
 
@@ -1166,7 +1166,7 @@ a.rtpk-account__item-name:hover {
 }
 
 .rtpk-garage__wheel [data-rtpk-wheel-size-input] {
-	font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+	font-family: ui-monospace, 'SF Mono', Menlo, Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
 	text-transform: uppercase;
 }
 
@@ -1211,4 +1211,16 @@ a.rtpk-account__item-name:hover {
 	.rtpk-garage__nudge {
 		align-items: flex-start;
 	}
+}
+
+.rtpk-sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+	border: 0;
 }

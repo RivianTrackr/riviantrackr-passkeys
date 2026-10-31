@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.5] - 2026-10-31
+
+### Changed
+- **Muted text passes contrast.** `--rtpk-text-muted` and the invite email's muted color move from `#79766f` (3.9:1 on cards) to `#8f8c85` (at least 4.75:1 on every surface).
+- **Mono type on iOS.** The account page's mono rules now start with `ui-monospace` and include `Menlo`. iOS has none of the old named fonts and fell back to Courier New.
+- **Each page has one `h1`.** The sign-in and account pages get a visually hidden `h1`, and the signup form title moves from `h3` to `h1`.
+- **40px tap targets on the sign-in page.** Applies to the Remember Me label and the links under the form.
+
 ## [1.8.4] - 2026-10-27
 
 ### Added

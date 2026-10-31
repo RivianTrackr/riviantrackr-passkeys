@@ -4,7 +4,7 @@ Tags: passkeys, webauthn, fido2, passwordless, login, security
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.1
-Stable tag: 1.8.4
+Stable tag: 1.8.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -62,6 +62,9 @@ Yes. A passkey sign-in where the device confirmed it was you (Face ID, Touch ID,
 Yes. Set the relying party ID to the parent domain and list each subdomain origin under "Additional allowed origins". Existing passkeys must be re-registered after changing the RP ID.
 
 == Changelog ==
+
+= 1.8.5 =
+* Muted text passes contrast, sign-in, account and signup pages each have one h1, sign-in links reach 40px tap targets, and mono type works on iOS.
 
 = 1.8.4 =
 * Staff accounts that use two-factor in Really Simple Security can now sign in with a passkey. A passkey where the device confirmed it was you counts as the second factor, so there is no code prompt after it. Password sign-ins still ask for the code.

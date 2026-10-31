@@ -281,7 +281,7 @@ final class SignupPage {
 			<?php endif; ?>
 			<form class="rtpk-signup__form" data-rtpk-signup-form method="post" action="" novalidate>
 				<?php if ( '' !== $title ) : ?>
-					<h3 class="rtpk-signup__title"><?php echo esc_html( $title ); ?></h3>
+					<h1 class="rtpk-signup__title"><?php echo esc_html( $title ); ?></h1>
 				<?php endif; ?>
 				<?php if ( '' !== $desc ) : ?>
 					<p class="rtpk-signup__desc"><?php echo esc_html( $desc ); ?></p>

@@ -165,7 +165,7 @@ final class InviteService {
 			'heading'   => '#f6f4f0',
 			'text'      => '#ece9e4',
 			'secondary' => '#a6a39c',
-			'muted'     => '#79766f',
+			'muted'     => '#8f8c85',
 			'accent'    => '#fba919',
 			'on_accent' => '#15130e',
 			'link'      => '#fba919',
