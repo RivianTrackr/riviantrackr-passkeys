@@ -284,9 +284,11 @@ final class AccountPage {
 
 		$this->enqueue( $light );
 
+		$heading = '<h1 class="rtpk-sr-only">' . esc_html__( 'My account', 'riviantrackr-passkeys' ) . '</h1>';
+
 		if ( ! is_user_logged_in() ) {
 			$login = wp_login_url( get_permalink() ?: home_url( '/' ) );
-			return '<div class="rtpk-account' . ( $light ? ' is-light' : '' ) . ' is-signed-out"><div class="rtpk-account__signed-out">'
+			return $heading . '<div class="rtpk-account' . ( $light ? ' is-light' : '' ) . ' is-signed-out"><div class="rtpk-account__signed-out">'
 				. self::icon( 'user' )
 				. '<p>' . esc_html__( 'Sign in to see your account.', 'riviantrackr-passkeys' ) . '</p>'
 				. '<a class="rtpk-btn rtpk-btn--primary" href="' . esc_url( $login ) . '">' . esc_html__( 'Sign in', 'riviantrackr-passkeys' ) . '</a>'
@@ -294,7 +296,7 @@ final class AccountPage {
 				. '</div></div>';
 		}
 
-		return $this->render( wp_get_current_user(), $light );
+		return $heading . $this->render( wp_get_current_user(), $light );
 	}
 
 	/**
