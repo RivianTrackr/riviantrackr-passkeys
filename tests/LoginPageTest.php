@@ -115,4 +115,15 @@ final class LoginPageTest extends TestCase {
 		$this->assertSame( $join, LoginPage::join_link( $join, 'https://riviantrackr.test/wp-login.php?action=passkey-setup' ), 'signup ends at passkey setup anyway' );
 		$this->assertSame( $join, LoginPage::join_link( $join, 'https://riviantrackr.test/passkey/', 'https://riviantrackr.test/passkey/' ), 'the setup page too' );
 	}
+
+	public function test_only_the_sign_in_page_path_skips_the_edge_cache(): void {
+		$login = 'https://riviantrackr.test/login/';
+
+		$this->assertTrue( LoginPage::is_page_path( '/login/', $login ) );
+		$this->assertTrue( LoginPage::is_page_path( '/login', $login ) );
+		$this->assertFalse( LoginPage::is_page_path( '/login-tips/', $login ) );
+		$this->assertFalse( LoginPage::is_page_path( '/', $login ) );
+		$this->assertFalse( LoginPage::is_page_path( '/login/', '' ), 'no sign-in page chosen' );
+		$this->assertFalse( LoginPage::is_page_path( '/', 'https://riviantrackr.test/' ), 'never the homepage' );
+	}
 }

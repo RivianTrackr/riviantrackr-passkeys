@@ -4,7 +4,7 @@ Tags: passkeys, webauthn, fido2, passwordless, login, security
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.1
-Stable tag: 1.8.5
+Stable tag: 1.8.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -62,6 +62,9 @@ Yes. A passkey sign-in where the device confirmed it was you (Face ID, Touch ID,
 Yes. Set the relying party ID to the parent domain and list each subdomain origin under "Additional allowed origins". Existing passkeys must be re-registered after changing the RP ID.
 
 == Changelog ==
+
+= 1.8.6 =
+* Password sign-in on the custom sign-in page works again with Really Simple Security's login protection on, and the sign-in page is no longer cached by Cloudflare APO.
 
 = 1.8.5 =
 * Muted text passes contrast, sign-in, account and signup pages each have one h1, sign-in links reach 40px tap targets, and mono type works on iOS.
