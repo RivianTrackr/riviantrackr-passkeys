@@ -27,6 +27,44 @@ final class LoginPage {
 
 	public function register_hooks(): void {
 		add_shortcode( self::SHORTCODE, [ $this, 'shortcode' ] );
+		add_filter( 'login_form_middle', [ $this, 'rsssl_nonce_field' ], 20 );
+		add_filter( 'cloudflare_use_cache', [ $this, 'cloudflare_use_cache' ] );
+	}
+
+	/**
+	 * Really Simple Security rejects a wp-login.php POST that lacks its
+	 * nonce, and only adds that nonce to wp-login.php's own form (the
+	 * login_form action). wp_login_form() fires login_form_middle instead,
+	 * so the field is added here.
+	 *
+	 * @param string $html Markup other filters added.
+	 */
+	public function rsssl_nonce_field( $html ): string {
+		if ( ! class_exists( 'RSSSL\\Pro\\Security\\WordPress\\Rsssl_Event_Listener' ) ) {
+			return (string) $html;
+		}
+		return (string) $html . wp_nonce_field( 'rsssl_login_action', 'rsssl_login_nonce', false, false );
+	}
+
+	/**
+	 * Keep the sign-in page out of Cloudflare APO. A cached copy carries a
+	 * nonce that expires within a day, so sign-in fails once it goes stale.
+	 *
+	 * @param bool $use Whether APO may cache this response.
+	 */
+	public function cloudflare_use_cache( $use ): bool {
+		$path = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_parse_url( wp_unslash( (string) $_SERVER['REQUEST_URI'] ), PHP_URL_PATH ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Compared only.
+		return (bool) $use && ! self::is_page_path( $path, $this->settings->login_page_url() );
+	}
+
+	/**
+	 * Whether a request path is the given page's path. Never matches the
+	 * site root, so a misconfigured page can't take the homepage out of
+	 * the cache. Pure.
+	 */
+	public static function is_page_path( string $path, string $page_url ): bool {
+		$page_path = trim( (string) wp_parse_url( $page_url, PHP_URL_PATH ), '/' );
+		return '' !== $page_path && trim( $path, '/' ) === $page_path;
 	}
 
 	public function enqueue(): void {

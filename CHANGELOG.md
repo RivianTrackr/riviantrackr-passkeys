@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.6] - 2026-11-11
+
+### Fixed
+- **Password sign-in on the custom sign-in page works again.** Really Simple Security rejects a `wp-login.php` POST without its `rsssl_login_nonce`, and only adds that field to the stock form. The `[riviantrackr_login]` form now carries it too.
+- **The sign-in page stays out of Cloudflare APO.** A cached copy held a nonce that had expired, so it failed even with the field added.
+
 ## [1.8.5] - 2026-10-31
 
 ### Changed
