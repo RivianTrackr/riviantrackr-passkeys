@@ -50,11 +50,11 @@ final class LoginPage {
 	 * Keep the sign-in page out of Cloudflare APO. A cached copy carries a
 	 * nonce that expires within a day, so sign-in fails once it goes stale.
 	 *
-	 * @param bool $use Whether APO may cache this response.
+	 * @param bool $use_cache Whether APO may cache this response.
 	 */
-	public function cloudflare_use_cache( $use ): bool {
+	public function cloudflare_use_cache( $use_cache ): bool {
 		$path = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_parse_url( wp_unslash( (string) $_SERVER['REQUEST_URI'] ), PHP_URL_PATH ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Compared only.
-		return (bool) $use && ! self::is_page_path( $path, $this->settings->login_page_url() );
+		return (bool) $use_cache && ! self::is_page_path( $path, $this->settings->login_page_url() );
 	}
 
 	/**
