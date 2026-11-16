@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-11-16
+
+### Added
+- **Site light mode on the branded wp-login.php screens.** RivianTrackr's color modes now set `data-rt-theme` on wp-login.php too. In light mode the branded skin (`body.rtpk-branded`) uses the light palette on a paper background, the passkey setup and signup cards follow it, and gold used as text becomes brass. Dark mode and sites without the attribute are unchanged.
+
 ## [1.9.0] - 2026-11-16
 
 ### Added

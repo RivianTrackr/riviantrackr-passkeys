@@ -1,6 +1,6 @@
 {
   "name": "riviantrackr-passkeys",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "private": true,
   "description": "Passkey (WebAuthn) sign-in for WordPress — build tooling.",
   "scripts": {
