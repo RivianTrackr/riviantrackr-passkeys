@@ -305,6 +305,7 @@ final class SignupPage {
 
 				<?php if ( $turn ) : ?>
 					<div class="rtpk-signup__turnstile cf-turnstile" data-sitekey="<?php echo esc_attr( (string) $this->signup->get( 'turnstile_site_key' ) ); ?>" data-theme="<?php echo $light ? 'light' : 'dark'; ?>" data-size="flexible" data-rtpk-turnstile></div>
+					<script>(function(el,mode){if(el&&mode){el.setAttribute("data-theme",mode);}})(document.currentScript.previousElementSibling,document.documentElement.getAttribute("data-rt-theme"));</script>
 				<?php endif; ?>
 
 				<button type="submit" class="rtpk-btn rtpk-btn--primary rtpk-signup__submit" data-rtpk-signup-submit>
