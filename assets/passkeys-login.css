@@ -28,6 +28,15 @@
 	--rtpk-success: #4ade80;
 }
 
+/* Site light mode: RivianTrackr's color modes set data-rt-theme="light" on <html>. */
+html[data-rt-theme="light"] .rtpk-login.is-dark {
+	--rtpk-muted: #686b71;
+	--rtpk-line: #e3e0d9;
+	--rtpk-focus: #8a5800;
+	--rtpk-error: #c4281c;
+	--rtpk-success: #157f3c;
+}
+
 .rtpk-login-btn {
 	display: inline-flex;
 	width: 100%;

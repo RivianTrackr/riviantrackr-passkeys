@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-11-16
+
+### Added
+- **Site light mode.** When the site sets `data-rt-theme="light"` on `<html>` (RivianTrackr's color modes), the comment and garage prompts, the sign-in, join, reset and setup pages, the passkey manager and the account page switch to the light ink-and-brass palette. Without the attribute nothing changes. The existing `.is-light` variants are untouched.
+- **`--rtpk-accent-text` tokens** (and `--rtpk-cta-accent-text` in the prompts). Gold used as text goes through them, so light mode swaps it for brass (`#8a5800`) while buttons keep the gold fill.
+- **Turnstile follows the site mode** on the join form, so the widget is light on a light page.
+
 ## [1.8.6] - 2026-11-11
 
 ### Fixed

@@ -29,6 +29,23 @@
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 	box-sizing: border-box;
+	--rtpk-accent-text: var(--rtpk-accent);
+	--rtpk-accent-text-hover: var(--rtpk-accent-hover);
+}
+
+/* Site light mode: RivianTrackr's color modes set data-rt-theme="light" on <html>.
+   Gold stays the fill for buttons, and brass carries it wherever it is text. */
+html[data-rt-theme="light"] .rtpk-setup-page {
+	--rtpk-bg: #ffffff;
+	--rtpk-bg-deep: #eeece7;
+	--rtpk-text: #1a1c20;
+	--rtpk-text-secondary: #53565c;
+	--rtpk-text-muted: #686b71;
+	--rtpk-heading: #121316;
+	--rtpk-border: #e3e0d9;
+	--rtpk-success: #157f3c;
+	--rtpk-accent-text: #8a5800;
+	--rtpk-accent-text-hover: #6f4700;
 }
 
 .rtpk-setup-page.is-light {
@@ -183,7 +200,7 @@
 
 .rtpk-setup-page__skip a:hover,
 .rtpk-setup-page__skip a:focus-visible {
-	color: var(--rtpk-accent);
+	color: var(--rtpk-accent-text);
 }
 
 /* Signed-out state */

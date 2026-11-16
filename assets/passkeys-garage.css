@@ -26,6 +26,20 @@
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 	box-sizing: border-box;
+	--rtpk-cta-accent-text: var(--rtpk-cta-accent);
+	--rtpk-cta-accent-text-hover: var(--rtpk-cta-accent-hover);
+}
+
+/* Site light mode: RivianTrackr's color modes set data-rt-theme="light" on <html>.
+   Gold stays the fill for buttons, and brass carries it wherever it is text. */
+html[data-rt-theme="light"] .rtpk-garage-cta {
+	--rtpk-cta-bg: #ffffff;
+	--rtpk-cta-bg-deep: #eeece7;
+	--rtpk-cta-text: #1a1c20;
+	--rtpk-cta-text-secondary: #53565c;
+	--rtpk-cta-border: #e3e0d9;
+	--rtpk-cta-accent-text: #8a5800;
+	--rtpk-cta-accent-text-hover: #6f4700;
 }
 
 .rtpk-garage-cta.is-light {
@@ -50,7 +64,7 @@
 	flex-shrink: 0;
 	width: 36px;
 	height: 36px;
-	color: var(--rtpk-cta-accent);
+	color: var(--rtpk-cta-accent-text);
 }
 
 .rtpk-garage-cta__text {

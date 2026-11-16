@@ -36,6 +36,30 @@
 	-moz-osx-font-smoothing: grayscale;
 	box-sizing: border-box;
 	overflow: hidden;
+	--rtpk-accent-text: var(--rtpk-accent);
+	--rtpk-accent-text-hover: var(--rtpk-accent-hover);
+}
+
+/* Site light mode: RivianTrackr's color modes set data-rt-theme="light" on <html>.
+   Gold stays the fill for buttons, and brass carries it wherever it is text. */
+html[data-rt-theme="light"] .rtpk-account {
+	--rtpk-bg: #ffffff;
+	--rtpk-bg-deep: #eeece7;
+	--rtpk-bg-hover: #eeece7;
+	--rtpk-bg-input: #ffffff;
+	--rtpk-text: #1a1c20;
+	--rtpk-text-secondary: #53565c;
+	--rtpk-text-muted: #686b71;
+	--rtpk-heading: #121316;
+	--rtpk-border: #e3e0d9;
+	--rtpk-border-hover: #cdc9c1;
+	--rtpk-error: #c4281c;
+	--rtpk-success: #157f3c;
+	--rtpk-info: #1e5fb8;
+	--rtpk-placeholder: #686b71;
+	--rtpk-star-empty: #d9d5cd;
+	--rtpk-accent-text: #8a5800;
+	--rtpk-accent-text-hover: #6f4700;
 }
 
 .rtpk-account.is-light {
@@ -70,12 +94,12 @@
 }
 
 .rtpk-account a {
-	color: var(--rtpk-accent);
+	color: var(--rtpk-accent-text);
 	text-decoration: none;
 }
 
 .rtpk-account a:hover {
-	color: var(--rtpk-accent-hover);
+	color: var(--rtpk-accent-text-hover);
 }
 
 /* Header */
@@ -118,7 +142,7 @@
 	font-weight: 700;
 	letter-spacing: 0.6px;
 	text-transform: uppercase;
-	color: var(--rtpk-accent);
+	color: var(--rtpk-accent-text);
 }
 
 .rtpk-account__name {
@@ -179,7 +203,7 @@
 .rtpk-account__tab.is-active {
 	background: color-mix(in srgb, var(--rtpk-accent) 12%, var(--rtpk-bg-deep));
 	border-color: color-mix(in srgb, var(--rtpk-accent) 35%, transparent);
-	color: var(--rtpk-accent);
+	color: var(--rtpk-accent-text);
 }
 
 .rtpk-account__tab-icon {
@@ -334,7 +358,7 @@
 	height: 32px;
 	border-radius: 50%;
 	background: color-mix(in srgb, var(--rtpk-accent) 12%, var(--rtpk-bg-deep));
-	color: var(--rtpk-accent);
+	color: var(--rtpk-accent-text);
 }
 
 .rtpk-account__stat-icon svg {
@@ -695,7 +719,7 @@
 }
 
 a.rtpk-account__item-name:hover {
-	color: var(--rtpk-accent);
+	color: var(--rtpk-accent-text);
 }
 
 .rtpk-account__item-title {
@@ -739,7 +763,7 @@ a.rtpk-account__item-name:hover {
 	display: inline-flex;
 	gap: 2px;
 	margin-top: 4px;
-	color: var(--rtpk-accent);
+	color: var(--rtpk-accent-text);
 }
 
 .rtpk-star {
@@ -757,7 +781,7 @@ a.rtpk-account__item-name:hover {
 	padding: 2px 8px;
 	border-radius: var(--rtpk-radius-badge);
 	background: color-mix(in srgb, var(--rtpk-accent) 15%, var(--rtpk-bg-deep));
-	color: var(--rtpk-accent);
+	color: var(--rtpk-accent-text);
 	font-size: 11px;
 	font-weight: 700;
 	letter-spacing: 0.3px;
@@ -916,7 +940,7 @@ a.rtpk-account__item-name:hover {
 	padding: 0;
 	border: 0;
 	background: none;
-	color: var(--rtpk-accent);
+	color: var(--rtpk-accent-text);
 	font: inherit;
 	font-size: inherit;
 	text-decoration: underline;
@@ -925,7 +949,7 @@ a.rtpk-account__item-name:hover {
 }
 
 .rtpk-account__textbtn:hover {
-	color: var(--rtpk-accent-hover);
+	color: var(--rtpk-accent-text-hover);
 }
 
 .rtpk-account__textbtn:focus-visible {
@@ -1067,7 +1091,7 @@ a.rtpk-account__item-name:hover {
 	flex-shrink: 0;
 	width: 32px;
 	height: 32px;
-	color: var(--rtpk-accent);
+	color: var(--rtpk-accent-text);
 }
 
 .rtpk-garage__add {
