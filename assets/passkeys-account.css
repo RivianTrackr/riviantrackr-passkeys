@@ -138,11 +138,9 @@ html[data-rt-theme="light"] .rtpk-account {
 
 .rtpk-account__eyebrow {
 	margin: 0 0 2px;
-	font-size: 11px;
+	font-size: 12px;
 	font-weight: 700;
-	letter-spacing: 0.6px;
-	text-transform: uppercase;
-	color: var(--rtpk-accent-text);
+color: var(--rtpk-accent-text);
 }
 
 .rtpk-account__name {
@@ -378,9 +376,7 @@ html[data-rt-theme="light"] .rtpk-account {
 .rtpk-account__stat-label {
 	font-size: 12px;
 	font-weight: 600;
-	letter-spacing: 0.3px;
-	text-transform: uppercase;
-	color: var(--rtpk-text-muted);
+color: var(--rtpk-text-muted);
 }
 
 .rtpk-account__links {
@@ -782,11 +778,9 @@ a.rtpk-account__item-name:hover {
 	border-radius: var(--rtpk-radius-badge);
 	background: color-mix(in srgb, var(--rtpk-accent) 15%, var(--rtpk-bg-deep));
 	color: var(--rtpk-accent-text);
-	font-size: 11px;
+	font-size: 12px;
 	font-weight: 700;
-	letter-spacing: 0.3px;
-	text-transform: uppercase;
-	white-space: nowrap;
+white-space: nowrap;
 }
 
 .rtpk-badge--success {

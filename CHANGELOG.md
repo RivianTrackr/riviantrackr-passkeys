@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.2] - 2026-11-17
+
+### Changed
+- **Labels in sentence case.** The sign-in "or" divider, the account page eyebrow and stat labels, and the passkey badges no longer use uppercase with wide letter spacing. Anything under 12px moves to 12px. The wheel size input keeps uppercase, since it formats what members type.
+
 ## [1.9.1] - 2026-11-16
 
 ### Added
