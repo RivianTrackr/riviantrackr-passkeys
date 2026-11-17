@@ -324,11 +324,9 @@ html[data-rt-theme="light"] .rtpk-manager {
 	border-radius: var(--rtpk-radius-badge);
 	background: color-mix(in srgb, var(--rtpk-accent) 15%, var(--rtpk-bg-deep));
 	color: var(--rtpk-accent-text);
-	font-size: 11px;
+	font-size: 12px;
 	font-weight: 700;
-	letter-spacing: 0.3px;
-	text-transform: uppercase;
-	white-space: nowrap;
+white-space: nowrap;
 }
 
 .rtpk-badge--muted {
